@@ -73,20 +73,32 @@ async function fetchCatalogIDs() {
     return ids;
 }
 
+// ─── Normalize a raw catalog API item into a consistent object ────────────
+function normalizeCatalogItem(item) {
+    // The API sometimes uses 'name', 'itemName', or 'title' depending on endpoint version
+    const name     = item.name || item.itemName || item.title || item.displayName || null;
+    // lowestPrice is the actual buy price; fall back to price, then 0 for free items
+    const price    = item.lowestPrice ?? item.price ?? 0;
+    const isFree   = price === 0;
+    const isTix    = item.priceStatus === 'Tix' || item.currency === 2;
+    // creatorTargetId is the seller; for free/catalog items this must be accurate
+    // so we never default to 1 — use 0 if unknown (server will resolve it)
+    const sellerId = item.creatorTargetId || item.creatorId || item.sellerId || 0;
+    return { name, price, isFree, isTix, sellerId };
+}
+
 // ─── Render a single catalog item row ────────────────────────────────────
 function renderCatalogItem(item, index, listEl) {
-    const price  = item.lowestPrice ?? item.price ?? 0;
-    const isFree = price === 0;
-    const isTix  = item.priceStatus === 'Tix' || item.currency === 2;
-    const pc     = isTix ? '#eab308' : '#f97316';
-    const ac     = isTix ? '#854d0e' : '#7c2d12';
+    const { name, price, isFree, isTix, sellerId } = normalizeCatalogItem(item);
+    const pc = isTix ? '#eab308' : '#f97316';
+    const ac = isTix ? '#854d0e' : '#7c2d12';
 
     const buyData = {
         assetId:  String(item.id),
-        name:     item.name || 'Item #' + item.id,
+        name:     name || 'Item #' + item.id,
         price,
         currency: isTix ? 2 : 1,
-        sellerId: item.creatorTargetId || 1,
+        sellerId,
     };
 
     const li = document.createElement('li');
@@ -103,15 +115,15 @@ function renderCatalogItem(item, index, listEl) {
 
     const name = document.createElement('span');
     name.style.cssText = 'flex:1;font-size:11px;color:var(--c-text1);word-break:break-word;line-height:1.4;';
-    name.textContent = item.name || 'Item #' + item.id;
+    name.textContent = buyData.name;
 
     const priceEl = document.createElement('span');
     priceEl.style.cssText = 'color:' + pc + ';font-size:11px;font-weight:700;white-space:nowrap;font-family:"Fira Code",monospace;flex-shrink:0;';
     priceEl.textContent = isFree ? 'Free' : (isTix ? 'T$' : 'R$') + price.toLocaleString();
 
     const btn = document.createElement('button');
-    btn.textContent   = '🛒';
-    btn.title         = 'Buy ' + (item.name || 'item');
+    btn.textContent   = isFree ? '🎁' : '🛒';
+    btn.title         = (isFree ? 'Get free: ' : 'Buy ') + buyData.name;
     btn.style.cssText = 'padding:6px 10px;background:' + ac + ';color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;flex-shrink:0;font-weight:600;transition:opacity 0.12s,transform 0.1s;';
     btn.onmouseenter  = () => { btn.style.opacity = '0.8'; btn.style.transform = 'translateY(-1px)'; };
     btn.onmouseleave  = () => { btn.style.opacity = '1';   btn.style.transform = 'translateY(0)'; };
