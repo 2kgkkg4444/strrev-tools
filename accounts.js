@@ -4,6 +4,54 @@ function loadAccounts() {
     try { accounts = JSON.parse(GM_getValue('tmcb_accounts', '[]')); } catch (_) { accounts = []; }
 }
 
+// ─── Auto-Accept State ───────────────────────────────────────────────────
+let autoAcceptTimers = {}; // acctIdx → intervalId
+
+async function pollAndAcceptTrades(i) {
+    if (!accounts[i]) return;
+    try {
+        const r = await acctFetch(i, BASE + '/apisite/trades/v1/trades/inbound?limit=25&tradeStatusType=1');
+        if (!r.ok) return;
+        const j = await r.json();
+        const trades = j.data || j.trades || [];
+        for (const trade of trades) {
+            const tid = trade.id || trade.tradeId;
+            if (!tid) continue;
+            const ar = await acctFetch(i, BASE + '/apisite/trades/v1/trades/' + tid + '/accept', { method: 'POST', body: '{}' });
+            if (ar.ok) {
+                log('🤝 Auto-accepted trade #' + tid + ' for ' + accounts[i].username, 'success');
+            } else {
+                let msg = 'HTTP ' + ar.status;
+                try { const d = await ar.json(); msg = d.errors?.[0]?.message || d.message || msg; } catch(_) {}
+                log('⚠ Auto-accept trade #' + tid + ' failed (' + accounts[i].username + '): ' + msg, 'warn');
+            }
+        }
+    } catch(_) {}
+}
+
+function startAutoAccept(i) {
+    stopAutoAccept(i);
+    accounts[i].autoAcceptTrades = true;
+    saveAccounts();
+    pollAndAcceptTrades(i); // immediate first check
+    autoAcceptTimers[i] = setInterval(() => pollAndAcceptTrades(i), 15000);
+    log('🤝 Auto-accept trades ON for ' + accounts[i].username, 'success');
+}
+
+function stopAutoAccept(i) {
+    if (autoAcceptTimers[i]) { clearInterval(autoAcceptTimers[i]); delete autoAcceptTimers[i]; }
+    if (accounts[i]) { accounts[i].autoAcceptTrades = false; saveAccounts(); }
+}
+
+function toggleAutoAccept(i) {
+    if (accounts[i]?.autoAcceptTrades) stopAutoAccept(i);
+    else startAutoAccept(i);
+}
+
+function resumeAutoAccepts() {
+    accounts.forEach((a, i) => { if (a.autoAcceptTrades) startAutoAccept(i); });
+}
+
 // ─── Auth Helpers ─────────────────────────────────────────────────────────
 function parseName(d) {
     return d.name||d.username||d.userName||d.displayName||
@@ -154,7 +202,7 @@ async function fetchAcctPreview(i) {
     return preview;
 }
 
-function renderAcctCard(a, i, preview) {
+function renderAcctCard(a, i, preview, cardEl) {
     const card = document.createElement('div');
     card.style.cssText = 'background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:16px;margin-bottom:10px;transition:border-color 0.15s;';
     card.onmouseenter = () => card.style.borderColor = 'var(--c-border)';
@@ -203,9 +251,31 @@ function renderAcctCard(a, i, preview) {
     }
     nameBlock.append(nameRow, subRow);
 
-    // Buttons: refresh + remove
+    // Buttons row
     const btnWrap = document.createElement('div');
-    btnWrap.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+    btnWrap.style.cssText = 'display:flex;gap:6px;flex-shrink:0;align-items:center;';
+
+    // Auto-accept toggle
+    const aaOn = !!a.autoAcceptTrades;
+    const aaWrap = document.createElement('div');
+    aaWrap.title = 'Auto-accept incoming trades';
+    aaWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;';
+    const aaLabel = document.createElement('span');
+    aaLabel.style.cssText = 'font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:' + (aaOn ? '#22c55e' : 'var(--c-text5)') + ';white-space:nowrap;';
+    aaLabel.textContent = 'Auto Accept';
+    const aaTrack = document.createElement('div');
+    aaTrack.style.cssText = 'width:36px;height:20px;border-radius:99px;background:' + (aaOn ? '#22c55e' : 'var(--c-border)') + ';position:relative;transition:background 0.2s;flex-shrink:0;';
+    const aaThumb = document.createElement('div');
+    aaThumb.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:3px;left:' + (aaOn ? '19px' : '3px') + ';transition:left 0.18s;box-shadow:0 1px 3px rgba(0,0,0,0.4);';
+    aaTrack.appendChild(aaThumb);
+    aaWrap.append(aaLabel, aaTrack);
+    aaWrap.addEventListener('click', () => {
+        toggleAutoAccept(i);
+        const nowOn = !!accounts[i]?.autoAcceptTrades;
+        aaTrack.style.background = nowOn ? '#22c55e' : 'var(--c-border)';
+        aaThumb.style.left       = nowOn ? '19px' : '3px';
+        aaLabel.style.color      = nowOn ? '#22c55e' : 'var(--c-text5)';
+    });
 
     const refreshBtn = document.createElement('button');
     refreshBtn.textContent = '↻';
@@ -219,7 +289,7 @@ function renderAcctCard(a, i, preview) {
         const p = await fetchAcctPreview(i);
         refreshBtn.style.animation = '';
         refreshBtn.disabled = false;
-        const newCard = renderAcctCard(a, i, p);
+        const newCard = renderAcctCard(accounts[i], i, p, card);
         card.replaceWith(newCard);
     });
 
@@ -230,13 +300,14 @@ function renderAcctCard(a, i, preview) {
     rm.onmouseenter = () => { rm.style.background='rgba(239,68,68,0.1)'; rm.style.color='#ef4444'; rm.style.borderColor='rgba(239,68,68,0.3)'; };
     rm.onmouseleave = () => { rm.style.background='var(--c-bg2)'; rm.style.color='rgba(255,100,100,0.4)'; rm.style.borderColor='var(--c-border)'; };
     rm.addEventListener('click', () => {
+        stopAutoAccept(i);
         accounts.splice(i, 1);
         if (selectedAcctIdx >= accounts.length) selectedAcctIdx = -1;
         saveAccounts(); rebuildAcctSelector(); rebuildSettingsAcctList();
         log('Account removed', 'warn');
     });
 
-    btnWrap.append(refreshBtn, rm);
+    btnWrap.append(aaWrap, refreshBtn, rm);
     top.append(avatarWrap, nameBlock, btnWrap);
 
     // Stats row: robux, tix
@@ -269,6 +340,8 @@ function renderAcctCard(a, i, preview) {
     return card;
 }
 
+let _acctAutoRefreshTimer = null;
+
 function rebuildSettingsAcctList() {
     const el = document.getElementById('st-settings-acct-list'); if (!el) return;
     el.innerHTML = '';
@@ -277,14 +350,29 @@ function rebuildSettingsAcctList() {
         return;
     }
     accounts.forEach((a, i) => {
-        // Render card immediately with no preview data, then fetch async
         const card = renderAcctCard(a, i, null);
         el.appendChild(card);
         fetchAcctPreview(i).then(preview => {
-            const newCard = renderAcctCard(a, i, preview);
+            const newCard = renderAcctCard(accounts[i], i, preview);
             card.replaceWith(newCard);
         });
     });
+
+    // Auto-refresh previews every 60s while the accounts tab is visible
+    if (_acctAutoRefreshTimer) clearInterval(_acctAutoRefreshTimer);
+    _acctAutoRefreshTimer = setInterval(() => {
+        const listEl = document.getElementById('st-settings-acct-list');
+        if (!listEl) { clearInterval(_acctAutoRefreshTimer); return; }
+        accounts.forEach((a, i) => {
+            fetchAcctPreview(i).then(preview => {
+                const cards = listEl.children;
+                if (cards[i]) {
+                    const newCard = renderAcctCard(accounts[i], i, preview);
+                    cards[i].replaceWith(newCard);
+                }
+            });
+        });
+    }, 60000);
 }
 
 async function addAccountFlow() {
@@ -312,4 +400,5 @@ async function addAccountFlow() {
     if (document.getElementById('st-add-csrf'))   document.getElementById('st-add-csrf').value   = '';
     if (addBtn) { addBtn.disabled=false; addBtn.innerHTML='🔍 Fetch Username & Save'; }
     log('Account saved: '+result.name, 'success');
+    resumeAutoAccepts();
 }
