@@ -1,7 +1,7 @@
 // ─── Trade ────────────────────────────────────────────────────────────────
 
 // For lookups/inventory fetches we just need one valid identity.
-// When All Accounts (-2) is selected, use account[0] if available, else session (-1).
+// All Accounts (-2) → use account[0] if available, else session.
 function tradeLookupIdx() {
     if (selectedAcctIdx === -2) return accounts.length > 0 ? 0 : -1;
     return selectedAcctIdx;
@@ -18,14 +18,17 @@ async function fetchMyUserId() {
     } catch(_) { return null; }
 }
 
-async function fetchInventory(userId) {
-    const idx = tradeLookupIdx();
+async function fetchInventoryForIdx(idx, userId) {
     try {
         const r = idx >= 0
             ? await acctFetch(idx, BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles')
             : await sessFetch(BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles');
         const j = await r.json(); return j.data || [];
     } catch(_) { return []; }
+}
+
+async function fetchInventory(userId) {
+    return fetchInventoryForIdx(tradeLookupIdx(), userId);
 }
 
 async function lookupUser(input) {
@@ -151,13 +154,41 @@ async function loadTradeTarget() {
     if (btn) { btn.innerHTML='Load'; btn.disabled=false; }
 }
 
-// Send a trade offer from one specific account index (or session if idx === -1)
-async function sendTradeOfferFrom(idx, myId, payload) {
-    const label = idx === -1 ? 'session' : accounts[idx].username;
+// ─── Core: resolve userAssetIds for a given account ───────────────────────
+// mySelected contains userAssetIds from the *preview* account's inventory.
+// We map those back to assetIds, then find matching userAssetIds in this
+// account's own inventory. Items the account doesn't own are skipped.
+async function resolveMyAssetIds(acctIdx, acctUserId) {
+    // Build assetId set from selected userAssetIds using the loaded myInventory
+    const selectedAssetIds = new Set(
+        myInventory
+            .filter(item => mySelected.has(item.userAssetId))
+            .map(item => String(item.assetId))
+    );
+    if (!selectedAssetIds.size) return [];
+
+    // Fetch this account's own inventory and find matching userAssetIds
+    const inv = await fetchInventoryForIdx(acctIdx, acctUserId);
+    const resolved = [];
+    selectedAssetIds.forEach(assetId => {
+        const match = inv.find(item => String(item.assetId) === assetId);
+        if (match) resolved.push(match.userAssetId);
+        else log('⚠ '+accounts[acctIdx]?.username+' doesn\'t own assetId '+assetId+' — skipping', 'warn');
+    });
+    return resolved;
+}
+
+// ─── Send trade from one specific account ────────────────────────────────
+async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUserAssetIds) {
+    const label   = acctIdx === -1 ? 'session' : accounts[acctIdx].username;
+    const payload = JSON.stringify({ offers:[
+        { robux:null, userAssetIds:myUserAssetIds,   userId:acctUserId      },
+        { robux:null, userAssetIds:theirUserAssetIds, userId:tradeTargetId  },
+    ]});
     try {
         let res;
-        if (idx >= 0) {
-            res = await acctFetch(idx, BASE+'/apisite/trades/v1/trades/send', { method:'POST', body:payload });
+        if (acctIdx >= 0) {
+            res = await acctFetch(acctIdx, BASE+'/apisite/trades/v1/trades/send', { method:'POST', body:payload });
         } else {
             await fetchSessionCsrf();
             res = await sessFetch(BASE+'/apisite/trades/v1/trades/send', {
@@ -166,10 +197,7 @@ async function sendTradeOfferFrom(idx, myId, payload) {
                 body:payload,
             });
         }
-        if (res.ok) {
-            log('✓ Trade sent to '+tradeTargetName+' as '+label, 'success');
-            return true;
-        }
+        if (res.ok) { log('✓ Trade sent to '+tradeTargetName+' as '+label, 'success'); return true; }
         let msg = 'HTTP '+res.status;
         try { const d=await res.json(); msg=d.errors?.[0]?.message||d.errorMessage||msg; } catch(_){}
         log('✗ Trade failed ('+label+'): '+msg, 'err');
@@ -180,24 +208,18 @@ async function sendTradeOfferFrom(idx, myId, payload) {
     }
 }
 
+// ─── Main send dispatcher ─────────────────────────────────────────────────
 async function sendTradeOffer() {
-    const myId = await fetchMyUserId();
-    if (!myId || !tradeTargetId) return;
+    if (!tradeTargetId) return;
+    const theirUserAssetIds = Array.from(theirSelected); // same for all accounts
 
     const btn = document.getElementById('st-send-btn');
     if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Sending...'; btn.disabled=true; }
 
-    const myIds   = Array.from(mySelected);
-    const thIds   = Array.from(theirSelected);
-    const payload = JSON.stringify({ offers:[
-        { robux:null, userAssetIds:myIds, userId:myId },
-        { robux:null, userAssetIds:thIds, userId:tradeTargetId },
-    ]});
-
     let results = [];
 
     if (selectedAcctIdx === -2) {
-        // All Accounts — send from every saved account in parallel
+        // ── All Accounts ──────────────────────────────────────────────────
         if (!accounts.length) {
             log('No accounts saved — nothing to send', 'warn');
             setTradeStatus('✕ No accounts saved', '#ef4444');
@@ -206,43 +228,63 @@ async function sendTradeOffer() {
         }
         log('Sending trade to '+tradeTargetName+' from '+accounts.length+' account(s)...', 'info');
 
-        // Each account needs its own myId resolved
         const sends = accounts.map(async (acct, i) => {
-            // Resolve this account's own user ID for the offer
-            let acctMyId = acct.id;
-            if (!acctMyId) {
+            // 1. Ensure we have this account's user ID
+            let acctId = acct.id;
+            if (!acctId) {
                 try {
                     const r = await acctFetch(i, BASE+'/apisite/users/v1/users/authenticated');
-                    const j = await r.json(); acctMyId = j.id || null;
-                    if (acctMyId) { accounts[i].id = acctMyId; saveAccounts(); }
+                    const j = await r.json(); acctId = j.id || null;
+                    if (acctId) { accounts[i].id = acctId; saveAccounts(); }
                 } catch(_){}
             }
-            if (!acctMyId) { log('✗ Could not get ID for '+acct.username, 'err'); return false; }
+            if (!acctId) { log('✗ Could not get ID for '+acct.username+' — skipping', 'err'); return false; }
 
-            const p = JSON.stringify({ offers:[
-                { robux:null, userAssetIds:myIds, userId:acctMyId },
-                { robux:null, userAssetIds:thIds, userId:tradeTargetId },
-            ]});
-            return sendTradeOfferFrom(i, acctMyId, p);
+            // 2. Resolve this account's own userAssetIds for the selected item types
+            const myUAIds = await resolveMyAssetIds(i, acctId);
+            if (mySelected.size > 0 && !myUAIds.length) {
+                log('✗ '+acct.username+' owns none of the selected items — skipping', 'warn');
+                return false;
+            }
+
+            // 3. Send
+            return sendTradeOfferFrom(i, acctId, myUAIds, theirUserAssetIds);
         });
 
         results = await Promise.all(sends);
 
     } else if (selectedAcctIdx === -1) {
-        // Session only
+        // ── Session ───────────────────────────────────────────────────────
+        const myId = await fetchMyUserId();
+        if (!myId) { log('Could not get session user ID', 'err'); return; }
+        const myUAIds = Array.from(mySelected); // session inventory was loaded as-is
         log('Sending trade to '+tradeTargetName+' (session)...', 'info');
-        results = [await sendTradeOfferFrom(-1, myId, payload)];
+        results = [await sendTradeOfferFrom(-1, myId, myUAIds, theirUserAssetIds)];
+
     } else {
-        // Single specific account
-        log('Sending trade to '+tradeTargetName+' as '+accounts[selectedAcctIdx]?.username+'...', 'info');
-        results = [await sendTradeOfferFrom(selectedAcctIdx, myId, payload)];
+        // ── Single account ────────────────────────────────────────────────
+        const acct  = accounts[selectedAcctIdx];
+        let acctId  = acct?.id;
+        if (!acctId) {
+            try {
+                const r = await acctFetch(selectedAcctIdx, BASE+'/apisite/users/v1/users/authenticated');
+                const j = await r.json(); acctId = j.id || null;
+                if (acctId) { accounts[selectedAcctIdx].id = acctId; saveAccounts(); }
+            } catch(_){}
+        }
+        if (!acctId) { log('Could not get ID for '+acct?.username, 'err'); return; }
+
+        // Single account: inventory was already loaded from this account (tradeLookupIdx = selectedAcctIdx),
+        // so the userAssetIds in mySelected are already correct — no remapping needed.
+        const myUAIds = Array.from(mySelected);
+        log('Sending trade to '+tradeTargetName+' as '+acct.username+'...', 'info');
+        results = [await sendTradeOfferFrom(selectedAcctIdx, acctId, myUAIds, theirUserAssetIds)];
     }
 
     const anyOk = results.some(Boolean);
-    const allOk = results.every(Boolean);
+    const sent  = results.filter(Boolean).length;
 
     if (anyOk) {
-        const sent = results.filter(Boolean).length;
         setTradeStatus('✓ Trade sent from '+sent+'/'+results.length+' account(s) to '+tradeTargetName, '#22c55e');
         if (btn) {
             btn.innerHTML        = '✓ Trade Sent!';
@@ -250,12 +292,9 @@ async function sendTradeOffer() {
             btn.style.boxShadow  = '0 0 14px rgba(34,197,94,0.3)';
             setTimeout(() => {
                 if (btn) {
-                    btn.innerHTML        = '🔄 Send Trade Offer';
-                    btn.style.background = '';
-                    btn.style.boxShadow  = '';
-                    btn.disabled         = false;
-                    btn.style.opacity    = '1';
-                    btn.style.pointerEvents = 'auto';
+                    btn.innerHTML = '🔄 Send Trade Offer';
+                    btn.style.background = btn.style.boxShadow = '';
+                    btn.disabled = false; btn.style.opacity='1'; btn.style.pointerEvents='auto';
                 }
             }, 2500);
         }
@@ -265,11 +304,6 @@ async function sendTradeOffer() {
         updateTradeSummary();
     } else {
         setTradeStatus('✕ All trades failed — check the activity log', '#ef4444');
-        if (btn) {
-            btn.innerHTML = '🔄 Send Trade Offer';
-            btn.disabled  = false;
-            btn.style.opacity = '1';
-            btn.style.pointerEvents = 'auto';
-        }
+        if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
     }
 }
