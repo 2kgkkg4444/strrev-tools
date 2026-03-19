@@ -651,7 +651,8 @@ function injectStyles() {
 // ─── Sniper Pill ──────────────────────────────────────────────────────────
 function showSniperPill() {
     const p = document.getElementById('st-sniper-pill'); if (!p) return;
-    p.classList.add('visible');
+    const ov = document.getElementById('st-overlay');
+    if (!ov || !ov.classList.contains('open')) p.classList.add('visible');
 }
 function hideSniperPill() {
     const p = document.getElementById('st-sniper-pill'); if (!p) return;
@@ -961,6 +962,8 @@ function buildUI() {
     const openUI  = () => {
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
+        // Always hide pill while overlay is open
+        pill.classList.remove('visible');
         rebuildAcctSelector();
         if (THEMES[currentTheme]?.anim) startThemeAnim(currentTheme);
     };
@@ -968,6 +971,8 @@ function buildUI() {
     const closeUI = () => {
         overlay.classList.remove('open');
         document.body.style.overflow = '';
+        // Restore pill if sniper is still running
+        if (sniperActive) pill.classList.add('visible');
     };
 
     // Tab key toggle (skip when focus is in a text field)
