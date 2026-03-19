@@ -284,13 +284,14 @@ function applyTheme(key) {
 
 // ─── Section & Tab Switch ─────────────────────────────────────────────────
 function switchManage(section) {
-    ['sniper','catalog','trade','friends','daily'].forEach(s => {
+    ['sniper','catalog','accounts','people'].forEach(s => {
         document.getElementById('st-msec-'+s)?.classList.toggle('st-ctab-active', s===section);
         const c = document.getElementById('st-msec-content-'+s);
         if (c) c.style.display = s===section ? 'block' : 'none';
     });
     document.getElementById('st-tab-settings')?.classList.remove('st-ctab-active');
     if (section === 'catalog') renderCatalogList();
+    if (section === 'accounts') rebuildSettingsAcctList();
 }
 
 function switchTab(tab) {
@@ -304,8 +305,7 @@ function switchTab(tab) {
         if (manage)   manage.style.display   = 'none';
         if (settings) settings.style.display = 'flex';
         document.getElementById('st-tab-settings')?.classList.add('st-ctab-active');
-        ['sniper','catalog','trade','friends','daily'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
-        rebuildSettingsAcctList();
+        ['sniper','catalog','accounts','people'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
         rebuildThemeGrid();
     }
 }
@@ -636,9 +636,8 @@ function buildUI() {
             <div id="st-tabs-area">
                 <button class="st-ctab st-ctab-active" id="st-msec-sniper"><div class="st-ctab-accent"></div>🎯 Sniper</button>
                 <button class="st-ctab" id="st-msec-catalog"><div class="st-ctab-accent"></div>🛒 Catalog</button>
-                <button class="st-ctab" id="st-msec-trade"><div class="st-ctab-accent"></div>🔄 Trade</button>
-                <button class="st-ctab" id="st-msec-friends"><div class="st-ctab-accent"></div>👤 Friends</button>
-                <button class="st-ctab" id="st-msec-daily"><div class="st-ctab-accent"></div>🎁 Daily</button>
+                <button class="st-ctab" id="st-msec-accounts"><div class="st-ctab-accent"></div>👥 Accounts</button>
+                <button class="st-ctab" id="st-msec-people"><div class="st-ctab-accent"></div>🤝 People</button>
                 <div class="st-ctab-sep"></div>
                 <button class="st-ctab" id="st-tab-settings"><div class="st-ctab-accent"></div>⚙️ Settings</button>
             </div>
@@ -718,131 +717,133 @@ function buildUI() {
                         <ul id="st-cat-list"></ul>
                     </div>
 
-                    <!-- TRADE -->
-                    <div id="st-msec-content-trade" style="display:none;">
-                        <div style="margin-bottom:24px;">
-                            <div class="st-sec-title">Trade Sender</div>
-                            <div class="st-sec-sub">Send trade offers — All Accounts mode falls back to your current browser session for trade lookups</div>
-                        </div>
-                        <div style="display:flex;gap:9px;margin-bottom:13px;">
-                            <input id="st-trade-input" class="st-input" type="text" placeholder="Username or User ID…" style="flex:1;">
-                            <button id="st-load-btn" class="st-btn-primary" style="padding:12px 26px;">Load</button>
-                        </div>
-                        <div id="st-trade-status"></div>
-                        <div class="st-trade-grid">
-                            <div>
-                                <div class="st-inv-lbl"><div class="st-inv-dot" style="background:var(--c-accent);"></div>Your Offer</div>
-                                <div id="st-my-inv" class="st-inv-box"><div style="padding:14px;text-align:center;color:var(--c-text4);font-size:11px;">Load a user first</div></div>
-                            </div>
-                            <div>
-                                <div class="st-inv-lbl"><div class="st-inv-dot" style="background:#3b82f6;"></div>Their Offer</div>
-                                <div id="st-th-inv" class="st-inv-box"><div style="padding:14px;text-align:center;color:var(--c-text4);font-size:11px;">Load a user first</div></div>
-                            </div>
-                        </div>
-                        <div class="st-trade-hint">Click items to select them for the trade offer</div>
-                        <div id="st-trade-summary">
-                            <span style="color:var(--c-accent);font-weight:700;">You offer: <span id="st-my-count">0</span></span>
-                            <span style="color:var(--c-text3);margin:0 16px;">↔</span>
-                            <span style="color:#3b82f6;font-weight:700;">You request: <span id="st-th-count">0</span></span>
-                        </div>
-                        <button id="st-send-btn" disabled class="st-btn-primary" style="width:100%;padding:16px;opacity:0.4;pointer-events:none;">
-                            🔄 Send Trade Offer
-                        </button>
-                    </div>
-
-                    <!-- FRIENDS -->
-                    <div id="st-msec-content-friends" style="display:none;">
-                        <div class="st-sec-header">
-                            <div>
-                                <div class="st-sec-title">Friends & Messages</div>
-                                <div class="st-sec-sub">Send friend requests or private messages from the selected account(s)</div>
-                            </div>
-                        </div>
-
+                    <!-- ACCOUNTS -->
+                    <div id="st-msec-content-accounts" style="display:none;">
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
 
-                            <!-- Friend Request -->
-                            <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
-                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">👤 Friend Request</div>
-                                <div style="margin-bottom:10px;">
-                                    <div class="st-field-label">Username or User ID</div>
-                                    <input id="st-friend-input" class="st-input" type="text" placeholder="e.g. Builderman or 156">
+                            <!-- Left: account list + add -->
+                            <div style="display:flex;flex-direction:column;gap:14px;">
+                                <div class="st-sec-title">Accounts</div>
+                                <div id="st-settings-acct-list"></div>
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">➕ Add Account</div>
+                                    <div class="st-field">
+                                        <div class="st-field-label">.ROBLOSECURITY cookie</div>
+                                        <input id="st-add-cookie" class="st-set-input" type="password" placeholder="Paste cookie value here…">
+                                    </div>
+                                    <div class="st-field" style="margin-bottom:18px;">
+                                        <div class="st-field-label">CSRF Token <span style="color:var(--c-text4);">(auto-fetched if blank)</span></div>
+                                        <input id="st-add-csrf" class="st-set-input" type="text" placeholder="Leave blank to auto-fetch…">
+                                    </div>
+                                    <button id="st-add-btn" class="st-btn-primary" style="width:100%;padding:13px;">🔍 Fetch Username & Save</button>
+                                    <div id="st-add-status" style="margin-top:10px;font-size:11px;min-height:16px;text-align:center;color:var(--c-text2);"></div>
                                 </div>
-                                <button id="st-friend-btn" class="st-btn-primary" style="width:100%;padding:12px;">Send Friend Request</button>
-                                <div id="st-friend-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                             </div>
 
-                            <!-- Message -->
-                            <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
-                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">✉️ Send Message</div>
-                                <div style="margin-bottom:10px;">
-                                    <div class="st-field-label">Username or User ID</div>
-                                    <input id="st-msg-input" class="st-input" type="text" placeholder="e.g. Builderman or 156">
+                            <!-- Right: daily + promo -->
+                            <div style="display:flex;flex-direction:column;gap:14px;">
+                                <div class="st-sec-title">Daily & Promos</div>
+
+                                <!-- Daily chest -->
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🎁 Daily Chest</div>
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                                        <button id="st-daily-btn" class="st-btn-primary" style="padding:10px 20px;font-size:12px;">🎁 Claim Now</button>
+                                        <!-- Auto-claim toggle -->
+                                        <div id="st-daily-toggle" style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;">
+                                            <span id="st-daily-toggle-label" style="font-size:11px;font-weight:600;color:var(--c-text3);">Auto OFF</span>
+                                            <div id="st-daily-toggle-track" style="width:44px;height:24px;border-radius:99px;background:var(--c-border);position:relative;transition:background 0.2s;flex-shrink:0;">
+                                                <div id="st-daily-toggle-thumb" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="st-daily-countdown" style="font-size:11px;color:var(--c-text4);font-family:'Fira Code',monospace;min-height:16px;margin-bottom:8px;"></div>
+                                    <div id="st-daily-status" style="display:none;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);margin-bottom:8px;word-break:break-word;"></div>
+                                    <div id="st-daily-results"></div>
                                 </div>
-                                <div style="margin-bottom:10px;">
-                                    <div class="st-field-label">Subject</div>
-                                    <input id="st-msg-subject" class="st-input" type="text" placeholder="Message subject…">
+
+                                <!-- Promo code -->
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🎟️ Promo Code</div>
+                                    <div style="display:flex;gap:8px;margin-bottom:10px;">
+                                        <input id="st-promo-input" class="st-input" type="text" placeholder="Enter promo code…" style="flex:1;">
+                                        <button id="st-promo-btn" class="st-btn-primary" style="padding:10px 18px;font-size:12px;">Redeem</button>
+                                    </div>
+                                    <div id="st-promo-status" style="display:none;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                                 </div>
-                                <div style="margin-bottom:14px;">
-                                    <div class="st-field-label">Body</div>
-                                    <textarea id="st-msg-body" class="st-input" rows="4" placeholder="Write your message…" style="resize:vertical;min-height:80px;"></textarea>
-                                </div>
-                                <button id="st-msg-btn" class="st-btn-primary" style="width:100%;padding:12px;">✉️ Send Message</button>
-                                <div id="st-msg-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                             </div>
 
-                        </div>
-
-                        <div style="margin-top:16px;padding:14px 16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
-                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">How it works</div>
-                            <div>• <span style="color:var(--c-text2);">Session / single account</span> — sends once as that account</div>
-                            <div>• <span style="color:var(--c-text2);">All Accounts</span> — sends from every saved account sequentially</div>
                         </div>
                     </div>
 
-                    <!-- DAILY CHEST -->
-                    <div id="st-msec-content-daily" style="display:none;">
-                        <div class="st-sec-header">
-                            <div>
-                                <div class="st-sec-title">Daily Chest</div>
-                                <div class="st-sec-sub">Claim your daily reward — auto-claim checks the cooldown and claims the moment it expires</div>
-                            </div>
-                            <button id="st-daily-btn" class="st-btn-primary" style="padding:12px 24px;">🎁 Claim Now</button>
-                        </div>
+                    <!-- PEOPLE -->
+                    <div id="st-msec-content-people" style="display:none;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
 
-                        <!-- Auto-claim toggle card -->
-                        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;margin-bottom:16px;">
-                            <div>
-                                <div style="font-size:13px;font-weight:700;color:var(--c-text0);margin-bottom:3px;">Auto-Claim</div>
-                                <div id="st-daily-countdown" style="font-size:11px;color:var(--c-text4);font-family:'Fira Code',monospace;min-height:16px;"></div>
-                            </div>
-                            <!-- Toggle switch -->
-                            <div id="st-daily-toggle" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
-                                <span id="st-daily-toggle-label" style="font-size:12px;font-weight:600;color:var(--c-text3);">Auto-Claim OFF</span>
-                                <div id="st-daily-toggle-track" style="width:44px;height:24px;border-radius:99px;background:var(--c-border);position:relative;transition:background 0.2s;flex-shrink:0;">
-                                    <div id="st-daily-toggle-thumb" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>
+                            <!-- Left: Friends + Message -->
+                            <div style="display:flex;flex-direction:column;gap:14px;">
+                                <div class="st-sec-title">Friends & Messages</div>
+
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">👤 Friend Request</div>
+                                    <div style="margin-bottom:10px;">
+                                        <div class="st-field-label">Username or User ID</div>
+                                        <input id="st-friend-input" class="st-input" type="text" placeholder="e.g. Builderman or 156">
+                                    </div>
+                                    <button id="st-friend-btn" class="st-btn-primary" style="width:100%;padding:11px;">Send Friend Request</button>
+                                    <div id="st-friend-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
+                                </div>
+
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">✉️ Send Message</div>
+                                    <div style="margin-bottom:10px;">
+                                        <div class="st-field-label">Username or User ID</div>
+                                        <input id="st-msg-input" class="st-input" type="text" placeholder="e.g. Builderman or 156">
+                                    </div>
+                                    <div style="margin-bottom:10px;">
+                                        <div class="st-field-label">Subject</div>
+                                        <input id="st-msg-subject" class="st-input" type="text" placeholder="Message subject…">
+                                    </div>
+                                    <div style="margin-bottom:12px;">
+                                        <div class="st-field-label">Body</div>
+                                        <textarea id="st-msg-body" class="st-input" rows="3" placeholder="Write your message…" style="resize:vertical;min-height:70px;"></textarea>
+                                    </div>
+                                    <button id="st-msg-btn" class="st-btn-primary" style="width:100%;padding:11px;">✉️ Send Message</button>
+                                    <div id="st-msg-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div id="st-daily-status" style="display:none;padding:12px 16px;border-radius:11px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:12px;color:var(--c-text2);margin-bottom:16px;word-break:break-word;"></div>
-                        <div id="st-daily-results" style="margin-bottom:16px;"></div>
-
-                        <div style="padding:16px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
-                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">How it works</div>
-                            <div>• <span style="color:var(--c-text2);">Claim Now</span> — one-shot manual claim for selected account(s)</div>
-                            <div>• <span style="color:var(--c-text2);">Auto-Claim</span> — checks the API cooldown, waits exactly that long, then claims and repeats</div>
-                            <div>• Already-claimed accounts are skipped and shown in <span style="color:var(--c-warn);">yellow</span></div>
-                        </div>
-
-                        <!-- Promo Code -->
-                        <div style="margin-top:16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
-                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">🎟️ Promo Code</div>
-                            <div style="display:flex;gap:9px;margin-bottom:10px;">
-                                <input id="st-promo-input" class="st-input" type="text" placeholder="Enter promo code…" style="flex:1;">
-                                <button id="st-promo-btn" class="st-btn-primary" style="padding:12px 22px;">🎟️ Redeem</button>
+                            <!-- Right: Trade -->
+                            <div style="display:flex;flex-direction:column;gap:14px;">
+                                <div class="st-sec-title">Trade</div>
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;flex:1;">
+                                    <div style="display:flex;gap:8px;margin-bottom:12px;">
+                                        <input id="st-trade-input" class="st-input" type="text" placeholder="Username or User ID…" style="flex:1;">
+                                        <button id="st-load-btn" class="st-btn-primary" style="padding:11px 20px;">Load</button>
+                                    </div>
+                                    <div id="st-trade-status"></div>
+                                    <div class="st-trade-grid">
+                                        <div>
+                                            <div class="st-inv-lbl"><div class="st-inv-dot" style="background:var(--c-accent);"></div>Your Offer</div>
+                                            <div id="st-my-inv" class="st-inv-box"><div style="padding:12px;text-align:center;color:var(--c-text4);font-size:11px;">Load a user first</div></div>
+                                        </div>
+                                        <div>
+                                            <div class="st-inv-lbl"><div class="st-inv-dot" style="background:#3b82f6;"></div>Their Offer</div>
+                                            <div id="st-th-inv" class="st-inv-box"><div style="padding:12px;text-align:center;color:var(--c-text4);font-size:11px;">Load a user first</div></div>
+                                        </div>
+                                    </div>
+                                    <div class="st-trade-hint" style="margin-top:10px;">Click items to select them for the trade offer</div>
+                                    <div id="st-trade-summary">
+                                        <span style="color:var(--c-accent);font-weight:700;">You offer: <span id="st-my-count">0</span></span>
+                                        <span style="color:var(--c-text3);margin:0 14px;">↔</span>
+                                        <span style="color:#3b82f6;font-weight:700;">You request: <span id="st-th-count">0</span></span>
+                                    </div>
+                                    <button id="st-send-btn" disabled class="st-btn-primary" style="width:100%;padding:13px;margin-top:10px;opacity:0.4;pointer-events:none;">
+                                        🔄 Send Trade Offer
+                                    </button>
+                                </div>
                             </div>
-                            <div id="st-promo-status" style="display:none;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
+
                         </div>
                     </div>
 
@@ -860,29 +861,10 @@ function buildUI() {
                     </div>
 
                     <div class="st-set-section">
-                        <div class="st-set-title">Accounts</div>
-                        <div class="st-set-sub">Add and remove alt accounts. Stored locally via GM_setValue.</div>
-                        <div id="st-settings-acct-list" style="margin-bottom:16px;"></div>
-                        <div class="st-card">
-                            <div class="st-card-title">Add Account</div>
-                            <div class="st-field">
-                                <div class="st-field-label">.ROBLOSECURITY cookie</div>
-                                <input id="st-add-cookie" class="st-set-input" type="password" placeholder="Paste cookie value here…">
-                            </div>
-                            <div class="st-field" style="margin-bottom:20px;">
-                                <div class="st-field-label">CSRF Token <span style="color:var(--c-text4);">(auto-fetched if blank)</span></div>
-                                <input id="st-add-csrf" class="st-set-input" type="text" placeholder="Leave blank to auto-fetch…">
-                            </div>
-                            <button id="st-add-btn" class="st-btn-primary" style="width:100%;padding:14px;">🔍 Fetch Username & Save</button>
-                            <div id="st-add-status" style="margin-top:11px;font-size:11px;min-height:16px;text-align:center;color:var(--c-text2);"></div>
-                        </div>
-                    </div>
-
-                    <div class="st-set-section">
                         <div class="st-card" style="display:flex;align-items:center;justify-content:space-between;">
                             <div>
                                 <div style="color:var(--c-text1);font-size:14px;font-weight:600;margin-bottom:5px;">Strrev Tools v9.0</div>
-                                <div style="color:var(--c-text3);font-size:11px;line-height:1.8;">Multi-account catalog buyer, silent sniper &amp; trader</div>
+                                <div style="color:var(--c-text3);font-size:11px;line-height:1.8;">Multi-account catalog buyer, silent sniper, trader & more</div>
                                 <div style="color:var(--c-text4);font-size:10px;margin-top:4px;">
                                     Press <kbd style="background:var(--c-bg2);border:1px solid var(--c-border);border-radius:4px;padding:1px 7px;font-family:'Fira Code',monospace!important;font-size:10px;">Tab</kbd>
                                     anywhere to open / close
@@ -926,7 +908,7 @@ function buildUI() {
     });
     document.getElementById('st-close-btn').addEventListener('click', closeUI);
 
-    ['sniper','catalog','trade','friends','daily'].forEach(s => {
+    ['sniper','catalog','accounts','people'].forEach(s => {
         document.getElementById('st-msec-'+s).addEventListener('click', () => {
             const manage   = document.getElementById('st-tab-content-manage');
             const settings = document.getElementById('st-tab-content-settings');
