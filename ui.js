@@ -975,22 +975,21 @@ function init() {
     loadAccounts();
     injectStyles();
     buildUI();
-    rebuildAcctSelector();
-    updateMiniAcct();
 
-    const savedTheme = (() => { try { return GM_getValue('st_theme','void'); } catch(_){ return 'void'; } })();
-    if (savedTheme && THEMES[savedTheme]) applyTheme(savedTheme);
-
-    // Restore selected account — GM_getValue may return string or number so always parseInt
+    // Restore selected account BEFORE rebuildAcctSelector so the dropdown
+    // is built with the correct value already set in selectedAcctIdx
     const savedAcct = (() => { try { return parseInt(GM_getValue('st_acct_idx', '-1')); } catch(_){ return -1; } })();
     if (savedAcct === -1 || savedAcct === -2 || (savedAcct >= 0 && accounts[savedAcct])) {
         selectedAcctIdx = savedAcct;
     } else {
-        selectedAcctIdx = -1; // saved account no longer exists, fall back to session
+        selectedAcctIdx = -1;
     }
-    const sel = document.getElementById('st-acct-sel');
-    if (sel) sel.value = String(selectedAcctIdx);
+
+    rebuildAcctSelector();   // now reads the correct selectedAcctIdx
     updateMiniAcct();
+
+    const savedTheme = (() => { try { return GM_getValue('st_theme','void'); } catch(_){ return 'void'; } })();
+    if (savedTheme && THEMES[savedTheme]) applyTheme(savedTheme);
 
     // Restore auto-claim
     const savedAutoDaily = (() => { try { return GM_getValue('st_daily_auto', false); } catch(_){ return false; } })();
