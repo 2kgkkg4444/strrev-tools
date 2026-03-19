@@ -1409,6 +1409,7 @@ function init() {
     injectStyles();
     buildUI();
     loadSniperSettings();
+    resumeAutoAccepts();
 
     // Restore selected account BEFORE rebuildAcctSelector so the dropdown
     // is built with the correct value already set in selectedAcctIdx
