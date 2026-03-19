@@ -264,7 +264,7 @@ function startDispatch() {
     abortCtrl   = new AbortController();
     const signal = abortCtrl.signal;
     concurrency = 3; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
-    const delayMs = (sniperSettings.delayMs > 0 ? sniperSettings.delayMs : DISPATCH_MS);
+    const delayMs = (sniperSettings.delayMs > 0 ? sniperSettings.delayMs : 0);
     dispatchTimer = setInterval(() => {
         if (!sniperActive) { clearInterval(dispatchTimer); return; }
         if (inFlight < concurrency) dispatchOne(signal);
