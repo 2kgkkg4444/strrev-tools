@@ -1442,11 +1442,17 @@ function buildUI() {
                                     <div id="st-promo-status" style="display:none;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                                 </div>
 
-                                <!-- OBC Upgrade -->
+                                <!-- Membership Upgrade -->
                                 <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
                                     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:6px;">👑 Membership Upgrade</div>
-                                    <div style="font-size:10px;color:var(--c-text3);margin-bottom:14px;line-height:1.6;">Upgrade selected account(s) to Outrageous Builders Club</div>
-                                    <button id="st-obc-btn" class="st-btn-primary" style="width:100%;padding:11px;font-size:12px;">👑 Upgrade to OBC</button>
+                                    <div style="font-size:10px;color:var(--c-text3);margin-bottom:12px;line-height:1.6;">Set membership type for selected account(s)</div>
+                                    <select id="st-membership-type" style="width:100%;padding:10px 12px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:9px;color:var(--c-text1);font-size:12px;outline:none;margin-bottom:10px;cursor:pointer;">
+                                        <option value="OutrageousBuildersClub">👑 Outrageous Builders Club (OBC)</option>
+                                        <option value="TurboBuildersClub">⚡ Turbo Builders Club (TBC)</option>
+                                        <option value="BuildersClub">🔨 Builders Club (BC)</option>
+                                        <option value="None">🚫 None (Remove Membership)</option>
+                                    </select>
+                                    <button id="st-obc-btn" class="st-btn-primary" style="width:100%;padding:11px;font-size:12px;">👑 Set Membership</button>
                                     <div id="st-obc-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                                 </div>
                             </div>
