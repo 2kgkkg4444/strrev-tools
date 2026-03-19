@@ -284,7 +284,7 @@ function applyTheme(key) {
 
 // ─── Section & Tab Switch ─────────────────────────────────────────────────
 function switchManage(section) {
-    ['sniper','catalog','trade'].forEach(s => {
+    ['sniper','catalog','trade','friends'].forEach(s => {
         document.getElementById('st-msec-'+s)?.classList.toggle('st-ctab-active', s===section);
         const c = document.getElementById('st-msec-content-'+s);
         if (c) c.style.display = s===section ? 'block' : 'none';
@@ -304,7 +304,7 @@ function switchTab(tab) {
         if (manage)   manage.style.display   = 'none';
         if (settings) settings.style.display = 'flex';
         document.getElementById('st-tab-settings')?.classList.add('st-ctab-active');
-        ['sniper','catalog','trade'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
+        ['sniper','catalog','trade','friends'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
         rebuildSettingsAcctList();
         rebuildThemeGrid();
     }
@@ -637,6 +637,7 @@ function buildUI() {
                 <button class="st-ctab st-ctab-active" id="st-msec-sniper"><div class="st-ctab-accent"></div>🎯 Sniper</button>
                 <button class="st-ctab" id="st-msec-catalog"><div class="st-ctab-accent"></div>🛒 Catalog</button>
                 <button class="st-ctab" id="st-msec-trade"><div class="st-ctab-accent"></div>🔄 Trade</button>
+                <button class="st-ctab" id="st-msec-friends"><div class="st-ctab-accent"></div>👤 Friends</button>
                 <div class="st-ctab-sep"></div>
                 <button class="st-ctab" id="st-tab-settings"><div class="st-ctab-accent"></div>⚙️ Settings</button>
             </div>
@@ -748,6 +749,25 @@ function buildUI() {
                         </button>
                     </div>
 
+                    <!-- FRIENDS -->
+                    <div id="st-msec-content-friends" style="display:none;">
+                        <div style="margin-bottom:24px;">
+                            <div class="st-sec-title">Friend Requester</div>
+                            <div class="st-sec-sub">Send a friend request to any user from the selected account(s)</div>
+                        </div>
+                        <div style="display:flex;gap:9px;margin-bottom:13px;">
+                            <input id="st-friend-input" class="st-input" type="text" placeholder="Username or User ID…" style="flex:1;">
+                            <button id="st-friend-btn" class="st-btn-primary" style="padding:12px 26px;">👤 Send Friend Request</button>
+                        </div>
+                        <div id="st-friend-status" style="display:none;padding:11px 14px;border-radius:10px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);margin-bottom:13px;word-break:break-word;"></div>
+                        <div style="padding:16px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
+                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How it works</div>
+                            <div>• <span style="color:var(--c-text2);">Session / single account</span> — sends one request as that account</div>
+                            <div>• <span style="color:var(--c-text2);">All Accounts</span> — sends from every saved account sequentially</div>
+                            <div style="margin-top:8px;color:var(--c-text4);font-size:10px;">Already-friends or pending requests are counted separately and not treated as errors.</div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -828,7 +848,7 @@ function buildUI() {
     });
     document.getElementById('st-close-btn').addEventListener('click', closeUI);
 
-    ['sniper','catalog','trade'].forEach(s => {
+    ['sniper','catalog','trade','friends'].forEach(s => {
         document.getElementById('st-msec-'+s).addEventListener('click', () => {
             const manage   = document.getElementById('st-tab-content-manage');
             const settings = document.getElementById('st-tab-content-settings');
@@ -860,6 +880,9 @@ function buildUI() {
     document.getElementById('st-load-btn').addEventListener('click', loadTradeTarget);
     document.getElementById('st-trade-input').addEventListener('keydown', e => { if(e.key==='Enter') loadTradeTarget(); });
     document.getElementById('st-send-btn').addEventListener('click', sendTradeOffer);
+
+    document.getElementById('st-friend-btn').addEventListener('click', sendFriendRequests);
+    document.getElementById('st-friend-input').addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequests(); });
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
 }
 
