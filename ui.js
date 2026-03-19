@@ -824,12 +824,12 @@ function buildUI() {
 
                     <!-- ACCOUNTS -->
                     <div id="st-msec-content-accounts" style="display:none;">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                        <div style="display:grid;grid-template-columns:3fr 2fr;gap:20px;">
 
                             <!-- Left: account list + add -->
                             <div style="display:flex;flex-direction:column;gap:14px;">
                                 <div class="st-sec-title">Accounts</div>
-                                <div id="st-settings-acct-list"></div>
+                                <div id="st-settings-acct-list" style="max-height:440px;overflow-y:auto;padding-right:4px;"></div>
                                 <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
                                     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">➕ Add Account</div>
                                     <div class="st-field">
