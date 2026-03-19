@@ -1155,6 +1155,14 @@ function buildUI() {
                                     </div>
                                     <div id="st-promo-status" style="display:none;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                                 </div>
+
+                                <!-- OBC Upgrade -->
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:6px;">👑 Membership Upgrade</div>
+                                    <div style="font-size:10px;color:var(--c-text3);margin-bottom:14px;line-height:1.6;">Upgrade selected account(s) to Outrageous Builders Club</div>
+                                    <button id="st-obc-btn" class="st-btn-primary" style="width:100%;padding:11px;font-size:12px;">👑 Upgrade to OBC</button>
+                                    <div id="st-obc-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
+                                </div>
                             </div>
 
                         </div>
@@ -1365,6 +1373,7 @@ function buildUI() {
     document.getElementById('st-daily-toggle').addEventListener('click', toggleDailyAuto);
     document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
+    document.getElementById('st-obc-btn').addEventListener('click', upgradeToOBC);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
     wireSniperSettings();
 }
