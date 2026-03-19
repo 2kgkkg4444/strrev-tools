@@ -1,7 +1,5 @@
 // ─── Trade ────────────────────────────────────────────────────────────────
 
-// For lookups/inventory fetches we just need one valid identity.
-// All Accounts (-2) → use account[0] if available, else session.
 function tradeLookupIdx() {
     if (selectedAcctIdx === -2) return accounts.length > 0 ? 0 : -1;
     return selectedAcctIdx;
@@ -19,13 +17,11 @@ async function fetchMyUserId() {
 }
 
 // ─── Paginated inventory fetch ────────────────────────────────────────────
-// The API returns a cursor for the next page. We keep fetching until there
-// are no more pages so we never miss an item due to pagination.
 async function fetchInventoryAllPages(idx, userId) {
     const all = [];
     let cursor = '';
     let attempts = 0;
-    const MAX_PAGES = 40; // safety cap (~4000 items)
+    const MAX_PAGES = 40;
     do {
         const url = BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles'
             + '?limit=100' + (cursor ? '&cursor='+encodeURIComponent(cursor) : '');
@@ -40,10 +36,6 @@ async function fetchInventoryAllPages(idx, userId) {
         attempts++;
     } while (cursor && attempts < MAX_PAGES);
     return all;
-}
-
-async function fetchInventory(userId) {
-    return fetchInventoryAllPages(tradeLookupIdx(), userId);
 }
 
 async function lookupUser(input) {
@@ -142,6 +134,43 @@ function updateTradeSummary() {
     if (btn) { const ok=!!tradeTargetId&&(mc||tc); btn.disabled=!ok; btn.style.opacity=ok?'1':'0.4'; btn.style.pointerEvents=ok?'auto':'none'; }
 }
 
+// ─── Build intersection inventory ────────────────────────────────────────
+// Returns a synthetic inventory list where each entry represents an assetId
+// owned by ALL accounts. The userAssetId stored is from account[0] (used only
+// for display/selection — remapping happens at send time).
+async function buildIntersectionInventory() {
+    if (!accounts.length) return [];
+
+    setTradeStatus('Fetching inventories for all '+accounts.length+' accounts...', '#eab308');
+
+    // Fetch all accounts' inventories in parallel, resolving IDs first
+    const acctInventories = await Promise.all(accounts.map(async (acct, i) => {
+        let userId = acct.id;
+        if (!userId) {
+            try {
+                const r = await acctFetch(i, BASE+'/apisite/users/v1/users/authenticated');
+                const j = await r.json();
+                userId = j.id || null;
+                if (userId) { accounts[i].id = userId; saveAccounts(); }
+            } catch(_) {}
+        }
+        if (!userId) return [];
+        return fetchInventoryAllPages(i, userId);
+    }));
+
+    // Build a set of assetIds owned by EVERY account
+    // Start with all assetIds from account[0], then intersect with each other account
+    const sets = acctInventories.map(inv => new Set(inv.map(item => String(item.assetId))));
+    const intersection = [...sets[0]].filter(assetId => sets.every(s => s.has(assetId)));
+
+    if (!intersection.length) return [];
+
+    // For display, use account[0]'s item entries (name, RAP, userAssetId)
+    // userAssetId here is just for the selection UI — it gets remapped per-account at send time
+    const baseInv = acctInventories[0];
+    return baseInv.filter(item => intersection.includes(String(item.assetId)));
+}
+
 async function loadTradeTarget() {
     const input = document.getElementById('st-trade-input')?.value?.trim(); if (!input) return;
     const btn   = document.getElementById('st-load-btn');
@@ -153,15 +182,35 @@ async function loadTradeTarget() {
         const target = await lookupUser(input);
         tradeTargetId = target.id; tradeTargetName = target.name;
         mySelected.clear(); theirSelected.clear();
-        setTradeStatus('Loading inventories for '+target.name+'...', '#eab308');
         renderInvSkel('st-my-inv'); renderInvSkel('st-th-inv');
-        const [myInv, theirInv] = await Promise.all([fetchInventory(myId), fetchInventory(target.id)]);
-        myInventory = myInv; theirInventory = theirInv;
-        setTradeStatus('✓ '+target.name+' — '+myInv.length+' / '+theirInv.length+' items', '#22c55e');
+
+        let myInv;
+        if (selectedAcctIdx === -2) {
+            // All Accounts: show only items every account owns
+            myInv = await buildIntersectionInventory();
+            const theirInv = await fetchInventoryAllPages(tradeLookupIdx(), target.id);
+            theirInventory = theirInv;
+            setTradeStatus(
+                '✓ '+target.name+' — '+myInv.length+' shared items / '+theirInv.length+' their items'
+                + (myInv.length === 0 ? ' (no items shared across all accounts)' : ''),
+                myInv.length > 0 ? '#22c55e' : '#eab308'
+            );
+        } else {
+            // Single account or session: normal fetch
+            const [inv, theirInv] = await Promise.all([
+                fetchInventoryAllPages(tradeLookupIdx(), myId),
+                fetchInventoryAllPages(tradeLookupIdx(), target.id),
+            ]);
+            myInv = inv;
+            theirInventory = theirInv;
+            setTradeStatus('✓ '+target.name+' — '+myInv.length+' / '+theirInv.length+' items', '#22c55e');
+        }
+
+        myInventory = myInv;
         renderInvList('st-my-inv', myInventory, mySelected);
         renderInvList('st-th-inv', theirInventory, theirSelected);
         updateTradeSummary();
-        log('Trade loaded: you vs '+target.name, 'success');
+        log('Trade loaded: you vs '+target.name+(selectedAcctIdx===-2?' (intersection of '+accounts.length+' accounts)':''), 'success');
     } catch(e) {
         setTradeStatus('✕ '+e.message, '#ef4444');
         log('Trade error: '+e.message, 'err');
@@ -170,11 +219,7 @@ async function loadTradeTarget() {
 }
 
 // ─── Resolve correct userAssetIds for a specific account ─────────────────
-// mySelected has userAssetIds from the preview account's inventory.
-// We convert those to assetIds, fetch THIS account's full inventory,
-// then return THIS account's userAssetIds for those same assetIds.
 async function resolveUserAssetIds(acctIdx, acctUserId) {
-    // Build a map: assetId → userAssetId from the preview inventory (myInventory)
     const selectedAssetIds = new Set(
         myInventory
             .filter(item => mySelected.has(item.userAssetId))
@@ -182,16 +227,10 @@ async function resolveUserAssetIds(acctIdx, acctUserId) {
     );
     if (!selectedAssetIds.size) return [];
 
-    log('Fetching full inventory for '+accounts[acctIdx]?.username+' ('+selectedAssetIds.size+' items to match)...', 'info');
-
-    // Fetch ALL pages of this account's inventory
     const inv = await fetchInventoryAllPages(acctIdx, acctUserId);
-
-    // Build a map assetId → userAssetId for quick lookup
     const assetToUAID = {};
     inv.forEach(item => {
         const aid = String(item.assetId);
-        // Keep first match (they should only own one copy, but just in case)
         if (!assetToUAID[aid]) assetToUAID[aid] = item.userAssetId;
     });
 
@@ -200,7 +239,7 @@ async function resolveUserAssetIds(acctIdx, acctUserId) {
         if (assetToUAID[assetId]) {
             resolved.push(assetToUAID[assetId]);
         } else {
-            log('⚠ '+accounts[acctIdx]?.username+' doesn\'t own assetId '+assetId+' — skipping item', 'warn');
+            log('⚠ '+accounts[acctIdx]?.username+' doesn\'t own assetId '+assetId+' — skipping', 'warn');
         }
     });
     return resolved;
@@ -210,8 +249,8 @@ async function resolveUserAssetIds(acctIdx, acctUserId) {
 async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUserAssetIds) {
     const label   = acctIdx === -1 ? 'session' : accounts[acctIdx].username;
     const payload = JSON.stringify({ offers:[
-        { robux:null, userAssetIds:myUserAssetIds,    userId:acctUserId     },
-        { robux:null, userAssetIds:theirUserAssetIds, userId:tradeTargetId  },
+        { robux:null, userAssetIds:myUserAssetIds,    userId:acctUserId    },
+        { robux:null, userAssetIds:theirUserAssetIds, userId:tradeTargetId },
     ]});
     try {
         let res;
@@ -236,7 +275,6 @@ async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUser
     }
 }
 
-// ─── Get or fetch an account's user ID ───────────────────────────────────
 async function resolveAcctUserId(i) {
     if (accounts[i]?.id) return accounts[i].id;
     try {
@@ -250,7 +288,7 @@ async function resolveAcctUserId(i) {
 // ─── Main send dispatcher ─────────────────────────────────────────────────
 async function sendTradeOffer() {
     if (!tradeTargetId) return;
-    const theirUserAssetIds = Array.from(theirSelected); // target's IDs are fixed for all senders
+    const theirUserAssetIds = Array.from(theirSelected);
 
     const btn = document.getElementById('st-send-btn');
     if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Sending...'; btn.disabled=true; }
@@ -258,55 +296,39 @@ async function sendTradeOffer() {
     let results = [];
 
     if (selectedAcctIdx === -2) {
-        // ── All Accounts ──────────────────────────────────────────────────
         if (!accounts.length) {
             log('No accounts saved — nothing to send', 'warn');
             setTradeStatus('✕ No accounts saved', '#ef4444');
             if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
             return;
         }
-        log('Preparing trade for '+accounts.length+' account(s) → '+tradeTargetName+'...', 'info');
+        log('Sending trade to '+tradeTargetName+' from '+accounts.length+' account(s)...', 'info');
 
-        // Process accounts sequentially to avoid hammering the inventory API
-        results = [];
+        // Sequential to avoid hammering the inventory API
         for (let i = 0; i < accounts.length; i++) {
             const acctId = await resolveAcctUserId(i);
             if (!acctId) { log('✗ Could not get ID for '+accounts[i].username+' — skipping', 'err'); results.push(false); continue; }
 
-            // Resolve this account's own userAssetIds for the selected item types
-            let myUAIds;
-            if (i === tradeLookupIdx() && selectedAcctIdx !== -2) {
-                // Preview account — IDs are already correct
-                myUAIds = Array.from(mySelected);
-            } else {
-                myUAIds = await resolveUserAssetIds(i, acctId);
-            }
-
+            // Remap selected items to this account's own userAssetIds
+            const myUAIds = await resolveUserAssetIds(i, acctId);
             if (mySelected.size > 0 && myUAIds.length === 0) {
                 log('⚠ '+accounts[i].username+' owns none of the selected items — skipping', 'warn');
-                results.push(false);
-                continue;
+                results.push(false); continue;
             }
-
             results.push(await sendTradeOfferFrom(i, acctId, myUAIds, theirUserAssetIds));
         }
 
     } else if (selectedAcctIdx === -1) {
-        // ── Session ───────────────────────────────────────────────────────
         const myId = await fetchMyUserId();
         if (!myId) { log('Could not get session user ID', 'err'); return; }
-        const myUAIds = Array.from(mySelected);
         log('Sending trade to '+tradeTargetName+' (session)...', 'info');
-        results = [await sendTradeOfferFrom(-1, myId, myUAIds, theirUserAssetIds)];
+        results = [await sendTradeOfferFrom(-1, myId, Array.from(mySelected), theirUserAssetIds)];
 
     } else {
-        // ── Single account ────────────────────────────────────────────────
         const acctId = await resolveAcctUserId(selectedAcctIdx);
         if (!acctId) { log('Could not get ID for '+accounts[selectedAcctIdx]?.username, 'err'); return; }
-        // tradeLookupIdx() === selectedAcctIdx here, so myInventory was loaded from this account
-        const myUAIds = Array.from(mySelected);
         log('Sending trade to '+tradeTargetName+' as '+accounts[selectedAcctIdx].username+'...', 'info');
-        results = [await sendTradeOfferFrom(selectedAcctIdx, acctId, myUAIds, theirUserAssetIds)];
+        results = [await sendTradeOfferFrom(selectedAcctIdx, acctId, Array.from(mySelected), theirUserAssetIds)];
     }
 
     const anyOk = results.some(Boolean);
