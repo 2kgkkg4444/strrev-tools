@@ -25,39 +25,128 @@ function schedDomUpdate() {
     });
 }
 
-async function onSniperHit(item) {
-    log('🎯 SNIPED: '+(item.name||'ID '+item.id), 'success');
-    setSniperStatus('🎯 Item sniped! Buying...', 'hot');
+// ─── Resolve full item details before buying ──────────────────────────────
+async function resolveItemDetailsForBuy(rawItem) {
+    try {
+        const r = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: [{ itemType: 'Asset', id: parseInt(rawItem.id) }] }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        const d = j.data?.[0];
+        if (!d) throw new Error('No data');
+        return {
+            id:       rawItem.id,
+            assetId:  String(d.id || rawItem.id),
+            name:     d.name || rawItem.name,
+            price:    d.lowestPrice ?? d.price ?? rawItem.price ?? 0,
+            currency: 1,
+            sellerId: d.creatorTargetId || d.sellerId || null,
+        };
+    } catch(e) {
+        log('⚠ Could not resolve item details: ' + e.message + ' — using raw data', 'warn');
+        return rawItem;
+    }
+}
+
+// ─── Browser notification ─────────────────────────────────────────────────
+function fireSnipeNotification(item) {
+    try {
+        const doNotif = () => {
+            new Notification('🎯 Item Sniped!', {
+                body: item.name + (item.price > 0 ? '  ·  R$' + item.price : '  ·  FREE'),
+                icon: 'https://www.strrev.com/favicon.ico',
+                badge: 'https://www.strrev.com/favicon.ico',
+                requireInteraction: false,
+                silent: true,
+            });
+        };
+        if (Notification.permission === 'granted') {
+            doNotif();
+        } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(p => { if (p === 'granted') doNotif(); });
+        }
+    } catch(_) {}
+}
+
+// ─── Alert sound ──────────────────────────────────────────────────────────
+function fireSnipeSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Rising triumphant chord sting
+        const notes = [
+            { freq: 523.25, start: 0,    dur: 0.18, vol: 0.30 },  // C5
+            { freq: 659.25, start: 0.05, dur: 0.18, vol: 0.28 },  // E5
+            { freq: 783.99, start: 0.10, dur: 0.22, vol: 0.28 },  // G5
+            { freq: 1046.5, start: 0.15, dur: 0.38, vol: 0.35 },  // C6 — top note
+        ];
+        notes.forEach(({ freq, start, dur, vol }) => {
+            const osc = ctx.createOscillator();
+            const g   = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination);
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            g.gain.setValueAtTime(0, ctx.currentTime + start);
+            g.gain.linearRampToValueAtTime(vol, ctx.currentTime + start + 0.012);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + dur + 0.05);
+        });
+    } catch(_) {}
+}
+
+async function onSniperHit(rawItem) {
+    log('🎯 SNIPED: ' + (rawItem.name || 'ID ' + rawItem.id), 'success');
+    setSniperStatus('🎯 Item sniped! Resolving details...', 'hot');
     updateSniperBtn(false);
 
-    // Alert sound
-    try {
-        const ctx = new (window.AudioContext||window.webkitAudioContext)();
-        [[880,0,0.12],[1100,0.13,0.12],[880,0.26,0.18]].forEach(([freq,start,dur]) => {
-            const osc=ctx.createOscillator(), g=ctx.createGain();
-            osc.connect(g); g.connect(ctx.destination); osc.type='sine'; osc.frequency.value=freq;
-            g.gain.setValueAtTime(0, ctx.currentTime+start);
-            g.gain.linearRampToValueAtTime(0.35, ctx.currentTime+start+0.01);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+start+dur);
-            osc.start(ctx.currentTime+start); osc.stop(ctx.currentTime+start+dur+0.05);
-        });
-    } catch(_){}
+    // Resolve full item details (price, real sellerId) before attempting buy
+    const item = await resolveItemDetailsForBuy(rawItem);
+    if (!item.sellerId) {
+        log('⚠ Could not resolve sellerId for ' + item.name + ' — buy may fail', 'warn');
+    }
+
+    log('💰 Price: ' + (item.price === 0 ? 'FREE' : 'R$' + item.price) + ' | Seller: ' + (item.sellerId || '?'), 'info');
+    setSniperStatus('🎯 Item sniped! Buying...', 'hot');
+
+    // Sound + notification
+    fireSnipeSound();
+    fireSnipeNotification(item);
 
     // Flash title
     const orig = document.title; let n = 0;
-    const iv = setInterval(() => { document.title = n++%2===0 ? '🚨 ITEM SNIPED!' : orig; if(n>=10){clearInterval(iv);document.title=orig;} }, 400);
+    const iv = setInterval(() => {
+        document.title = n++ % 2 === 0 ? '🚨 ' + item.name + ' SNIPED!' : orig;
+        if (n >= 12) { clearInterval(iv); document.title = orig; }
+    }, 380);
 
-    // Silent auto-buy
+    // Auto-buy
+    let bought = false;
     if (selectedAcctIdx === -2) {
-        if (accounts.length) await Promise.all(accounts.map((_,i) => buyForAcct(i,item)));
-        else log('No accounts for auto-buy', 'warn');
+        if (accounts.length) {
+            const results = await Promise.all(accounts.map((_, i) => buyForAcct(i, item)));
+            bought = results.some(Boolean);
+        } else {
+            log('No accounts saved — buying as session fallback', 'warn');
+            bought = await buyForSession(item);
+        }
     } else if (selectedAcctIdx === -1) {
-        await buyForSession(item);
+        bought = await buyForSession(item);
     } else if (accounts[selectedAcctIdx]) {
-        await buyForAcct(selectedAcctIdx, item);
+        bought = await buyForAcct(selectedAcctIdx, item);
     }
 
-    setSniperStatus('Done — restarting in 3s...', 'loading');
+    if (bought) {
+        log('✅ Buy successful for ' + item.name, 'success');
+        setSniperStatus('✅ Bought! Rearming in 3s...', 'loading');
+    } else {
+        log('❌ Buy attempt failed for ' + item.name, 'err');
+        setSniperStatus('❌ Buy failed — check log. Rearming in 3s...', 'loading');
+    }
+
     setTimeout(() => { if (!sniperActive) startSniper(); }, 3000);
 }
 
