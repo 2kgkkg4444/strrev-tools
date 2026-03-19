@@ -39,12 +39,16 @@ async function buyForAcct(i, item) {
         });
         let d = {};
         try { d = await res.json(); } catch(_) {}
-        if (res.ok && (d.purchased || d.statusCode === undefined)) {
+        // statusCode 0 = success on some platforms; purchased flag is the clearest signal
+        const success = res.ok && (d.purchased === true || d.statusCode === 0 || (res.status === 200 && !d.statusCode));
+        if (success) {
             log('✓ ' + (item.price === 0 ? 'Claimed free' : 'Bought') + ' "' + item.name + '" as ' + accounts[i].username, 'success');
             return true;
         }
-        if (d.statusCode === 4) log('✗ Not enough currency — ' + accounts[i].username, 'warn');
-        else                    log('✗ ' + (d.errorMessage || d.message || 'Failed') + ' — ' + accounts[i].username, 'err');
+        const errMsg = d.errorMessage || d.message || d.errors?.[0]?.message || ('HTTP ' + res.status);
+        if (d.statusCode === 4)  log('✗ Not enough currency — ' + accounts[i].username, 'warn');
+        else if (d.statusCode === 2) log('✗ Item not for sale — ' + accounts[i].username, 'warn');
+        else                     log('✗ ' + errMsg + ' — ' + accounts[i].username, 'err');
     } catch(e) { log('✗ ' + e.message + ' — ' + accounts[i].username, 'err'); }
     return false;
 }
@@ -64,11 +68,15 @@ async function buyForSession(item) {
             body: buildPurchasePayload(item),
         });
         const d = await res.json();
-        if (res.ok && (d.purchased || d.statusCode === undefined)) {
+        const success = res.ok && (d.purchased === true || d.statusCode === 0 || (res.status === 200 && !d.statusCode));
+        if (success) {
             log('✓ ' + (item.price === 0 ? 'Claimed free' : 'Bought') + ' "' + item.name + '" (session)', 'success');
             return true;
         }
-        log('✗ ' + (d.errorMessage || d.message || 'Failed') + ' (session)', 'err');
+        const errMsg = d.errorMessage || d.message || d.errors?.[0]?.message || ('HTTP ' + res.status);
+        if (d.statusCode === 4)  log('✗ Not enough currency (session)', 'warn');
+        else if (d.statusCode === 2) log('✗ Item not for sale (session)', 'warn');
+        else                     log('✗ ' + errMsg + ' (session)', 'err');
     } catch(e) { log('✗ ' + e.message + ' (session)', 'err'); }
     return false;
 }
