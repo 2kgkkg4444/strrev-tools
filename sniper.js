@@ -45,7 +45,6 @@ function syncSniperSettingsUI() {
     g('st-snip-min-tix',   sniperSettings.minPriceTix);
     g('st-snip-max-robux', sniperSettings.maxPriceRobux);
     g('st-snip-max-tix',   sniperSettings.maxPriceTix);
-    g('st-snip-delay',     sniperSettings.delayMs);
     t('st-snip-limiteds',  sniperSettings.limitedsOnly);
     t('st-snip-limitedu',  sniperSettings.limitedUsOnly);
     t('st-snip-robux-only',sniperSettings.robuxOnly);
@@ -264,11 +263,10 @@ function startDispatch() {
     abortCtrl   = new AbortController();
     const signal = abortCtrl.signal;
     concurrency = 3; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
-    const delayMs = (sniperSettings.delayMs > 0 ? sniperSettings.delayMs : 0);
     dispatchTimer = setInterval(() => {
         if (!sniperActive) { clearInterval(dispatchTimer); return; }
         if (inFlight < concurrency) dispatchOne(signal);
-    }, delayMs);
+    }, DISPATCH_MS);
     cpsTimer = setInterval(() => { checksPerSec = cpsCount; cpsCount = 0; schedDomUpdate(); }, 1000);
 }
 
