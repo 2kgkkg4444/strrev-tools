@@ -834,6 +834,16 @@ function buildUI() {
                             <div>• <span style="color:var(--c-text2);">Auto-Claim</span> — checks the API cooldown, waits exactly that long, then claims and repeats</div>
                             <div>• Already-claimed accounts are skipped and shown in <span style="color:var(--c-warn);">yellow</span></div>
                         </div>
+
+                        <!-- Promo Code -->
+                        <div style="margin-top:16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">🎟️ Promo Code</div>
+                            <div style="display:flex;gap:9px;margin-bottom:10px;">
+                                <input id="st-promo-input" class="st-input" type="text" placeholder="Enter promo code…" style="flex:1;">
+                                <button id="st-promo-btn" class="st-btn-primary" style="padding:12px 22px;">🎟️ Redeem</button>
+                            </div>
+                            <div id="st-promo-status" style="display:none;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
+                        </div>
                     </div>
 
                 </div>
@@ -954,6 +964,8 @@ function buildUI() {
     document.getElementById('st-msg-btn').addEventListener('click', sendMessages);
     document.getElementById('st-msg-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('st-msg-subject')?.focus(); });
     document.getElementById('st-daily-btn').addEventListener('click', () => claimDailyChest(false));
+    document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
+    document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
 }
 
