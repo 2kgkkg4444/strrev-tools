@@ -21,6 +21,17 @@ let sessionCsrf     = '';
 
 // Sniper state
 let sniperActive    = false;
+
+// Sniper filter settings
+let sniperSettings = {
+    maxPriceRobux: '',   // '' = no limit; 0 = free only
+    maxPriceTix:   '',   // '' = no limit; 0 = free only
+    limitedsOnly:  false,
+    limitedUsOnly: false,
+    robuxOnly:     false,
+    tixOnly:       false,
+    delayMs:       50,
+};
 let sniperBlacklist = {};
 let checkCount      = 0;
 let domPending      = false;
