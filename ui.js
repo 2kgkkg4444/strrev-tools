@@ -808,6 +808,10 @@ function buildUI() {
                                         <div class="st-field-label">Body</div>
                                         <textarea id="st-msg-body" class="st-input" rows="3" placeholder="Write your message…" style="resize:vertical;min-height:70px;"></textarea>
                                     </div>
+                                    <div style="margin-bottom:12px;">
+                                        <div class="st-field-label">Send how many times?</div>
+                                        <input id="st-msg-count" class="st-input" type="number" min="1" max="100" value="1" style="width:100px;">
+                                    </div>
                                     <button id="st-msg-btn" class="st-btn-primary" style="width:100%;padding:11px;">✉️ Send Message</button>
                                     <div id="st-msg-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                                 </div>
@@ -837,6 +841,12 @@ function buildUI() {
                                         <span style="color:var(--c-accent);font-weight:700;">You offer: <span id="st-my-count">0</span></span>
                                         <span style="color:var(--c-text3);margin:0 14px;">↔</span>
                                         <span style="color:#3b82f6;font-weight:700;">You request: <span id="st-th-count">0</span></span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+                                        <div style="flex:1;">
+                                            <div class="st-field-label" style="margin-bottom:5px;">Send how many times?</div>
+                                            <input id="st-trade-count" class="st-input" type="number" min="1" max="100" value="1" style="width:100px;">
+                                        </div>
                                     </div>
                                     <button id="st-send-btn" disabled class="st-btn-primary" style="width:100%;padding:13px;margin-top:10px;opacity:0.4;pointer-events:none;">
                                         🔄 Send Trade Offer
