@@ -2,7 +2,7 @@
 // @name         Strrev Tools
 // @namespace    http://tampermonkey.net/
 // @version      9.0
-// @description  Multi-account manager, silent sniper, catalog buyer, trader & friend requester for strrev.com
+// @description  Multi-account manager, silent sniper, catalog buyer, trader, friend requester & daily chest for strrev.com
 // @author       You
 // @match        https://www.strrev.com/*
 // @grant        GM_setValue
@@ -16,6 +16,7 @@
 // @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/catalog.js
 // @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/trade.js
 // @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/friends.js
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/daily.js
 // @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/ui.js
 // ==/UserScript==
 
