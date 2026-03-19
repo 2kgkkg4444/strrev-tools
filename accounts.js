@@ -100,35 +100,174 @@ function updateMiniAcct() {
     else { const a=accounts[selectedAcctIdx]; if(nameEl) nameEl.textContent=a?a.username:'?'; if(subEl) subEl.textContent=a?'ID: '+(a.id||'unknown'):''; }
 }
 
+// ─── Account Preview Fetch ────────────────────────────────────────────────
+async function fetchAcctPreview(i) {
+    const acct = accounts[i];
+    const preview = {};
+    try {
+        // Currency (robux + tix)
+        const cr = await acctFetch(i, BASE + '/apisite/economy/v1/user/currency');
+        if (cr.ok) {
+            const cj = await cr.json();
+            preview.robux   = cj.robux   ?? cj.balance ?? null;
+            preview.tickets = cj.tickets ?? cj.tix     ?? null;
+        }
+    } catch(_) {}
+    try {
+        // Avatar headshot thumbnail
+        if (acct.id) {
+            const tr = await acctFetch(i, BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + acct.id + '&size=150x150&format=Png&isCircular=false');
+            if (tr.ok) {
+                const tj = await tr.json();
+                preview.avatar = tj.data?.[0]?.imageUrl || null;
+            }
+        }
+    } catch(_) {}
+    try {
+        // User profile for description / join date
+        if (acct.id) {
+            const ur = await acctFetch(i, BASE + '/apisite/users/v1/users/' + acct.id);
+            if (ur.ok) {
+                const uj = await ur.json();
+                preview.displayName = uj.displayName || null;
+                preview.created     = uj.created     || null;
+                preview.description = uj.description || null;
+            }
+        }
+    } catch(_) {}
+    return preview;
+}
+
+function renderAcctCard(a, i, preview) {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:16px;margin-bottom:10px;transition:border-color 0.15s;';
+    card.onmouseenter = () => card.style.borderColor = 'var(--c-border)';
+    card.onmouseleave = () => card.style.borderColor = 'var(--c-border2)';
+
+    // Top row: avatar + name block + remove
+    const top = document.createElement('div');
+    top.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;';
+
+    // Avatar
+    const avatarWrap = document.createElement('div');
+    avatarWrap.style.cssText = 'width:48px;height:48px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--c-bg2);border:1px solid var(--c-border2);display:flex;align-items:center;justify-content:center;font-size:20px;';
+    if (preview && preview.avatar) {
+        const img = document.createElement('img');
+        img.src = preview.avatar;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        img.onerror = () => { avatarWrap.innerHTML = '👤'; };
+        avatarWrap.appendChild(img);
+    } else {
+        avatarWrap.textContent = '👤';
+    }
+
+    // Name + id + csrf badge
+    const nameBlock = document.createElement('div');
+    nameBlock.style.cssText = 'flex:1;min-width:0;';
+    const nameRow = document.createElement('div');
+    nameRow.style.cssText = 'display:flex;align-items:center;gap:7px;margin-bottom:3px;';
+    const nm = document.createElement('span');
+    nm.style.cssText = 'font-size:14px;font-weight:700;color:var(--c-text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    nm.textContent = a.username;
+    const csrfBadge = document.createElement('span');
+    csrfBadge.style.cssText = 'font-size:8px;padding:2px 6px;border-radius:20px;font-weight:700;flex-shrink:0;' + (a.csrf ? 'background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#22c55e;' : 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#ef4444;');
+    csrfBadge.textContent = a.csrf ? '✓ CSRF' : '✗ CSRF';
+    nameRow.append(nm, csrfBadge);
+    const subRow = document.createElement('div');
+    subRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    const idSpan = document.createElement('span');
+    idSpan.style.cssText = 'font-size:10px;color:var(--c-text4);font-family:monospace;';
+    idSpan.textContent = 'ID: ' + (a.id || 'unknown');
+    subRow.appendChild(idSpan);
+    if (preview && preview.created) {
+        const joined = document.createElement('span');
+        joined.style.cssText = 'font-size:10px;color:var(--c-text4);';
+        joined.textContent = '· Joined ' + new Date(preview.created).getFullYear();
+        subRow.appendChild(joined);
+    }
+    nameBlock.append(nameRow, subRow);
+
+    // Buttons: refresh + remove
+    const btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.textContent = '↻';
+    refreshBtn.title = 'Refresh preview';
+    refreshBtn.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border);color:var(--c-text2);cursor:pointer;font-size:14px;width:28px;height:28px;border-radius:7px;transition:all 0.12s;line-height:1;';
+    refreshBtn.onmouseenter = () => { refreshBtn.style.background='var(--c-bg3)'; refreshBtn.style.color='var(--c-text0)'; };
+    refreshBtn.onmouseleave = () => { refreshBtn.style.background='var(--c-bg2)'; refreshBtn.style.color='var(--c-text2)'; };
+    refreshBtn.addEventListener('click', async () => {
+        refreshBtn.style.animation = 'st-spin 0.6s linear infinite';
+        refreshBtn.disabled = true;
+        const p = await fetchAcctPreview(i);
+        refreshBtn.style.animation = '';
+        refreshBtn.disabled = false;
+        const newCard = renderAcctCard(a, i, p);
+        card.replaceWith(newCard);
+    });
+
+    const rm = document.createElement('button');
+    rm.textContent = '✕';
+    rm.title = 'Remove account';
+    rm.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border);color:rgba(255,100,100,0.4);cursor:pointer;font-size:13px;width:28px;height:28px;border-radius:7px;transition:all 0.12s;line-height:1;';
+    rm.onmouseenter = () => { rm.style.background='rgba(239,68,68,0.1)'; rm.style.color='#ef4444'; rm.style.borderColor='rgba(239,68,68,0.3)'; };
+    rm.onmouseleave = () => { rm.style.background='var(--c-bg2)'; rm.style.color='rgba(255,100,100,0.4)'; rm.style.borderColor='var(--c-border)'; };
+    rm.addEventListener('click', () => {
+        accounts.splice(i, 1);
+        if (selectedAcctIdx >= accounts.length) selectedAcctIdx = -1;
+        saveAccounts(); rebuildAcctSelector(); rebuildSettingsAcctList();
+        log('Account removed', 'warn');
+    });
+
+    btnWrap.append(refreshBtn, rm);
+    top.append(avatarWrap, nameBlock, btnWrap);
+
+    // Stats row: robux, tix
+    const stats = document.createElement('div');
+    stats.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+
+    const mkStat = (label, value, color, icon) => {
+        const s = document.createElement('div');
+        s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:9px;padding:10px 12px;';
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.9px;color:var(--c-text4);margin-bottom:5px;';
+        lbl.textContent = icon + ' ' + label;
+        const val = document.createElement('div');
+        val.style.cssText = 'font-size:16px;font-weight:700;font-family:"Fira Code",monospace;color:' + color + ';';
+        val.textContent = value;
+        s.append(lbl, val);
+        return s;
+    };
+
+    const loading = '…';
+    const robuxVal  = (preview && preview.robux   != null) ? preview.robux.toLocaleString()   : loading;
+    const tixVal    = (preview && preview.tickets  != null) ? preview.tickets.toLocaleString()  : loading;
+
+    stats.append(
+        mkStat('Robux',   robuxVal,  '#f97316', 'R$'),
+        mkStat('Tickets', tixVal,    '#eab308',  'T$'),
+    );
+
+    card.append(top, stats);
+    return card;
+}
+
 function rebuildSettingsAcctList() {
     const el = document.getElementById('st-settings-acct-list'); if (!el) return;
     el.innerHTML = '';
-    if (!accounts.length) { el.innerHTML='<div style="padding:10px;text-align:center;color:#334155;font-size:10px;font-style:italic;">No accounts saved yet</div>'; return; }
-    accounts.forEach((a,i) => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:#060c18;border:1px solid #0a1525;border-radius:8px;margin-bottom:5px;transition:border-color 0.12s;';
-        row.onmouseenter = () => row.style.borderColor = '#162032';
-        row.onmouseleave = () => row.style.borderColor = '#0a1525';
-        const dot = document.createElement('div'); dot.style.cssText = 'width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#1e293b;';
-        const info = document.createElement('div'); info.style.cssText = 'flex:1;min-width:0;';
-        const nm = document.createElement('div'); nm.style.cssText = 'font-size:11px;font-weight:600;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'; nm.textContent = a.username;
-        const idLine = document.createElement('div'); idLine.style.cssText = 'font-size:9px;color:#1e3a5f;font-family:monospace;margin-top:1px;'; idLine.textContent = 'ID: '+(a.id||'unknown');
-        info.append(nm, idLine);
-        const badge = document.createElement('span');
-        badge.style.cssText = 'font-size:8px;padding:2px 6px;border-radius:20px;font-weight:700;flex-shrink:0;'+(a.csrf?'background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#22c55e;':'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#ef4444;');
-        badge.textContent = a.csrf ? '✓ CSRF' : '✗ CSRF';
-        const rm = document.createElement('button'); rm.textContent = '✕';
-        rm.style.cssText = 'background:none;border:none;color:rgba(255,100,100,0.35);cursor:pointer;font-size:13px;padding:0 3px;line-height:1;transition:color 0.12s;flex-shrink:0;';
-        rm.onmouseenter = () => rm.style.color = '#ef4444';
-        rm.onmouseleave = () => rm.style.color = 'rgba(255,100,100,0.35)';
-        rm.addEventListener('click', () => {
-            accounts.splice(i,1);
-            if (selectedAcctIdx >= accounts.length) selectedAcctIdx = -1;
-            saveAccounts(); rebuildAcctSelector(); rebuildSettingsAcctList();
-            log('Account removed','warn');
+    if (!accounts.length) {
+        el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--c-text4);font-size:11px;font-style:italic;">No accounts saved yet</div>';
+        return;
+    }
+    accounts.forEach((a, i) => {
+        // Render card immediately with no preview data, then fetch async
+        const card = renderAcctCard(a, i, null);
+        el.appendChild(card);
+        fetchAcctPreview(i).then(preview => {
+            const newCard = renderAcctCard(a, i, preview);
+            card.replaceWith(newCard);
         });
-        row.append(dot, info, badge, rm);
-        el.appendChild(row);
     });
 }
 
