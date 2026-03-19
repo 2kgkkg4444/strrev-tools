@@ -41,6 +41,8 @@ function loadSniperSettings() {
 function syncSniperSettingsUI() {
     const g = (id, val) => { const e = document.getElementById(id); if (e) e.value = val; };
     const t = (id, val) => { const e = document.getElementById(id); if (e) setToggle(id, val); };
+    g('st-snip-min-robux', sniperSettings.minPriceRobux);
+    g('st-snip-min-tix',   sniperSettings.minPriceTix);
     g('st-snip-max-robux', sniperSettings.maxPriceRobux);
     g('st-snip-max-tix',   sniperSettings.maxPriceTix);
     g('st-snip-delay',     sniperSettings.delayMs);
@@ -65,6 +67,14 @@ function itemPassesFilters(item) {
     if (sniperSettings.robuxOnly     && !isRobux)    { log('⏭ Skipped (not Robux item): '   + (item.name||item.id), 'info'); return false; }
     if (sniperSettings.tixOnly       && !isTix)      { log('⏭ Skipped (not Tix item): '     + (item.name||item.id), 'info'); return false; }
 
+    if (sniperSettings.minPriceRobux !== '' && isRobux) {
+        const min = parseInt(sniperSettings.minPriceRobux);
+        if (!isNaN(min) && price < min) { log('⏭ Skipped (R$' + price + ' < min R$' + min + '): ' + (item.name||item.id), 'info'); return false; }
+    }
+    if (sniperSettings.minPriceTix !== '' && isTix) {
+        const min = parseInt(sniperSettings.minPriceTix);
+        if (!isNaN(min) && priceTix < min) { log('⏭ Skipped (T$' + priceTix + ' < min T$' + min + '): ' + (item.name||item.id), 'info'); return false; }
+    }
     if (sniperSettings.maxPriceRobux !== '' && isRobux) {
         const max = parseInt(sniperSettings.maxPriceRobux);
         if (!isNaN(max) && price > max) { log('⏭ Skipped (R$' + price + ' > max R$' + max + '): ' + (item.name||item.id), 'info'); return false; }
