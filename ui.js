@@ -1119,7 +1119,7 @@ function wireSniperSettings() {
             const key = keyMap[id];
             const isPriceField = id.includes('min') || id.includes('max');
             if (id === 'st-snip-delay') {
-                const v = Math.max(10, parseInt(el.value) || 50);
+                const v = Math.max(0, parseInt(el.value) || 0);
                 el.value = v;
                 sniperSettings[key] = v;
             } else {
