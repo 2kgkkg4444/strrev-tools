@@ -24,6 +24,8 @@ let sniperActive    = false;
 
 // Sniper filter settings
 let sniperSettings = {
+    minPriceRobux: '',   // '' = no limit
+    minPriceTix:   '',   // '' = no limit
     maxPriceRobux: '',   // '' = no limit; 0 = free only
     maxPriceTix:   '',   // '' = no limit; 0 = free only
     limitedsOnly:  false,
