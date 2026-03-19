@@ -1017,13 +1017,39 @@ function applyTheme(key) {
 }
 
 // ─── Section & Tab Switch ─────────────────────────────────────────────────
+const TAB_META = {
+    sniper:   { icon:'🎯', name:'Sniper' },
+    catalog:  { icon:'🛒', name:'Catalog' },
+    accounts: { icon:'👥', name:'Accounts' },
+    people:   { icon:'🤝', name:'People' },
+    settings: { icon:'⚙️', name:'Settings' },
+};
+
+function updateLogoForTab(section) {
+    const meta = TAB_META[section] || { icon:'🛒', name:'Strrev' };
+    const icon = document.getElementById('st-logo-icon');
+    const name = document.getElementById('st-logo-name');
+    if (icon) { icon.style.transform='scale(0.7)'; icon.style.opacity='0'; setTimeout(()=>{ icon.textContent=meta.icon; icon.style.transition='transform 0.2s cubic-bezier(0.16,1,0.3,1),opacity 0.15s'; icon.style.transform='scale(1)'; icon.style.opacity='1'; },120); }
+    if (name) { name.style.opacity='0'; setTimeout(()=>{ name.innerHTML=meta.name+' <span>Tools</span>'; name.style.transition='opacity 0.15s'; name.style.opacity='1'; },120); }
+}
+
 function switchManage(section) {
     ['sniper','catalog','accounts','people'].forEach(s => {
         document.getElementById('st-msec-'+s)?.classList.toggle('st-ctab-active', s===section);
         const c = document.getElementById('st-msec-content-'+s);
-        if (c) c.style.display = s===section ? 'block' : 'none';
+        if (c) {
+            if (s === section) {
+                c.style.display = 'block';
+                c.classList.remove('st-tab-fade');
+                void c.offsetWidth; // reflow to restart animation
+                c.classList.add('st-tab-fade');
+            } else {
+                c.style.display = 'none';
+            }
+        }
     });
     document.getElementById('st-tab-settings')?.classList.remove('st-ctab-active');
+    updateLogoForTab(section);
     if (section === 'catalog') renderCatalogList();
     if (section === 'accounts') rebuildSettingsAcctList();
 }
@@ -1037,9 +1063,15 @@ function switchTab(tab) {
         document.getElementById('st-tab-settings')?.classList.remove('st-ctab-active');
     } else {
         if (manage)   manage.style.display   = 'none';
-        if (settings) settings.style.display = 'flex';
+        if (settings) {
+            settings.style.display = 'flex';
+            settings.classList.remove('st-tab-fade');
+            void settings.offsetWidth;
+            settings.classList.add('st-tab-fade');
+        }
         document.getElementById('st-tab-settings')?.classList.add('st-ctab-active');
         ['sniper','catalog','accounts','people'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
+        updateLogoForTab('settings');
         rebuildThemeGrid();
     }
 }
@@ -1262,6 +1294,46 @@ function injectStyles() {
         .st-btn-primary:active:not(:disabled) { transform:scale(0.97); }
         .st-btn-primary:disabled { opacity:0.45;cursor:not-allowed; }
 
+        /* Sniper button — larger */
+        #st-sniper-btn {
+            padding:16px 44px !important;font-size:16px !important;
+            border-radius:13px !important;letter-spacing:0.3px;
+        }
+
+        /* Tab content fade-in animation */
+        .st-tab-fade {
+            animation:st-fade-in 0.22s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        @keyframes st-fade-in {
+            from { opacity:0;transform:translateY(8px); }
+            to   { opacity:1;transform:translateY(0); }
+        }
+
+        /* Tab active slide-underline transition */
+        .st-ctab-accent { transition:opacity 0.2s ease,width 0.2s ease; }
+
+        /* Catalog card hover lift */
+        .st-cat-card {
+            background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;
+            padding:14px 16px;display:flex;align-items:center;gap:12px;
+            cursor:default;transition:border-color 0.14s,background 0.14s,transform 0.14s,box-shadow 0.14s;
+            list-style:none;
+        }
+        .st-cat-card:hover { border-color:var(--c-border);background:var(--c-bg2);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.3); }
+        .st-cat-card-icon {
+            width:38px;height:38px;border-radius:9px;flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;
+            font-size:17px;font-weight:700;
+        }
+        .st-cat-search {
+            flex:1;padding:10px 14px;background:var(--c-bg2);
+            border:1px solid var(--c-border);border-radius:10px;
+            color:var(--c-text1);font-size:12px;outline:none;
+            transition:border-color 0.15s,background 0.15s;
+        }
+        .st-cat-search:focus { border-color:var(--c-accent);background:var(--c-bg0); }
+        .st-cat-search::placeholder { color:var(--c-text4); }
+
         .st-btn-secondary {
             padding:11px 18px;background:var(--c-bg0);color:var(--c-text3);
             border:1px solid var(--c-border2);border-radius:10px;cursor:pointer;
@@ -1352,15 +1424,15 @@ function injectStyles() {
         .st-skel { background:linear-gradient(90deg,var(--c-bg2) 25%,var(--c-bg3) 50%,var(--c-bg2) 75%);background-size:200% 100%;animation:st-shimmer 1.4s infinite; }
 
         /* Sniper settings */
-        .st-snip-settings { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:18px 20px;margin-bottom:18px; }
-        .st-snip-settings-row { display:flex;align-items:center;gap:14px;flex-wrap:wrap; }
-        .st-snip-field { display:flex;flex-direction:column;gap:5px; }
+        .st-snip-settings { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:22px 24px;margin-bottom:18px; }
+        .st-snip-settings-row { display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap; }
+        .st-snip-field { display:flex;flex-direction:column;gap:7px; }
         .st-snip-label { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4); }
-        .st-snip-input { width:110px;padding:8px 11px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:8px;color:var(--c-text1);font-size:12px;font-family:'Fira Code',monospace;outline:none;transition:border-color 0.14s; }
+        .st-snip-input { width:120px;padding:10px 13px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:9px;color:var(--c-text1);font-size:12px;font-family:'Fira Code',monospace;outline:none;transition:border-color 0.14s; }
         .st-snip-input:focus { border-color:var(--c-accent); }
         .st-snip-input::placeholder { color:var(--c-text5); }
-        .st-snip-sep { width:1px;height:36px;background:var(--c-border2);flex-shrink:0; }
-        .st-toggle-row { display:flex;flex-direction:column;gap:5px;align-items:center; }
+        .st-snip-sep { width:1px;height:44px;background:var(--c-border2);flex-shrink:0;align-self:center; }
+        .st-toggle-row { display:flex;flex-direction:column;gap:7px;align-items:center; }
         .st-toggle-track { width:40px;height:22px;border-radius:99px;background:var(--c-border);position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0; }
         .st-toggle-track.on { background:var(--c-accent); }
         .st-toggle-thumb { width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform 0.18s;box-shadow:0 1px 4px rgba(0,0,0,0.4); }
@@ -1552,23 +1624,20 @@ function buildUI() {
 
                     <!-- CATALOG -->
                     <div id="st-msec-content-catalog" style="display:none;">
-                        <div class="st-sec-header">
+                        <div class="st-sec-header" style="margin-bottom:18px;">
                             <div>
                                 <div class="st-sec-title">Catalog Browser</div>
-                                <div class="st-sec-sub">Items visible on this page — click 🛒 to buy for the active account(s)</div>
+                                <div class="st-sec-sub">Items on this page — click Buy to purchase with the active account(s)</div>
                             </div>
                             <button id="st-cat-refresh" class="st-btn-secondary">
-                                <span id="st-refresh-icon" style="font-size:15px;display:inline-block;">↻</span> Refresh
+                                <span id="st-refresh-icon" style="font-size:15px;display:inline-block;transition:transform 0.4s;">↻</span> Refresh
                             </button>
                         </div>
-                        <div class="st-cat-toolbar">
-                            <div id="st-cat-count"><span style="color:var(--c-text3);font-size:11px;">Loading...</span></div>
-                            <div style="display:flex;gap:14px;font-size:10px;font-weight:700;">
-                                <span style="color:#f97316;">R$ <span style="font-weight:400;color:var(--c-text2);">Robux</span></span>
-                                <span style="color:#eab308;">T$ <span style="font-weight:400;color:var(--c-text2);">Tix</span></span>
-                            </div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                            <input id="st-cat-search" class="st-cat-search" type="text" placeholder="🔍  Search items…">
+                            <div id="st-cat-count" style="flex-shrink:0;"><span style="color:var(--c-text3);font-size:11px;">Loading...</span></div>
                         </div>
-                        <ul id="st-cat-list"></ul>
+                        <ul id="st-cat-list" style="padding:0;margin:0;display:flex;flex-direction:column;gap:7px;"></ul>
                     </div>
 
                     <!-- ACCOUNTS -->
@@ -1832,6 +1901,16 @@ function buildUI() {
     document.getElementById('st-sniper-btn').addEventListener('click', toggleSniper);
     document.getElementById('st-log-clear').addEventListener('click', () => { const l=document.getElementById('st-log');if(l)l.innerHTML=''; });
 
+    document.getElementById('st-cat-search')?.addEventListener('input', () => {
+        const q = document.getElementById('st-cat-search')?.value?.toLowerCase() || '';
+        document.querySelectorAll('#st-cat-list .st-cat-card').forEach(card => {
+            const name = card.dataset.name || '';
+            card.style.display = name.includes(q) ? '' : 'none';
+        });
+        const visible = [...document.querySelectorAll('#st-cat-list .st-cat-card')].filter(c=>c.style.display!=='none').length;
+        const countEl = document.getElementById('st-cat-count');
+        if (countEl && q) countEl.innerHTML = `<span style="color:var(--c-accent);font-weight:700;">${visible}</span><span style="color:var(--c-text3);font-size:11px;"> matching</span>`;
+    });
     document.getElementById('st-cat-refresh').addEventListener('click', () => {
         const icon = document.getElementById('st-refresh-icon');
         if (icon) { icon.style.transition='transform 0.4s';icon.style.transform='rotate(360deg)';setTimeout(()=>{icon.style.transform='';},450); }
