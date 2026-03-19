@@ -1,21 +1,37 @@
 // ─── Daily Chest ──────────────────────────────────────────────────────────
 
-let dailyAutoEnabled  = false;
-let dailyAutoTimer    = null;  // setInterval handle for the countdown tick
-let dailyNextClaimAt  = null;  // Date when next auto-claim fires
-const DAILY_COOLDOWN  = 24 * 60 * 60 * 1000; // 24 hours in ms
+let dailyAutoEnabled = false;
+let dailyAutoTimeout = null;   // setTimeout handle for the next claim
+let dailyNextClaimAt = null;   // timestamp (ms) of next scheduled claim
+let dailyCountdownInterval = null;
 
-// ─── Core claim logic ─────────────────────────────────────────────────────
+const DAILY_STATUS_URL = BASE + '/api/daily-case/status'; // GET — returns {canOpen, cooldownSeconds}
+const DAILY_OPEN_URL   = BASE + '/api/daily-case/open';
+
+// ─── Check cooldown status for one account ────────────────────────────────
+async function fetchDailyStatus(acctIdx) {
+    try {
+        const r = acctIdx >= 0
+            ? await acctFetch(acctIdx, DAILY_STATUS_URL)
+            : await sessFetch(DAILY_STATUS_URL);
+        const j = await r.json();
+        // {canOpen: bool, cooldownSeconds: number}
+        return { canOpen: j.canOpen ?? true, cooldownSeconds: j.cooldownSeconds ?? 0 };
+    } catch(_) {
+        return { canOpen: true, cooldownSeconds: 0 };
+    }
+}
+
+// ─── Claim for one account ────────────────────────────────────────────────
 async function claimDailyFrom(acctIdx) {
-    const label = acctIdx === -1 ? 'session' : accounts[acctIdx].username;
-    const url   = BASE + '/api/daily-case/open';
+    const label = acctIdx === -1 ? 'Session' : (accounts[acctIdx]?.username || 'Account');
     try {
         let res;
         if (acctIdx >= 0) {
-            res = await acctFetch(acctIdx, url, { method: 'POST', body: '{}' });
+            res = await acctFetch(acctIdx, DAILY_OPEN_URL, { method: 'POST', body: '{}' });
         } else {
             await fetchSessionCsrf();
-            res = await sessFetch(url, {
+            res = await sessFetch(DAILY_OPEN_URL, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
                 body: '{}',
@@ -29,14 +45,12 @@ async function claimDailyFrom(acctIdx) {
             log('✓ Daily claimed as ' + label + ' — ' + reward, 'success');
             return { ok: true, reward };
         }
-
         const msg     = d.message || d.errorMessage || d.errors?.[0]?.message || 'HTTP ' + res.status;
         const already = msg.toLowerCase().includes('already') || res.status === 429 || res.status === 400;
         if (already) {
-            log('~ Daily already claimed today (' + label + ')', 'warn');
+            log('~ Daily already claimed (' + label + ')', 'warn');
             return { ok: true, skipped: true, reward: 'Already claimed' };
         }
-
         log('✗ Daily failed (' + label + '): ' + msg, 'err');
         return { ok: false, msg };
     } catch(e) {
@@ -75,77 +89,114 @@ function renderDailyResults(results, acctLabels) {
     });
 }
 
-function updateAutoCountdown() {
+function formatCountdown(ms) {
+    if (ms <= 0) return '00:00:00';
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function updateDailyCountdownUI() {
     const el = document.getElementById('st-daily-countdown'); if (!el) return;
     if (!dailyAutoEnabled || !dailyNextClaimAt) { el.textContent = ''; return; }
     const remaining = dailyNextClaimAt - Date.now();
     if (remaining <= 0) { el.textContent = 'Claiming now…'; return; }
-    const h = Math.floor(remaining / 3600000);
-    const m = Math.floor((remaining % 3600000) / 60000);
-    const s = Math.floor((remaining % 60000) / 1000);
-    el.textContent = 'Next claim in: ' +
-        String(h).padStart(2,'0') + ':' +
-        String(m).padStart(2,'0') + ':' +
-        String(s).padStart(2,'0');
+    el.textContent = 'Next claim in ' + formatCountdown(remaining);
 }
 
-function updateAutoToggleBtn() {
-    const btn = document.getElementById('st-daily-auto-btn'); if (!btn) return;
-    if (dailyAutoEnabled) {
-        btn.textContent      = '⏹ Stop Auto-Claim';
-        btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-        btn.style.boxShadow  = '0 0 18px rgba(34,197,94,0.25)';
-    } else {
-        btn.textContent      = '🔁 Start Auto-Claim';
-        btn.style.background = '';
-        btn.style.boxShadow  = '';
+function updateDailyToggleUI() {
+    const track = document.getElementById('st-daily-toggle-track');
+    const thumb = document.getElementById('st-daily-toggle-thumb');
+    const label = document.getElementById('st-daily-toggle-label');
+    if (track) track.style.background = dailyAutoEnabled ? 'var(--c-success)' : 'var(--c-border)';
+    if (thumb) thumb.style.transform  = dailyAutoEnabled ? 'translateX(20px)' : 'translateX(0)';
+    if (label) {
+        label.textContent = dailyAutoEnabled ? 'Auto-Claim ON' : 'Auto-Claim OFF';
+        label.style.color = dailyAutoEnabled ? 'var(--c-success)' : 'var(--c-text3)';
     }
 }
 
-// ─── Auto-claim loop ──────────────────────────────────────────────────────
+// ─── Auto-claim engine ────────────────────────────────────────────────────
 function stopDailyAuto() {
     dailyAutoEnabled = false;
     dailyNextClaimAt = null;
-    if (dailyAutoTimer) { clearInterval(dailyAutoTimer); dailyAutoTimer = null; }
-    updateAutoToggleBtn();
-    updateAutoCountdown();
-    log('Auto-claim stopped', 'warn');
+    if (dailyAutoTimeout)        { clearTimeout(dailyAutoTimeout);          dailyAutoTimeout = null; }
+    if (dailyCountdownInterval)  { clearInterval(dailyCountdownInterval);   dailyCountdownInterval = null; }
+    updateDailyToggleUI();
+    updateDailyCountdownUI();
     setDailyStatus('Auto-claim stopped', 'var(--c-warn)');
+    log('Auto-claim disabled', 'warn');
 }
 
-async function runDailyAutoClaim() {
+// Checks the cooldown via API and schedules the claim accordingly
+async function scheduleNextDailyClaim() {
     if (!dailyAutoEnabled) return;
-    log('Auto-claim firing…', 'info');
-    await claimDailyChest(true); // silent = true, don't reset the auto timer inside
+
+    setDailyStatus('Checking cooldown…', 'var(--c-text3)');
+
+    // Use first account or session to check cooldown
+    const checkIdx = selectedAcctIdx === -2
+        ? (accounts.length > 0 ? 0 : -1)
+        : selectedAcctIdx;
+
+    const status = await fetchDailyStatus(checkIdx);
+
+    if (!dailyAutoEnabled) return; // may have been disabled while awaiting
+
+    if (status.canOpen) {
+        // Ready now — claim immediately
+        log('Auto-claim: chest is ready, claiming now…', 'info');
+        setDailyStatus('Chest ready — claiming…', 'var(--c-warn)');
+        await runAutoClaim();
+    } else {
+        // Not ready — wait exactly cooldownSeconds
+        const waitMs = (status.cooldownSeconds + 5) * 1000; // +5s buffer
+        dailyNextClaimAt = Date.now() + waitMs;
+        log('Auto-claim: cooldown is ' + formatCountdown(waitMs) + ' — scheduled', 'info');
+        setDailyStatus('⏳ Waiting for cooldown…', 'var(--c-text3)');
+
+        dailyAutoTimeout = setTimeout(async () => {
+            if (!dailyAutoEnabled) return;
+            await runAutoClaim();
+        }, waitMs);
+    }
+}
+
+async function runAutoClaim() {
     if (!dailyAutoEnabled) return;
-    // Schedule next claim in 24 hours
-    dailyNextClaimAt = Date.now() + DAILY_COOLDOWN;
-    log('Auto-claim: next run in 24 hours', 'info');
-    setDailyStatus('✓ Auto-claim active — next in 24h', 'var(--c-success)');
+
+    dailyNextClaimAt = null;
+    updateDailyCountdownUI();
+    setDailyStatus('Claiming…', 'var(--c-warn)');
+
+    // Run the actual claim
+    await claimDailyChest(true);
+
+    if (!dailyAutoEnabled) return;
+
+    // After claiming, re-check the API to get the new cooldown and reschedule
+    await scheduleNextDailyClaim();
 }
 
 function startDailyAuto() {
     if (dailyAutoEnabled) { stopDailyAuto(); return; }
     dailyAutoEnabled = true;
-    updateAutoToggleBtn();
-    log('Auto-claim started', 'success');
+    updateDailyToggleUI();
+    log('Auto-claim enabled', 'success');
 
-    // Claim immediately, then every 24h
-    runDailyAutoClaim();
+    // Start 1-second countdown ticker
+    dailyCountdownInterval = setInterval(updateDailyCountdownUI, 1000);
 
-    // Countdown tick every second
-    dailyAutoTimer = setInterval(() => {
-        updateAutoCountdown();
-        // Fire when countdown hits zero
-        if (dailyNextClaimAt && Date.now() >= dailyNextClaimAt) {
-            dailyNextClaimAt = null; // prevent double-fire
-            runDailyAutoClaim();
-        }
-    }, 1000);
+    // Check cooldown and schedule
+    scheduleNextDailyClaim();
 }
 
-// ─── Manual / shared claim dispatcher ────────────────────────────────────
-// silent = true when called from auto-claim (skips button state changes)
+function toggleDailyAuto() {
+    dailyAutoEnabled ? stopDailyAuto() : startDailyAuto();
+}
+
+// ─── Manual + shared claim dispatcher ────────────────────────────────────
 async function claimDailyChest(silent) {
     const btn = document.getElementById('st-daily-btn');
     if (!silent) {
@@ -155,16 +206,15 @@ async function claimDailyChest(silent) {
         if (resultsEl) resultsEl.innerHTML = '';
     }
 
-    let results   = [];
+    let results    = [];
     let acctLabels = [];
 
     if (selectedAcctIdx === -2) {
         if (!accounts.length) {
             setDailyStatus('✕ No accounts saved', 'var(--c-err)');
-            if (!silent && btn) { btn.innerHTML = '🎁 Claim Daily Chest'; btn.disabled = false; }
+            if (!silent && btn) { btn.innerHTML = '🎁 Claim Now'; btn.disabled = false; }
             return;
         }
-        if (!silent) setDailyStatus('Claiming for ' + accounts.length + ' account(s)...', 'var(--c-warn)');
         for (let i = 0; i < accounts.length; i++) {
             results.push(await claimDailyFrom(i));
             acctLabels.push(accounts[i]?.username || 'Account ' + i);
@@ -183,16 +233,13 @@ async function claimDailyChest(silent) {
     const skipped = results.filter(r => r.skipped).length;
     const failed  = results.filter(r => !r.ok).length;
     const total   = results.length;
-
-    const parts = [];
+    const parts   = [];
     if (claimed) parts.push(claimed + ' claimed');
     if (skipped) parts.push(skipped + ' already claimed');
     if (failed)  parts.push(failed  + ' failed');
-
-    const allBad = claimed === 0 && skipped === 0;
+    const allBad  = claimed === 0 && skipped === 0;
 
     if (!dailyAutoEnabled) {
-        // Only update status bar if auto isn't managing it
         setDailyStatus(
             (allBad ? '✕ ' : '✓ ') + parts.join(' · ') + (total > 1 ? ' (' + total + ' accounts)' : ''),
             allBad ? 'var(--c-err)' : claimed > 0 ? 'var(--c-success)' : 'var(--c-warn)'
@@ -203,11 +250,9 @@ async function claimDailyChest(silent) {
         if (!allBad) {
             btn.innerHTML        = '✓ Done!';
             btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-            setTimeout(() => {
-                if (btn) { btn.innerHTML = '🎁 Claim Daily Chest'; btn.style.background = ''; btn.disabled = false; }
-            }, 2500);
+            setTimeout(() => { if (btn) { btn.innerHTML='🎁 Claim Now'; btn.style.background=''; btn.disabled=false; } }, 2500);
         } else {
-            btn.innerHTML = '🎁 Claim Daily Chest';
+            btn.innerHTML = '🎁 Claim Now';
             btn.disabled  = false;
         }
     }
