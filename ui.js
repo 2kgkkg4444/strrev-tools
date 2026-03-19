@@ -826,10 +826,9 @@ function buildUI() {
                     <div id="st-msec-content-accounts" style="display:none;">
                         <div style="display:grid;grid-template-columns:3fr 2fr;gap:20px;">
 
-                            <!-- Left: account list + add -->
+                            <!-- Left: add + account previews -->
                             <div style="display:flex;flex-direction:column;gap:14px;">
                                 <div class="st-sec-title">Accounts</div>
-                                <div id="st-settings-acct-list" style="max-height:440px;overflow-y:auto;padding-right:4px;"></div>
                                 <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
                                     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">➕ Add Account</div>
                                     <div class="st-field">
@@ -843,6 +842,8 @@ function buildUI() {
                                     <button id="st-add-btn" class="st-btn-primary" style="width:100%;padding:13px;">🔍 Fetch Username & Save</button>
                                     <div id="st-add-status" style="margin-top:10px;font-size:11px;min-height:16px;text-align:center;color:var(--c-text2);"></div>
                                 </div>
+                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">Saved Accounts</div>
+                                <div id="st-settings-acct-list" style="overflow-y:auto;padding-right:4px;"></div>
                             </div>
 
                             <!-- Right: daily + promo -->
