@@ -65,6 +65,58 @@ const THEMES = {
             '--c-tabbar':'#040810','--c-tab':'#080e1c','--c-tab-active':'#0c1525',
         }
     },
+    blood: {
+        name: 'Blood', icon: '🩸', desc: 'Dark crimson & shadow', anim: false,
+        preview: ['#0a0000','#dc2626','#1a0505'],
+        vars: {
+            '--c-bg0':'#0a0000','--c-bg1':'#100202','--c-bg2':'#1a0505','--c-bg3':'#230808',
+            '--c-border':'#2d0a0a','--c-border2':'#1f0606',
+            '--c-accent':'#dc2626','--c-accent2':'#991b1b','--c-accent-glow':'rgba(220,38,38,0.32)',
+            '--c-text0':'#fee2e2','--c-text1':'#fca5a5','--c-text2':'#f87171',
+            '--c-text3':'#b91c1c','--c-text4':'#7f1d1d','--c-text5':'#450a0a',
+            '--c-success':'#4ade80','--c-warn':'#fbbf24','--c-err':'#ff6b6b',
+            '--c-tabbar':'#060000','--c-tab':'#0a0101','--c-tab-active':'#100202',
+        }
+    },
+    midnight: {
+        name: 'Midnight', icon: '🌙', desc: 'Deep navy & gold', anim: false,
+        preview: ['#020408','#f59e0b','#050d1a'],
+        vars: {
+            '--c-bg0':'#020408','--c-bg1':'#03070f','--c-bg2':'#050d1a','--c-bg3':'#071526',
+            '--c-border':'#0c2040','--c-border2':'#081530',
+            '--c-accent':'#f59e0b','--c-accent2':'#b45309','--c-accent-glow':'rgba(245,158,11,0.28)',
+            '--c-text0':'#fef3c7','--c-text1':'#fcd34d','--c-text2':'#f59e0b',
+            '--c-text3':'#92400e','--c-text4':'#451a03','--c-text5':'#1c0a01',
+            '--c-success':'#34d399','--c-warn':'#fb923c','--c-err':'#f87171',
+            '--c-tabbar':'#010306','--c-tab':'#020508','--c-tab-active':'#03070f',
+        }
+    },
+    toxic: {
+        name: 'Toxic', icon: '☢️', desc: 'Neon green hazard', anim: false,
+        preview: ['#010a01','#84cc16','#051405'],
+        vars: {
+            '--c-bg0':'#010a01','--c-bg1':'#020f02','--c-bg2':'#051405','--c-bg3':'#081c08',
+            '--c-border':'#0d280d','--c-border2':'#091c09',
+            '--c-accent':'#84cc16','--c-accent2':'#4d7c0f','--c-accent-glow':'rgba(132,204,22,0.3)',
+            '--c-text0':'#ecfccb','--c-text1':'#bef264','--c-text2':'#84cc16',
+            '--c-text3':'#3f6212','--c-text4':'#1a2e05','--c-text5':'#0d1a02',
+            '--c-success':'#a3e635','--c-warn':'#facc15','--c-err':'#f87171',
+            '--c-tabbar':'#010601','--c-tab':'#010901','--c-tab-active':'#020f02',
+        }
+    },
+    ocean: {
+        name: 'Ocean', icon: '🌊', desc: 'Deep teal & seafoam', anim: false,
+        preview: ['#020c10','#06b6d4','#041820'],
+        vars: {
+            '--c-bg0':'#020c10','--c-bg1':'#031218','--c-bg2':'#041820','--c-bg3':'#062030',
+            '--c-border':'#083040','--c-border2':'#052535',
+            '--c-accent':'#06b6d4','--c-accent2':'#0891b2','--c-accent-glow':'rgba(6,182,212,0.28)',
+            '--c-text0':'#cffafe','--c-text1':'#67e8f9','--c-text2':'#22d3ee',
+            '--c-text3':'#0e7490','--c-text4':'#164e63','--c-text5':'#083344',
+            '--c-success':'#34d399','--c-warn':'#fbbf24','--c-err':'#f87171',
+            '--c-tabbar':'#010809','--c-tab':'#020c0e','--c-tab-active':'#031218',
+        }
+    },
 };
 
 let currentTheme = 'void';
@@ -581,7 +633,7 @@ function injectStyles() {
         .st-set-title     { color:var(--c-text0);font-size:19px;font-weight:700;margin-bottom:5px; }
         .st-set-sub       { color:var(--c-text3);font-size:11px;margin-bottom:22px;line-height:1.6; }
 
-        #st-theme-grid { display:grid;grid-template-columns:repeat(5,1fr);gap:13px; }
+        #st-theme-grid { display:grid;grid-template-columns:repeat(5,1fr);gap:13px;flex-wrap:wrap; }
         .st-theme-card {
             border-radius:14px;border:2px solid var(--c-border);
             overflow:hidden;cursor:pointer;background:var(--c-bg0);
