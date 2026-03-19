@@ -337,26 +337,26 @@ async function sendTradeOffer() {
         return { idx, acctId, myUAIds };
     }));
 
-    // Flatten into a task list: every (sender × repeat) combination
-    const tasks = [];
-    for (const meta of senderMeta) {
-        if (!meta) continue;
-        for (let n = 0; n < count; n++) tasks.push(meta);
-    }
-
-    const total = tasks.length;
-    if (!total) {
+    const validMeta = senderMeta.filter(Boolean);
+    if (!validMeta.length) {
         setTradeStatus('✕ No valid senders', '#ef4444');
         if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
         return;
     }
 
-    log('Sending '+total+' trade(s) to '+tradeTargetName+' — '+TRADE_CONCURRENCY+' at a time...', 'info');
+    // Build flat task list: all accounts × count, interleaved so accounts fire simultaneously
+    // e.g. 3 accounts × 4 = [a0,a1,a2, a0,a1,a2, a0,a1,a2, a0,a1,a2]
+    const tasks = [];
+    for (let n = 0; n < count; n++)
+        for (const meta of validMeta) tasks.push(meta);
+
+    const total = tasks.length;
+    log('Sending '+total+' trade(s) to '+tradeTargetName+' — '+TRADE_CONCURRENCY+' at a time globally...', 'info');
     setTradeStatus('Sending 0/'+total+'...', '#eab308');
 
     let sent = 0, failed = 0;
 
-    // Process with global concurrency cap of TRADE_CONCURRENCY
+    // Global pool of TRADE_CONCURRENCY workers — all accounts interleaved
     let taskIdx = 0;
     async function runWorker() {
         while (taskIdx < tasks.length) {
