@@ -754,10 +754,6 @@ function buildUI() {
                                     <span class="st-snip-label">Max Price T$</span>
                                     <input id="st-snip-max-tix" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Snipe tix items at or below this price. Set 0 for free only.">
                                 </div>
-                                <div class="st-snip-field">
-                                    <span class="st-snip-label">Delay (ms)</span>
-                                    <input id="st-snip-delay" class="st-snip-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="0" title="Poll interval in milliseconds. 0 = as fast as possible.">
-                                </div>
                                 <div class="st-snip-sep"></div>
                                 <div class="st-toggle-row">
                                     <span class="st-snip-label">Limiteds</span>
@@ -1112,20 +1108,12 @@ function wireToggle(id, key) {
 }
 function wireSniperSettings() {
     // Price / delay inputs
-    ['st-snip-min-robux','st-snip-min-tix','st-snip-max-robux','st-snip-max-tix','st-snip-delay'].forEach(id => {
+    ['st-snip-min-robux','st-snip-min-tix','st-snip-max-robux','st-snip-max-tix'].forEach(id => {
         const el = document.getElementById(id); if (!el) return;
-        const keyMap = { 'st-snip-min-robux':'minPriceRobux', 'st-snip-min-tix':'minPriceTix', 'st-snip-max-robux':'maxPriceRobux', 'st-snip-max-tix':'maxPriceTix', 'st-snip-delay':'delayMs' };
+        const keyMap = { 'st-snip-min-robux':'minPriceRobux', 'st-snip-min-tix':'minPriceTix', 'st-snip-max-robux':'maxPriceRobux', 'st-snip-max-tix':'maxPriceTix' };
         el.addEventListener('change', () => {
             const key = keyMap[id];
-            const isPriceField = id.includes('min') || id.includes('max');
-            if (id === 'st-snip-delay') {
-                const v = Math.max(0, parseInt(el.value) || 0);
-                el.value = v;
-                sniperSettings[key] = v;
-            } else {
-                // Allow empty string (no limit) or a number
-                sniperSettings[key] = el.value.trim() === '' ? '' : (parseInt(el.value) || 0);
-            }
+            sniperSettings[key] = el.value.trim() === '' ? '' : (parseInt(el.value) || 0);
             saveSniperSettings();
         });
     });
