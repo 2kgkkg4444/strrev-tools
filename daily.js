@@ -399,3 +399,128 @@ async function redeemPromoCode() {
         if (btn) { btn.innerHTML = '🎟️ Redeem'; btn.disabled = false; }
     }
 }
+
+// ─── OBC Upgrade ──────────────────────────────────────────────────────────
+
+async function fetchMembershipToken(acctIdx) {
+    try {
+        const r = acctIdx >= 0
+            ? await acctFetch(acctIdx, BASE + '/internal/membership')
+            : await sessFetch(BASE + '/internal/membership');
+        const html = await r.text();
+        const m = html.match(/name="__RequestVerificationToken"[^>]+value="([^"]+)"/)
+               || html.match(/__RequestVerificationToken[^>]+value="([^"]+)"/);
+        return m ? m[1] : null;
+    } catch(_) { return null; }
+}
+
+async function upgradeToOBCFrom(acctIdx) {
+    const label = acctIdx === -1 ? 'Session' : (accounts[acctIdx]?.username || 'Account');
+    try {
+        const token = await fetchMembershipToken(acctIdx);
+        if (!token) {
+            log('✗ Could not fetch membership token (' + label + ')', 'err');
+            return { ok: false, msg: 'No verification token' };
+        }
+        const body = new URLSearchParams();
+        body.set('membershipType', 'OutrageousBuildersClub');
+        body.set('__RequestVerificationToken', token);
+
+        let res;
+        if (acctIdx >= 0) {
+            res = await acctFetch(acctIdx, BASE + '/internal/membership', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    body.toString(),
+            });
+        } else {
+            await fetchSessionCsrf();
+            res = await sessFetch(BASE + '/internal/membership', {
+                method:      'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'x-csrf-token': sessionCsrf,
+                },
+                body: body.toString(),
+            });
+        }
+
+        const ct = res.headers?.get ? res.headers.get('content-type') : '';
+        if (ct && ct.includes('application/json')) {
+            let d = {};
+            try { d = await res.json(); } catch(_) {}
+            if (d.success || res.ok) {
+                log('✓ OBC upgrade successful (' + label + ')', 'success');
+                return { ok: true };
+            }
+            const msg = d.message || d.errorMessage || d.errors?.[0]?.message || ('HTTP ' + res.status);
+            log('✗ OBC upgrade failed (' + label + '): ' + msg, 'err');
+            return { ok: false, msg };
+        }
+
+        const html = await res.text();
+        if (res.ok && !html.toLowerCase().includes('error') && !html.toLowerCase().includes('invalid')) {
+            log('✓ OBC upgrade successful (' + label + ')', 'success');
+            return { ok: true };
+        }
+        const errMatch = html.match(/class="[^"]*(?:error|alert)[^"]*"[^>]*>([^<]+)</i);
+        const msg = errMatch ? errMatch[1].trim() : ('HTTP ' + res.status);
+        log('✗ OBC upgrade failed (' + label + '): ' + msg, 'err');
+        return { ok: false, msg };
+    } catch(e) {
+        log('✗ OBC upgrade error (' + label + '): ' + e.message, 'err');
+        return { ok: false, msg: e.message };
+    }
+}
+
+function setObcStatus(msg, color) {
+    const el = document.getElementById('st-obc-status'); if (!el) return;
+    el.style.display     = msg ? 'block' : 'none';
+    el.style.color       = color || 'var(--c-text2)';
+    el.style.borderColor = color ? color + '44' : 'var(--c-border2)';
+    el.style.background  = color ? color + '0d' : 'var(--c-bg0)';
+    el.textContent       = msg;
+}
+
+async function upgradeToOBC() {
+    const btn = document.getElementById('st-obc-btn');
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Upgrading...'; btn.disabled = true; }
+    setObcStatus('Upgrading...', 'var(--c-warn)');
+
+    let senders = [];
+    if (selectedAcctIdx === -2) {
+        if (!accounts.length) {
+            setObcStatus('✕ No accounts saved', 'var(--c-err)');
+            if (btn) { btn.innerHTML = '👑 Upgrade to OBC'; btn.disabled = false; }
+            return;
+        }
+        senders = accounts.map((_, i) => i);
+    } else if (selectedAcctIdx === -1) {
+        senders = [-1];
+    } else {
+        senders = [selectedAcctIdx];
+    }
+
+    setObcStatus('Upgrading ' + senders.length + ' account(s)...', 'var(--c-warn)');
+    const results = await Promise.all(senders.map(idx => upgradeToOBCFrom(idx)));
+
+    const ok     = results.filter(r => r.ok).length;
+    const failed = results.filter(r => !r.ok).length;
+    const total  = results.length;
+
+    if (ok > 0) {
+        setObcStatus('✓ Upgraded ' + ok + '/' + total + ' account' + (total > 1 ? 's' : '') + ' to OBC', 'var(--c-success)');
+        if (btn) {
+            btn.innerHTML        = '✓ Upgraded!';
+            btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+            setTimeout(() => {
+                if (btn) { btn.innerHTML = '👑 Upgrade to OBC'; btn.style.background = ''; btn.disabled = false; }
+            }, 2500);
+        }
+    } else {
+        const firstErr = results.find(r => !r.ok)?.msg || 'Failed';
+        setObcStatus('✕ ' + firstErr, 'var(--c-err)');
+        if (btn) { btn.innerHTML = '👑 Upgrade to OBC'; btn.disabled = false; }
+    }
+}
