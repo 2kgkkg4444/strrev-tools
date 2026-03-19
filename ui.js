@@ -738,8 +738,17 @@ function buildUI() {
                             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">⚙️ Filter Settings</div>
                             <div class="st-snip-settings-row">
                                 <div class="st-snip-field">
+                                    <span class="st-snip-label">Min Price R$</span>
+                                    <input id="st-snip-min-robux" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Only snipe Robux items at or above this price.">
+                                </div>
+                                <div class="st-snip-field">
                                     <span class="st-snip-label">Max Price R$</span>
                                     <input id="st-snip-max-robux" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Snipe items at or below this Robux price. Set 0 for free only.">
+                                </div>
+                                <div class="st-snip-sep"></div>
+                                <div class="st-snip-field">
+                                    <span class="st-snip-label">Min Price T$</span>
+                                    <input id="st-snip-min-tix" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Only snipe Tix items at or above this price.">
                                 </div>
                                 <div class="st-snip-field">
                                     <span class="st-snip-label">Max Price T$</span>
@@ -1103,11 +1112,12 @@ function wireToggle(id, key) {
 }
 function wireSniperSettings() {
     // Price / delay inputs
-    ['st-snip-max-robux','st-snip-max-tix','st-snip-delay'].forEach(id => {
+    ['st-snip-min-robux','st-snip-min-tix','st-snip-max-robux','st-snip-max-tix','st-snip-delay'].forEach(id => {
         const el = document.getElementById(id); if (!el) return;
-        const keyMap = { 'st-snip-max-robux':'maxPriceRobux', 'st-snip-max-tix':'maxPriceTix', 'st-snip-delay':'delayMs' };
+        const keyMap = { 'st-snip-min-robux':'minPriceRobux', 'st-snip-min-tix':'minPriceTix', 'st-snip-max-robux':'maxPriceRobux', 'st-snip-max-tix':'maxPriceTix', 'st-snip-delay':'delayMs' };
         el.addEventListener('change', () => {
             const key = keyMap[id];
+            const isPriceField = id.includes('min') || id.includes('max');
             if (id === 'st-snip-delay') {
                 const v = Math.max(10, parseInt(el.value) || 50);
                 el.value = v;
