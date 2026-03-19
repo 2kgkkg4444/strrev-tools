@@ -140,3 +140,107 @@ async function sendFriendRequests() {
         }
     }
 }
+
+// ─── Messaging ────────────────────────────────────────────────────────────
+
+async function sendMessageFrom(acctIdx, recipientId, subject, body) {
+    const label   = acctIdx === -1 ? 'session' : accounts[acctIdx].username;
+    const payload = JSON.stringify({ recipientId: parseInt(recipientId), subject, body });
+    try {
+        let res;
+        if (acctIdx >= 0) {
+            res = await acctFetch(acctIdx, BASE+'/apisite/privatemessages/v1/messages/send', {
+                method: 'POST', body: payload,
+            });
+        } else {
+            await fetchSessionCsrf();
+            res = await sessFetch(BASE+'/apisite/privatemessages/v1/messages/send', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type':'application/json', 'x-csrf-token': sessionCsrf },
+                body: payload,
+            });
+        }
+        if (res.ok) {
+            log('✓ Message sent to '+recipientId+' as '+label, 'success');
+            return { ok: true };
+        }
+        let msg = 'HTTP '+res.status;
+        try { const d = await res.json(); msg = d.errors?.[0]?.message||d.errorMessage||msg; } catch(_){}
+        log('✗ Message failed ('+label+'): '+msg, 'err');
+        return { ok: false, msg };
+    } catch(e) {
+        log('✗ Message error ('+label+'): '+e.message, 'err');
+        return { ok: false, msg: e.message };
+    }
+}
+
+function setMsgStatus(msg, color) {
+    const el = document.getElementById('st-msg-status'); if (!el) return;
+    el.style.display     = msg ? 'block' : 'none';
+    el.style.color       = color || 'var(--c-text2)';
+    el.style.borderColor = color ? color+'44' : 'var(--c-border2)';
+    el.style.background  = color ? color+'0d' : 'var(--c-bg0)';
+    el.textContent       = msg;
+}
+
+async function sendMessages() {
+    const input   = document.getElementById('st-msg-input')?.value?.trim();
+    const subject = document.getElementById('st-msg-subject')?.value?.trim();
+    const body    = document.getElementById('st-msg-body')?.value?.trim();
+
+    if (!input)   { setMsgStatus('⚠ Enter a username or user ID', 'var(--c-warn)'); return; }
+    if (!subject) { setMsgStatus('⚠ Enter a subject', 'var(--c-warn)'); return; }
+    if (!body)    { setMsgStatus('⚠ Enter a message body', 'var(--c-warn)'); return; }
+
+    const btn = document.getElementById('st-msg-btn');
+    if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Sending...'; btn.disabled=true; }
+    setMsgStatus('Looking up user...', 'var(--c-warn)');
+
+    let target;
+    try {
+        target = await lookupFriendTarget(input);
+    } catch(e) {
+        setMsgStatus('✕ '+e.message, 'var(--c-err)');
+        log('Message lookup failed: '+e.message, 'err');
+        if (btn) { btn.innerHTML='✉️ Send Message'; btn.disabled=false; }
+        return;
+    }
+
+    log('Sending message to '+target.name+' ('+target.id+')...', 'info');
+
+    let results = [];
+
+    if (selectedAcctIdx === -2) {
+        if (!accounts.length) {
+            setMsgStatus('✕ No accounts saved', 'var(--c-err)');
+            if (btn) { btn.innerHTML='✉️ Send Message'; btn.disabled=false; }
+            return;
+        }
+        setMsgStatus('Sending from '+accounts.length+' account(s)...', 'var(--c-warn)');
+        for (let i = 0; i < accounts.length; i++) {
+            results.push(await sendMessageFrom(i, target.id, subject, body));
+        }
+    } else if (selectedAcctIdx === -1) {
+        results = [await sendMessageFrom(-1, target.id, subject, body)];
+    } else {
+        results = [await sendMessageFrom(selectedAcctIdx, target.id, subject, body)];
+    }
+
+    const sent   = results.filter(r => r.ok).length;
+    const failed = results.filter(r => !r.ok).length;
+    const total  = results.length;
+
+    if (sent > 0) {
+        setMsgStatus('✓ Message sent to '+target.name+' from '+sent+'/'+total+' account'+(total>1?'s':''), 'var(--c-success)');
+        if (btn) {
+            btn.innerHTML        = '✓ Sent!';
+            btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+            setTimeout(() => {
+                if (btn) { btn.innerHTML='✉️ Send Message'; btn.style.background=''; btn.disabled=false; }
+            }, 2500);
+        }
+    } else {
+        setMsgStatus('✕ All messages failed — check the activity log', 'var(--c-err)');
+        if (btn) { btn.innerHTML='✉️ Send Message'; btn.disabled=false; }
+    }
+}
