@@ -1,56 +1,85 @@
 // ─── Buy Functions ────────────────────────────────────────────────────────
+
+// Free items (price === 0) need expectedSellerId resolved from the asset detail
+// endpoint because defaulting to 0/1 causes "seller not found" errors.
+async function resolveSellerIdForFreeItem(assetId) {
+    try {
+        const r = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: [{ itemType: 'Asset', id: parseInt(assetId) }] }),
+        });
+        const j = await r.json();
+        return j.data?.[0]?.creatorTargetId || j.data?.[0]?.sellerId || null;
+    } catch(_) { return null; }
+}
+
+function buildPurchasePayload(item) {
+    return JSON.stringify({
+        assetId:          parseInt(item.assetId),
+        expectedPrice:    item.price,
+        expectedSellerId: item.sellerId,
+        userAssetId:      null,
+        expectedCurrency: item.currency,
+    });
+}
+
 async function buyForAcct(i, item) {
     try {
-        const res = await acctFetch(i, BASE+'/apisite/economy/v1/purchases/products/'+item.assetId, {
+        // For free items resolve the real sellerId first if we only have a placeholder
+        if (item.price === 0 && (!item.sellerId || item.sellerId < 2)) {
+            const sid = await resolveSellerIdForFreeItem(item.assetId);
+            if (sid) item = { ...item, sellerId: sid };
+        }
+
+        const res = await acctFetch(i, BASE + '/apisite/economy/v1/purchases/products/' + item.assetId, {
             method: 'POST',
-            body: JSON.stringify({
-                assetId:          parseInt(item.assetId),
-                expectedPrice:    item.price,
-                expectedSellerId: item.sellerId,
-                userAssetId:      null,
-                expectedCurrency: item.currency,
-            }),
+            body:   buildPurchasePayload(item),
         });
         let d = {};
-        try { d = await res.json(); } catch(_){}
+        try { d = await res.json(); } catch(_) {}
         if (res.ok && (d.purchased || d.statusCode === undefined)) {
-            log('✓ Bought "'+item.name+'" as '+accounts[i].username, 'success');
+            log('✓ ' + (item.price === 0 ? 'Claimed free' : 'Bought') + ' "' + item.name + '" as ' + accounts[i].username, 'success');
             return true;
         }
-        if (d.statusCode === 4) log('✗ Not enough currency — '+accounts[i].username, 'warn');
-        else                    log('✗ '+(d.errorMessage||'Failed')+' — '+accounts[i].username, 'err');
-    } catch(e) { log('✗ '+e.message+' — '+accounts[i].username, 'err'); }
+        if (d.statusCode === 4) log('✗ Not enough currency — ' + accounts[i].username, 'warn');
+        else                    log('✗ ' + (d.errorMessage || d.message || 'Failed') + ' — ' + accounts[i].username, 'err');
+    } catch(e) { log('✗ ' + e.message + ' — ' + accounts[i].username, 'err'); }
     return false;
 }
 
 async function buyForSession(item) {
     try {
+        // Resolve real sellerId for free items
+        if (item.price === 0 && (!item.sellerId || item.sellerId < 2)) {
+            const sid = await resolveSellerIdForFreeItem(item.assetId);
+            if (sid) item = { ...item, sellerId: sid };
+        }
+
         await fetchSessionCsrf();
-        const res = await fetch(BASE+'/apisite/economy/v1/purchases/products/'+item.assetId, {
+        const res = await fetch(BASE + '/apisite/economy/v1/purchases/products/' + item.assetId, {
             method: 'POST', credentials: 'include',
-            headers: { 'Content-Type':'application/json', 'x-csrf-token': sessionCsrf },
-            body: JSON.stringify({
-                assetId:          parseInt(item.assetId),
-                expectedPrice:    item.price,
-                expectedSellerId: item.sellerId,
-                userAssetId:      null,
-                expectedCurrency: item.currency,
-            }),
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
+            body: buildPurchasePayload(item),
         });
         const d = await res.json();
-        if (res.ok && (d.purchased || d.statusCode === undefined)) { log('✓ Bought "'+item.name+'" (session)', 'success'); return true; }
-        log('✗ '+(d.errorMessage||'Failed')+' (session)', 'err');
-    } catch(e) { log('✗ '+e.message+' (session)', 'err'); }
+        if (res.ok && (d.purchased || d.statusCode === undefined)) {
+            log('✓ ' + (item.price === 0 ? 'Claimed free' : 'Bought') + ' "' + item.name + '" (session)', 'success');
+            return true;
+        }
+        log('✗ ' + (d.errorMessage || d.message || 'Failed') + ' (session)', 'err');
+    } catch(e) { log('✗ ' + e.message + ' (session)', 'err'); }
     return false;
 }
 
 async function buyItem(item, btn) {
-    if (btn) { btn.innerHTML='<span class="st-spin">↻</span>'; btn.disabled=true; }
-    log('Buying: '+item.name, 'info');
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span>'; btn.disabled = true; }
+    log((item.price === 0 ? 'Claiming free: ' : 'Buying: ') + item.name, 'info');
     let ok = false;
     if (selectedAcctIdx === -2) {
         if (!accounts.length) log('No accounts saved', 'warn');
-        else { const results = await Promise.all(accounts.map((_,i) => buyForAcct(i,item))); ok = results.some(Boolean); }
+        else { const results = await Promise.all(accounts.map((_, i) => buyForAcct(i, item))); ok = results.some(Boolean); }
     } else if (selectedAcctIdx === -1) {
         ok = await buyForSession(item);
     } else {
@@ -58,8 +87,8 @@ async function buyItem(item, btn) {
         else log('Account not found', 'err');
     }
     if (btn) {
-        btn.textContent       = ok ? '✓' : '✕';
-        btn.style.background  = ok ? 'linear-gradient(135deg,#16a34a,#15803d)' : '#7f1d1d';
-        btn.disabled          = false;
+        btn.textContent      = ok ? '✓' : '✕';
+        btn.style.background = ok ? 'linear-gradient(135deg,#16a34a,#15803d)' : '#7f1d1d';
+        btn.disabled         = false;
     }
 }
