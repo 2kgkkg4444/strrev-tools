@@ -601,6 +601,21 @@ function injectStyles() {
         .st-set-input::placeholder { color:var(--c-text5); }
 
         .st-skel { background:linear-gradient(90deg,var(--c-bg2) 25%,var(--c-bg3) 50%,var(--c-bg2) 75%);background-size:200% 100%;animation:st-shimmer 1.4s infinite; }
+
+        /* Sniper settings */
+        .st-snip-settings { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:18px 20px;margin-bottom:18px; }
+        .st-snip-settings-row { display:flex;align-items:center;gap:14px;flex-wrap:wrap; }
+        .st-snip-field { display:flex;flex-direction:column;gap:5px; }
+        .st-snip-label { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4); }
+        .st-snip-input { width:110px;padding:8px 11px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:8px;color:var(--c-text1);font-size:12px;font-family:'Fira Code',monospace;outline:none;transition:border-color 0.14s; }
+        .st-snip-input:focus { border-color:var(--c-accent); }
+        .st-snip-input::placeholder { color:var(--c-text5); }
+        .st-snip-sep { width:1px;height:36px;background:var(--c-border2);flex-shrink:0; }
+        .st-toggle-row { display:flex;flex-direction:column;gap:5px;align-items:center; }
+        .st-toggle-track { width:40px;height:22px;border-radius:99px;background:var(--c-border);position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0; }
+        .st-toggle-track.on { background:var(--c-accent); }
+        .st-toggle-thumb { width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform 0.18s;box-shadow:0 1px 4px rgba(0,0,0,0.4); }
+        .st-toggle-track.on .st-toggle-thumb { transform:translateX(18px); }
         .st-spin { display:inline-block;animation:st-spin 0.7s linear infinite; }
         .st-sniper-active { animation:st-pulse-g 1.8s infinite; }
 
@@ -717,6 +732,44 @@ function buildUI() {
                             <div class="st-dot st-dot-idle"></div>
                             <span class="st-dot-text">Idle — press Start to begin sniping</span>
                         </div>
+
+                        <!-- SNIPER SETTINGS -->
+                        <div class="st-snip-settings">
+                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">⚙️ Filter Settings</div>
+                            <div class="st-snip-settings-row">
+                                <div class="st-snip-field">
+                                    <span class="st-snip-label">Max Price R$</span>
+                                    <input id="st-snip-max-robux" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Snipe items at or below this Robux price. Set 0 for free only.">
+                                </div>
+                                <div class="st-snip-field">
+                                    <span class="st-snip-label">Max Price T$</span>
+                                    <input id="st-snip-max-tix" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Snipe tix items at or below this price. Set 0 for free only.">
+                                </div>
+                                <div class="st-snip-field">
+                                    <span class="st-snip-label">Delay (ms)</span>
+                                    <input id="st-snip-delay" class="st-snip-input" type="number" min="10" max="5000" value="50" title="Poll interval in milliseconds. Lower = faster but more requests.">
+                                </div>
+                                <div class="st-snip-sep"></div>
+                                <div class="st-toggle-row">
+                                    <span class="st-snip-label">Limiteds</span>
+                                    <div id="st-snip-limiteds" class="st-toggle-track" title="Only snipe items with Limited restriction"><div class="st-toggle-thumb"></div></div>
+                                </div>
+                                <div class="st-toggle-row">
+                                    <span class="st-snip-label">LimitedU</span>
+                                    <div id="st-snip-limitedu" class="st-toggle-track" title="Only snipe LimitedUnique items"><div class="st-toggle-thumb"></div></div>
+                                </div>
+                                <div class="st-snip-sep"></div>
+                                <div class="st-toggle-row">
+                                    <span class="st-snip-label">R$ Only</span>
+                                    <div id="st-snip-robux-only" class="st-toggle-track" title="Only snipe Robux-priced items"><div class="st-toggle-thumb"></div></div>
+                                </div>
+                                <div class="st-toggle-row">
+                                    <span class="st-snip-label">T$ Only</span>
+                                    <div id="st-snip-tix-only" class="st-toggle-track" title="Only snipe Tix-priced items"><div class="st-toggle-thumb"></div></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div id="st-sniper-layout">
                             <div>
                                 <div class="st-stats-grid">
@@ -1029,6 +1082,48 @@ function buildUI() {
     document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
+    wireSniperSettings();
+}
+
+// ─── Toggle Helper ───────────────────────────────────────────────────────
+function setToggle(id, val) {
+    const el = document.getElementById(id); if (!el) return;
+    if (val) el.classList.add('on'); else el.classList.remove('on');
+}
+function getToggle(id) {
+    const el = document.getElementById(id); return el ? el.classList.contains('on') : false;
+}
+function wireToggle(id, key) {
+    const el = document.getElementById(id); if (!el) return;
+    el.addEventListener('click', () => {
+        el.classList.toggle('on');
+        sniperSettings[key] = el.classList.contains('on');
+        saveSniperSettings();
+    });
+}
+function wireSniperSettings() {
+    // Price / delay inputs
+    ['st-snip-max-robux','st-snip-max-tix','st-snip-delay'].forEach(id => {
+        const el = document.getElementById(id); if (!el) return;
+        const keyMap = { 'st-snip-max-robux':'maxPriceRobux', 'st-snip-max-tix':'maxPriceTix', 'st-snip-delay':'delayMs' };
+        el.addEventListener('change', () => {
+            const key = keyMap[id];
+            if (id === 'st-snip-delay') {
+                const v = Math.max(10, parseInt(el.value) || 50);
+                el.value = v;
+                sniperSettings[key] = v;
+            } else {
+                // Allow empty string (no limit) or a number
+                sniperSettings[key] = el.value.trim() === '' ? '' : (parseInt(el.value) || 0);
+            }
+            saveSniperSettings();
+        });
+    });
+    // Toggles
+    wireToggle('st-snip-limiteds',   'limitedsOnly');
+    wireToggle('st-snip-limitedu',   'limitedUsOnly');
+    wireToggle('st-snip-robux-only', 'robuxOnly');
+    wireToggle('st-snip-tix-only',   'tixOnly');
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
@@ -1036,6 +1131,7 @@ function init() {
     loadAccounts();
     injectStyles();
     buildUI();
+    loadSniperSettings();
 
     // Restore selected account BEFORE rebuildAcctSelector so the dropdown
     // is built with the correct value already set in selectedAcctIdx
