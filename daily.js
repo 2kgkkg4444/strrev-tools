@@ -414,7 +414,7 @@ async function fetchMembershipToken(acctIdx) {
     } catch(_) { return null; }
 }
 
-async function upgradeToOBCFrom(acctIdx) {
+async function upgradeMembershipFrom(acctIdx, membershipType) {
     const label = acctIdx === -1 ? 'Session' : (accounts[acctIdx]?.username || 'Account');
     try {
         const token = await fetchMembershipToken(acctIdx);
@@ -423,7 +423,7 @@ async function upgradeToOBCFrom(acctIdx) {
             return { ok: false, msg: 'No verification token' };
         }
         const body = new URLSearchParams();
-        body.set('membershipType', 'OutrageousBuildersClub');
+        body.set('membershipType', membershipType);
         body.set('__RequestVerificationToken', token);
 
         let res;
@@ -461,15 +461,15 @@ async function upgradeToOBCFrom(acctIdx) {
 
         const html = await res.text();
         if (res.ok && !html.toLowerCase().includes('error') && !html.toLowerCase().includes('invalid')) {
-            log('✓ OBC upgrade successful (' + label + ')', 'success');
+            log('✓ Membership set to ' + membershipType + ' (' + label + ')', 'success');
             return { ok: true };
         }
         const errMatch = html.match(/class="[^"]*(?:error|alert)[^"]*"[^>]*>([^<]+)</i);
         const msg = errMatch ? errMatch[1].trim() : ('HTTP ' + res.status);
-        log('✗ OBC upgrade failed (' + label + '): ' + msg, 'err');
+        log('✗ Membership upgrade failed (' + label + '): ' + msg, 'err');
         return { ok: false, msg };
     } catch(e) {
-        log('✗ OBC upgrade error (' + label + '): ' + e.message, 'err');
+        log('✗ Membership upgrade error (' + label + '): ' + e.message, 'err');
         return { ok: false, msg: e.message };
     }
 }
@@ -484,9 +484,12 @@ function setObcStatus(msg, color) {
 }
 
 async function upgradeToOBC() {
+    const membershipType = document.getElementById('st-membership-type')?.value || 'OutrageousBuildersClub';
+    const labels = { OutrageousBuildersClub:'OBC', TurboBuildersClub:'TBC', BuildersClub:'BC', None:'None' };
+    const shortLabel = labels[membershipType] || membershipType;
     const btn = document.getElementById('st-obc-btn');
-    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Upgrading...'; btn.disabled = true; }
-    setObcStatus('Upgrading...', 'var(--c-warn)');
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Setting...'; btn.disabled = true; }
+    setObcStatus('Setting membership to ' + shortLabel + '...', 'var(--c-warn)');
 
     let senders = [];
     if (selectedAcctIdx === -2) {
@@ -503,24 +506,24 @@ async function upgradeToOBC() {
     }
 
     setObcStatus('Upgrading ' + senders.length + ' account(s)...', 'var(--c-warn)');
-    const results = await Promise.all(senders.map(idx => upgradeToOBCFrom(idx)));
+    const results = await Promise.all(senders.map(idx => upgradeMembershipFrom(idx, membershipType)));
 
     const ok     = results.filter(r => r.ok).length;
     const failed = results.filter(r => !r.ok).length;
     const total  = results.length;
 
     if (ok > 0) {
-        setObcStatus('✓ Upgraded ' + ok + '/' + total + ' account' + (total > 1 ? 's' : '') + ' to OBC', 'var(--c-success)');
+        setObcStatus('✓ Set ' + ok + '/' + total + ' account' + (total > 1 ? 's' : '') + ' to ' + shortLabel, 'var(--c-success)');
         if (btn) {
-            btn.innerHTML        = '✓ Upgraded!';
+            btn.innerHTML        = '✓ Done!';
             btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
             setTimeout(() => {
-                if (btn) { btn.innerHTML = '👑 Upgrade to OBC'; btn.style.background = ''; btn.disabled = false; }
+                if (btn) { btn.innerHTML = '👑 Set Membership'; btn.style.background = ''; btn.disabled = false; }
             }, 2500);
         }
     } else {
         const firstErr = results.find(r => !r.ok)?.msg || 'Failed';
         setObcStatus('✕ ' + firstErr, 'var(--c-err)');
-        if (btn) { btn.innerHTML = '👑 Upgrade to OBC'; btn.disabled = false; }
+        if (btn) { btn.innerHTML = '👑 Set Membership'; btn.disabled = false; }
     }
 }
