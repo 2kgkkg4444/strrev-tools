@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Strrev Tools
 // @namespace    http://tampermonkey.net/
-// @version      9.0
+// @version      9.1
 // @description  Multi-account manager, silent sniper, catalog buyer, trader, friend requester & daily chest for strrev.com
 // @author       You
 // @match        https://www.strrev.com/*
@@ -9,15 +9,15 @@
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @connect      www.strrev.com
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/utils.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/accounts.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/buy.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/sniper.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/catalog.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/trade.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/friends.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/daily.js
-// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/ui.js
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/utils.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/accounts.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/buy.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/sniper.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/catalog.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/trade.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/friends.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/daily.js?v=2
+// @require      https://raw.githubusercontent.com/2kgkkg4444/strrev-tools/main/ui.js?v=2
 // ==/UserScript==
 
 init();
