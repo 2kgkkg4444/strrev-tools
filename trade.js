@@ -1,37 +1,50 @@
 // ─── Trade ────────────────────────────────────────────────────────────────
+
+// Helper: resolve which account index to use for trade fetches.
+// When "All Accounts" (-2) is selected, fall back to session (-1) for trades.
+function tradeAcctIdx() { return selectedAcctIdx === -2 ? -1 : selectedAcctIdx; }
+
 async function fetchMyUserId() {
-    if (selectedAcctIdx >= 0 && accounts[selectedAcctIdx]?.id) return accounts[selectedAcctIdx].id;
+    const idx = tradeAcctIdx();
+    if (idx >= 0 && accounts[idx]?.id) return accounts[idx].id;
     try {
-        const r = selectedAcctIdx >= 0
-            ? await acctFetch(selectedAcctIdx, BASE+'/apisite/users/v1/users/authenticated')
+        const r = idx >= 0
+            ? await acctFetch(idx, BASE+'/apisite/users/v1/users/authenticated')
             : await sessFetch(BASE+'/apisite/users/v1/users/authenticated');
         const j = await r.json(); return j.id || null;
     } catch(_) { return null; }
 }
 
 async function fetchInventory(userId) {
+    const idx = tradeAcctIdx();
     try {
-        const r = selectedAcctIdx >= 0
-            ? await acctFetch(selectedAcctIdx, BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles')
+        const r = idx >= 0
+            ? await acctFetch(idx, BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles')
             : await sessFetch(BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles');
         const j = await r.json(); return j.data || [];
     } catch(_) { return []; }
 }
 
 async function lookupUser(input) {
+    const idx = tradeAcctIdx();
     input = input.trim();
     let r;
     if (/^\d+$/.test(input)) {
-        r = selectedAcctIdx >= 0
-            ? await acctFetch(selectedAcctIdx, BASE+'/apisite/users/v1/users/'+input)
+        r = idx >= 0
+            ? await acctFetch(idx, BASE+'/apisite/users/v1/users/'+input)
             : await sessFetch(BASE+'/apisite/users/v1/users/'+input);
         if (!r.ok) throw new Error('User ID '+input+' not found');
         const j = await r.json(); return { id:j.id, name:j.name||j.displayName||'User '+input };
     }
     const body = JSON.stringify({ usernames:[input], excludeBannedUsers:false });
-    r = selectedAcctIdx >= 0
-        ? await acctFetch(selectedAcctIdx, BASE+'/apisite/users/v1/usernames/users', { method:'POST', body })
-        : await sessFetch(BASE+'/apisite/users/v1/usernames/users', { method:'POST', headers:{'Content-Type':'application/json'}, body });
+    if (idx < 0) await fetchSessionCsrf();   // ensure CSRF before POST
+    r = idx >= 0
+        ? await acctFetch(idx, BASE+'/apisite/users/v1/usernames/users', { method:'POST', body })
+        : await sessFetch(BASE+'/apisite/users/v1/usernames/users', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','x-csrf-token':sessionCsrf},
+              body,
+          });
     const j = await r.json();
     const u = j.data?.[0]; if (!u) throw new Error('Username "'+input+'" not found');
     return { id:u.id, name:u.name };
@@ -61,27 +74,27 @@ function renderInvSkel(id) {
 function renderInvList(id, items, sel) {
     const el = document.getElementById(id); if (!el) return;
     el.innerHTML = '';
-    if (!items.length) { el.innerHTML='<div style="padding:10px;text-align:center;color:#1e3a5f;font-size:9px;">No tradeable items</div>'; return; }
+    if (!items.length) { el.innerHTML='<div style="padding:10px;text-align:center;color:var(--c-text4);font-size:10px;">No tradeable items</div>'; return; }
     items.forEach(item => {
         const uaid   = item.userAssetId;
         const active = sel.has(uaid);
         const row    = document.createElement('div');
-        row.style.cssText = `padding:5px 7px;border-radius:6px;cursor:pointer;margin-bottom:3px;background:${active?'rgba(233,69,96,0.1)':'transparent'};border:1px solid ${active?'#e94560':'transparent'};transition:all 0.12s;display:flex;align-items:center;gap:7px;`;
-        row.onmouseenter = () => { if (!sel.has(uaid)) row.style.background='#0d1829'; };
+        row.style.cssText = `padding:6px 8px;border-radius:7px;cursor:pointer;margin-bottom:3px;background:${active?'rgba(233,69,96,0.1)':'transparent'};border:1px solid ${active?'var(--c-accent)':'transparent'};transition:all 0.12s;display:flex;align-items:center;gap:8px;`;
+        row.onmouseenter = () => { if (!sel.has(uaid)) row.style.background='var(--c-bg2)'; };
         row.onmouseleave = () => { if (!sel.has(uaid)) row.style.background='transparent'; };
 
         const dot = document.createElement('div');
-        dot.style.cssText = `width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${active?'#e94560':'#1e293b'};transition:background 0.12s;`;
+        dot.style.cssText = `width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${active?'var(--c-accent)':'var(--c-border)'};transition:background 0.12s;`;
 
         const info = document.createElement('div'); info.style.cssText = 'flex:1;min-width:0;';
         const name = document.createElement('div');
-        name.style.cssText = `font-size:9px;color:${active?'#e2e8f0':'#475569'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.12s;`;
+        name.style.cssText = `font-size:10px;color:${active?'var(--c-text0)':'var(--c-text2)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.12s;`;
         name.textContent = item.name || 'Item #'+item.assetId;
         info.appendChild(name);
 
         if (item.recentAveragePrice) {
             const price = document.createElement('div');
-            price.style.cssText = 'font-size:8px;color:#334155;font-family:monospace;margin-top:1px;';
+            price.style.cssText = 'font-size:9px;color:var(--c-text4);font-family:monospace;margin-top:1px;';
             price.textContent = 'R$'+item.recentAveragePrice.toLocaleString();
             info.appendChild(price);
         }
@@ -112,7 +125,7 @@ async function loadTradeTarget() {
     setTradeStatus('Looking up user...', '#eab308');
     try {
         const myId = await fetchMyUserId();
-        if (!myId) throw new Error('Could not get your user ID — logged in / cookie valid?');
+        if (!myId) throw new Error('Could not get your user ID — are you logged in / is the cookie valid?');
         const target = await lookupUser(input);
         tradeTargetId = target.id; tradeTargetName = target.name;
         mySelected.clear(); theirSelected.clear();
@@ -133,6 +146,7 @@ async function loadTradeTarget() {
 }
 
 async function sendTradeOffer() {
+    const idx = tradeAcctIdx();
     const myId = await fetchMyUserId();
     if (!myId || !tradeTargetId) return;
     const btn = document.getElementById('st-send-btn');
@@ -144,9 +158,14 @@ async function sendTradeOffer() {
             { robux:null, userAssetIds:myIds, userId:myId },
             { robux:null, userAssetIds:thIds, userId:tradeTargetId },
         ]});
-        const res = selectedAcctIdx >= 0
-            ? await acctFetch(selectedAcctIdx, BASE+'/apisite/trades/v1/trades/send', { method:'POST', body:payload })
-            : await sessFetch(BASE+'/apisite/trades/v1/trades/send', { method:'POST', headers:{'Content-Type':'application/json'}, body:payload });
+        if (idx < 0) await fetchSessionCsrf();
+        const res = idx >= 0
+            ? await acctFetch(idx, BASE+'/apisite/trades/v1/trades/send', { method:'POST', body:payload })
+            : await sessFetch(BASE+'/apisite/trades/v1/trades/send', {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json','x-csrf-token':sessionCsrf},
+                  body:payload,
+              });
         if (res.ok) {
             log('✓ Trade sent to '+tradeTargetName+'!', 'success');
             setTradeStatus('✓ Trade offer sent to '+tradeTargetName+'!', '#22c55e');
@@ -154,7 +173,7 @@ async function sendTradeOffer() {
                 btn.innerHTML        = '✓ Trade Sent!';
                 btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
                 btn.style.boxShadow  = '0 0 14px rgba(34,197,94,0.3)';
-                setTimeout(() => { if(btn){ btn.innerHTML='🔄 Send Trade Offer'; btn.style.background='linear-gradient(135deg,#e94560,#b91c4a)'; btn.style.boxShadow='0 0 20px rgba(233,69,96,0.2)'; }}, 2500);
+                setTimeout(() => { if(btn){ btn.innerHTML='🔄 Send Trade Offer'; btn.style.background=''; btn.style.boxShadow=''; }}, 2500);
             }
             mySelected.clear(); theirSelected.clear();
             renderInvList('st-my-inv', myInventory, mySelected);
