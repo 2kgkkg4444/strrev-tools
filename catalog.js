@@ -113,9 +113,9 @@ function renderCatalogItem(item, index, listEl) {
     const bar = document.createElement('div');
     bar.style.cssText = 'width:2px;height:22px;border-radius:2px;flex-shrink:0;background:' + ac + ';';
 
-    const name = document.createElement('span');
-    name.style.cssText = 'flex:1;font-size:11px;color:var(--c-text1);word-break:break-word;line-height:1.4;';
-    name.textContent = buyData.name;
+    const nameEl = document.createElement('span');
+    nameEl.style.cssText = 'flex:1;font-size:11px;color:var(--c-text1);word-break:break-word;line-height:1.4;';
+    nameEl.textContent = buyData.name;
 
     const priceEl = document.createElement('span');
     priceEl.style.cssText = 'color:' + pc + ';font-size:11px;font-weight:700;white-space:nowrap;font-family:"Fira Code",monospace;flex-shrink:0;';
@@ -129,7 +129,7 @@ function renderCatalogItem(item, index, listEl) {
     btn.onmouseleave  = () => { btn.style.opacity = '1';   btn.style.transform = 'translateY(0)'; };
     btn.addEventListener('click', () => buyItem(buyData, btn));
 
-    li.append(num, bar, name, priceEl, btn);
+    li.append(num, bar, nameEl, priceEl, btn);
     listEl.appendChild(li);
 }
 
