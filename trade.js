@@ -18,17 +18,32 @@ async function fetchMyUserId() {
     } catch(_) { return null; }
 }
 
-async function fetchInventoryForIdx(idx, userId) {
-    try {
-        const r = idx >= 0
-            ? await acctFetch(idx, BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles')
-            : await sessFetch(BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles');
-        const j = await r.json(); return j.data || [];
-    } catch(_) { return []; }
+// ─── Paginated inventory fetch ────────────────────────────────────────────
+// The API returns a cursor for the next page. We keep fetching until there
+// are no more pages so we never miss an item due to pagination.
+async function fetchInventoryAllPages(idx, userId) {
+    const all = [];
+    let cursor = '';
+    let attempts = 0;
+    const MAX_PAGES = 40; // safety cap (~4000 items)
+    do {
+        const url = BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles'
+            + '?limit=100' + (cursor ? '&cursor='+encodeURIComponent(cursor) : '');
+        try {
+            const r = idx >= 0
+                ? await acctFetch(idx, url)
+                : await sessFetch(url);
+            const j = await r.json();
+            if (j.data && j.data.length) all.push(...j.data);
+            cursor = j.nextPageCursor || '';
+        } catch(_) { break; }
+        attempts++;
+    } while (cursor && attempts < MAX_PAGES);
+    return all;
 }
 
 async function fetchInventory(userId) {
-    return fetchInventoryForIdx(tradeLookupIdx(), userId);
+    return fetchInventoryAllPages(tradeLookupIdx(), userId);
 }
 
 async function lookupUser(input) {
@@ -154,12 +169,12 @@ async function loadTradeTarget() {
     if (btn) { btn.innerHTML='Load'; btn.disabled=false; }
 }
 
-// ─── Core: resolve userAssetIds for a given account ───────────────────────
-// mySelected contains userAssetIds from the *preview* account's inventory.
-// We map those back to assetIds, then find matching userAssetIds in this
-// account's own inventory. Items the account doesn't own are skipped.
-async function resolveMyAssetIds(acctIdx, acctUserId) {
-    // Build assetId set from selected userAssetIds using the loaded myInventory
+// ─── Resolve correct userAssetIds for a specific account ─────────────────
+// mySelected has userAssetIds from the preview account's inventory.
+// We convert those to assetIds, fetch THIS account's full inventory,
+// then return THIS account's userAssetIds for those same assetIds.
+async function resolveUserAssetIds(acctIdx, acctUserId) {
+    // Build a map: assetId → userAssetId from the preview inventory (myInventory)
     const selectedAssetIds = new Set(
         myInventory
             .filter(item => mySelected.has(item.userAssetId))
@@ -167,22 +182,35 @@ async function resolveMyAssetIds(acctIdx, acctUserId) {
     );
     if (!selectedAssetIds.size) return [];
 
-    // Fetch this account's own inventory and find matching userAssetIds
-    const inv = await fetchInventoryForIdx(acctIdx, acctUserId);
+    log('Fetching full inventory for '+accounts[acctIdx]?.username+' ('+selectedAssetIds.size+' items to match)...', 'info');
+
+    // Fetch ALL pages of this account's inventory
+    const inv = await fetchInventoryAllPages(acctIdx, acctUserId);
+
+    // Build a map assetId → userAssetId for quick lookup
+    const assetToUAID = {};
+    inv.forEach(item => {
+        const aid = String(item.assetId);
+        // Keep first match (they should only own one copy, but just in case)
+        if (!assetToUAID[aid]) assetToUAID[aid] = item.userAssetId;
+    });
+
     const resolved = [];
     selectedAssetIds.forEach(assetId => {
-        const match = inv.find(item => String(item.assetId) === assetId);
-        if (match) resolved.push(match.userAssetId);
-        else log('⚠ '+accounts[acctIdx]?.username+' doesn\'t own assetId '+assetId+' — skipping', 'warn');
+        if (assetToUAID[assetId]) {
+            resolved.push(assetToUAID[assetId]);
+        } else {
+            log('⚠ '+accounts[acctIdx]?.username+' doesn\'t own assetId '+assetId+' — skipping item', 'warn');
+        }
     });
     return resolved;
 }
 
-// ─── Send trade from one specific account ────────────────────────────────
+// ─── Send trade from one account ─────────────────────────────────────────
 async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUserAssetIds) {
     const label   = acctIdx === -1 ? 'session' : accounts[acctIdx].username;
     const payload = JSON.stringify({ offers:[
-        { robux:null, userAssetIds:myUserAssetIds,   userId:acctUserId      },
+        { robux:null, userAssetIds:myUserAssetIds,    userId:acctUserId     },
         { robux:null, userAssetIds:theirUserAssetIds, userId:tradeTargetId  },
     ]});
     try {
@@ -208,10 +236,21 @@ async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUser
     }
 }
 
+// ─── Get or fetch an account's user ID ───────────────────────────────────
+async function resolveAcctUserId(i) {
+    if (accounts[i]?.id) return accounts[i].id;
+    try {
+        const r = await acctFetch(i, BASE+'/apisite/users/v1/users/authenticated');
+        const j = await r.json();
+        if (j.id) { accounts[i].id = j.id; saveAccounts(); }
+        return j.id || null;
+    } catch(_) { return null; }
+}
+
 // ─── Main send dispatcher ─────────────────────────────────────────────────
 async function sendTradeOffer() {
     if (!tradeTargetId) return;
-    const theirUserAssetIds = Array.from(theirSelected); // same for all accounts
+    const theirUserAssetIds = Array.from(theirSelected); // target's IDs are fixed for all senders
 
     const btn = document.getElementById('st-send-btn');
     if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Sending...'; btn.disabled=true; }
@@ -226,58 +265,47 @@ async function sendTradeOffer() {
             if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
             return;
         }
-        log('Sending trade to '+tradeTargetName+' from '+accounts.length+' account(s)...', 'info');
+        log('Preparing trade for '+accounts.length+' account(s) → '+tradeTargetName+'...', 'info');
 
-        const sends = accounts.map(async (acct, i) => {
-            // 1. Ensure we have this account's user ID
-            let acctId = acct.id;
-            if (!acctId) {
-                try {
-                    const r = await acctFetch(i, BASE+'/apisite/users/v1/users/authenticated');
-                    const j = await r.json(); acctId = j.id || null;
-                    if (acctId) { accounts[i].id = acctId; saveAccounts(); }
-                } catch(_){}
-            }
-            if (!acctId) { log('✗ Could not get ID for '+acct.username+' — skipping', 'err'); return false; }
+        // Process accounts sequentially to avoid hammering the inventory API
+        results = [];
+        for (let i = 0; i < accounts.length; i++) {
+            const acctId = await resolveAcctUserId(i);
+            if (!acctId) { log('✗ Could not get ID for '+accounts[i].username+' — skipping', 'err'); results.push(false); continue; }
 
-            // 2. Resolve this account's own userAssetIds for the selected item types
-            const myUAIds = await resolveMyAssetIds(i, acctId);
-            if (mySelected.size > 0 && !myUAIds.length) {
-                log('✗ '+acct.username+' owns none of the selected items — skipping', 'warn');
-                return false;
+            // Resolve this account's own userAssetIds for the selected item types
+            let myUAIds;
+            if (i === tradeLookupIdx() && selectedAcctIdx !== -2) {
+                // Preview account — IDs are already correct
+                myUAIds = Array.from(mySelected);
+            } else {
+                myUAIds = await resolveUserAssetIds(i, acctId);
             }
 
-            // 3. Send
-            return sendTradeOfferFrom(i, acctId, myUAIds, theirUserAssetIds);
-        });
+            if (mySelected.size > 0 && myUAIds.length === 0) {
+                log('⚠ '+accounts[i].username+' owns none of the selected items — skipping', 'warn');
+                results.push(false);
+                continue;
+            }
 
-        results = await Promise.all(sends);
+            results.push(await sendTradeOfferFrom(i, acctId, myUAIds, theirUserAssetIds));
+        }
 
     } else if (selectedAcctIdx === -1) {
         // ── Session ───────────────────────────────────────────────────────
         const myId = await fetchMyUserId();
         if (!myId) { log('Could not get session user ID', 'err'); return; }
-        const myUAIds = Array.from(mySelected); // session inventory was loaded as-is
+        const myUAIds = Array.from(mySelected);
         log('Sending trade to '+tradeTargetName+' (session)...', 'info');
         results = [await sendTradeOfferFrom(-1, myId, myUAIds, theirUserAssetIds)];
 
     } else {
         // ── Single account ────────────────────────────────────────────────
-        const acct  = accounts[selectedAcctIdx];
-        let acctId  = acct?.id;
-        if (!acctId) {
-            try {
-                const r = await acctFetch(selectedAcctIdx, BASE+'/apisite/users/v1/users/authenticated');
-                const j = await r.json(); acctId = j.id || null;
-                if (acctId) { accounts[selectedAcctIdx].id = acctId; saveAccounts(); }
-            } catch(_){}
-        }
-        if (!acctId) { log('Could not get ID for '+acct?.username, 'err'); return; }
-
-        // Single account: inventory was already loaded from this account (tradeLookupIdx = selectedAcctIdx),
-        // so the userAssetIds in mySelected are already correct — no remapping needed.
+        const acctId = await resolveAcctUserId(selectedAcctIdx);
+        if (!acctId) { log('Could not get ID for '+accounts[selectedAcctIdx]?.username, 'err'); return; }
+        // tradeLookupIdx() === selectedAcctIdx here, so myInventory was loaded from this account
         const myUAIds = Array.from(mySelected);
-        log('Sending trade to '+tradeTargetName+' as '+acct.username+'...', 'info');
+        log('Sending trade to '+tradeTargetName+' as '+accounts[selectedAcctIdx].username+'...', 'info');
         results = [await sendTradeOfferFrom(selectedAcctIdx, acctId, myUAIds, theirUserAssetIds)];
     }
 
