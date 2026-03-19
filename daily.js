@@ -257,3 +257,143 @@ async function claimDailyChest(silent) {
         }
     }
 }
+
+// ─── Promo Codes ──────────────────────────────────────────────────────────
+
+// The endpoint is a standard ASP.NET form POST — it needs the
+// __RequestVerificationToken scraped from the page's hidden input.
+async function fetchVerificationToken(acctIdx) {
+    try {
+        // Fetch the promo page to extract the anti-forgery token
+        const r = acctIdx >= 0
+            ? await acctFetch(acctIdx, BASE + '/internal/promocodes')
+            : await sessFetch(BASE + '/internal/promocodes');
+        const html = await r.text();
+        const match = html.match(/name="__RequestVerificationToken"\s+type="hidden"\s+value="([^"]+)"/);
+        if (match) return match[1];
+        // Also try the other attribute order
+        const match2 = html.match(/__RequestVerificationToken[^>]+value="([^"]+)"/);
+        return match2 ? match2[1] : null;
+    } catch(_) { return null; }
+}
+
+async function redeemPromoFrom(acctIdx, code) {
+    const label = acctIdx === -1 ? 'Session' : (accounts[acctIdx]?.username || 'Account');
+    try {
+        const token = await fetchVerificationToken(acctIdx);
+        if (!token) {
+            log('✗ Could not fetch verification token (' + label + ')', 'err');
+            return { ok: false, msg: 'No verification token' };
+        }
+
+        const body = new URLSearchParams();
+        body.set('promocode', code.trim());
+        body.set('__RequestVerificationToken', token);
+
+        let res;
+        if (acctIdx >= 0) {
+            res = await acctFetch(acctIdx, BASE + '/internal/promocodes', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    body.toString(),
+            });
+        } else {
+            await fetchSessionCsrf();
+            res = await sessFetch(BASE + '/internal/promocodes', {
+                method:      'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type':  'application/x-www-form-urlencoded',
+                    'x-csrf-token':  sessionCsrf,
+                },
+                body: body.toString(),
+            });
+        }
+
+        // Response may be a redirect or JSON depending on the server
+        let msg = '';
+        const ct = res.headers?.get ? res.headers.get('content-type') : '';
+        if (ct && ct.includes('application/json')) {
+            let d = {};
+            try { d = await res.json(); } catch(_) {}
+            if (d.success || res.ok) {
+                log('✓ Promo redeemed (' + label + '): ' + code, 'success');
+                return { ok: true };
+            }
+            msg = d.message || d.errorMessage || d.errors?.[0]?.message || 'HTTP ' + res.status;
+        } else {
+            // HTML response — check for success/error strings in the body
+            const html = await res.text();
+            if (res.ok && !html.toLowerCase().includes('invalid') && !html.toLowerCase().includes('error')) {
+                log('✓ Promo redeemed (' + label + '): ' + code, 'success');
+                return { ok: true };
+            }
+            const errMatch = html.match(/class="[^"]*error[^"]*"[^>]*>([^<]+)</i);
+            msg = errMatch ? errMatch[1].trim() : ('HTTP ' + res.status);
+        }
+
+        log('✗ Promo failed (' + label + '): ' + msg, 'err');
+        return { ok: false, msg };
+    } catch(e) {
+        log('✗ Promo error (' + label + '): ' + e.message, 'err');
+        return { ok: false, msg: e.message };
+    }
+}
+
+function setPromoStatus(msg, color) {
+    const el = document.getElementById('st-promo-status'); if (!el) return;
+    el.style.display     = msg ? 'block' : 'none';
+    el.style.color       = color || 'var(--c-text2)';
+    el.style.borderColor = color ? color + '44' : 'var(--c-border2)';
+    el.style.background  = color ? color + '0d' : 'var(--c-bg0)';
+    el.textContent       = msg;
+}
+
+async function redeemPromoCode() {
+    const code = document.getElementById('st-promo-input')?.value?.trim();
+    if (!code) { setPromoStatus('⚠ Enter a promo code', 'var(--c-warn)'); return; }
+
+    const btn = document.getElementById('st-promo-btn');
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Redeeming...'; btn.disabled = true; }
+    setPromoStatus('Redeeming...', 'var(--c-warn)');
+
+    let results    = [];
+    let acctLabels = [];
+
+    if (selectedAcctIdx === -2) {
+        if (!accounts.length) {
+            setPromoStatus('✕ No accounts saved', 'var(--c-err)');
+            if (btn) { btn.innerHTML = '🎟️ Redeem'; btn.disabled = false; }
+            return;
+        }
+        for (let i = 0; i < accounts.length; i++) {
+            results.push(await redeemPromoFrom(i, code));
+            acctLabels.push(accounts[i]?.username || 'Account ' + i);
+        }
+    } else if (selectedAcctIdx === -1) {
+        results    = [await redeemPromoFrom(-1, code)];
+        acctLabels = ['Session'];
+    } else {
+        results    = [await redeemPromoFrom(selectedAcctIdx, code)];
+        acctLabels = [accounts[selectedAcctIdx]?.username || 'Account'];
+    }
+
+    const ok     = results.filter(r => r.ok).length;
+    const failed = results.filter(r => !r.ok).length;
+    const total  = results.length;
+
+    if (ok > 0) {
+        setPromoStatus('✓ Redeemed "' + code + '" on ' + ok + '/' + total + ' account' + (total > 1 ? 's' : ''), 'var(--c-success)');
+        if (btn) {
+            btn.innerHTML        = '✓ Redeemed!';
+            btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+            setTimeout(() => {
+                if (btn) { btn.innerHTML = '🎟️ Redeem'; btn.style.background = ''; btn.disabled = false; }
+            }, 2500);
+        }
+    } else {
+        const firstErr = results.find(r => !r.ok)?.msg || 'Failed';
+        setPromoStatus('✕ ' + firstErr, 'var(--c-err)');
+        if (btn) { btn.innerHTML = '🎟️ Redeem'; btn.disabled = false; }
+    }
+}
