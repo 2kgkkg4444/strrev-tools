@@ -756,7 +756,7 @@ function buildUI() {
                                 </div>
                                 <div class="st-snip-field">
                                     <span class="st-snip-label">Delay (ms)</span>
-                                    <input id="st-snip-delay" class="st-snip-input" type="number" min="10" max="5000" value="50" title="Poll interval in milliseconds. Lower = faster but more requests.">
+                                    <input id="st-snip-delay" class="st-snip-input" type="number" min="0" max="5000" value="0" title="Poll interval in milliseconds. Lower = faster but more requests.">
                                 </div>
                                 <div class="st-snip-sep"></div>
                                 <div class="st-toggle-row">
