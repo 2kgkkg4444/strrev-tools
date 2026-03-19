@@ -289,12 +289,13 @@ async function resolveAcctUserId(i) {
 async function sendTradeOffer() {
     if (!tradeTargetId) return;
     const theirUserAssetIds = Array.from(theirSelected);
+    const count = Math.max(1, Math.min(100, parseInt(document.getElementById('st-trade-count')?.value) || 1));
 
     const btn = document.getElementById('st-send-btn');
     if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Sending...'; btn.disabled=true; }
 
-    let results = [];
-
+    // Build sender list
+    let senderIdxs = [];
     if (selectedAcctIdx === -2) {
         if (!accounts.length) {
             log('No accounts saved — nothing to send', 'warn');
@@ -302,50 +303,57 @@ async function sendTradeOffer() {
             if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
             return;
         }
-        log('Sending trade to '+tradeTargetName+' from '+accounts.length+' account(s)...', 'info');
-
-        // Sequential to avoid hammering the inventory API
-        for (let i = 0; i < accounts.length; i++) {
-            const acctId = await resolveAcctUserId(i);
-            if (!acctId) { log('✗ Could not get ID for '+accounts[i].username+' — skipping', 'err'); results.push(false); continue; }
-
-            // Remap selected items to this account's own userAssetIds
-            const myUAIds = await resolveUserAssetIds(i, acctId);
-            if (mySelected.size > 0 && myUAIds.length === 0) {
-                log('⚠ '+accounts[i].username+' owns none of the selected items — skipping', 'warn');
-                results.push(false); continue;
-            }
-            results.push(await sendTradeOfferFrom(i, acctId, myUAIds, theirUserAssetIds));
-        }
-
+        senderIdxs = accounts.map((_, i) => i);
     } else if (selectedAcctIdx === -1) {
-        const myId = await fetchMyUserId();
-        if (!myId) { log('Could not get session user ID', 'err'); return; }
-        log('Sending trade to '+tradeTargetName+' (session)...', 'info');
-        results = [await sendTradeOfferFrom(-1, myId, Array.from(mySelected), theirUserAssetIds)];
-
+        senderIdxs = [-1];
     } else {
-        const acctId = await resolveAcctUserId(selectedAcctIdx);
-        if (!acctId) { log('Could not get ID for '+accounts[selectedAcctIdx]?.username, 'err'); return; }
-        log('Sending trade to '+tradeTargetName+' as '+accounts[selectedAcctIdx].username+'...', 'info');
-        results = [await sendTradeOfferFrom(selectedAcctIdx, acctId, Array.from(mySelected), theirUserAssetIds)];
+        senderIdxs = [selectedAcctIdx];
     }
 
-    const anyOk = results.some(Boolean);
-    const sent  = results.filter(Boolean).length;
+    const total = senderIdxs.length * count;
+    let sent = 0, failed = 0;
+    log('Sending '+count+'x trade(s) to '+tradeTargetName+' from '+senderIdxs.length+' account(s)...', 'info');
+    setTradeStatus('Sending 0/'+total+'...', '#eab308');
 
-    if (anyOk) {
-        setTradeStatus('✓ Trade sent from '+sent+'/'+results.length+' account(s) to '+tradeTargetName, '#22c55e');
+    for (const idx of senderIdxs) {
+        // Resolve acctId once per sender
+        let acctId;
+        if (idx === -1) {
+            acctId = await fetchMyUserId();
+        } else {
+            acctId = await resolveAcctUserId(idx);
+        }
+        if (!acctId) { log('Could not get ID for '+(idx===-1?'session':accounts[idx]?.username)+' — skipping', 'err'); failed += count; continue; }
+
+        // Resolve userAssetIds for this sender once (same items each loop)
+        let myUAIds;
+        if (idx === -1) {
+            myUAIds = Array.from(mySelected);
+        } else if (selectedAcctIdx === -2) {
+            myUAIds = await resolveUserAssetIds(idx, acctId);
+            if (mySelected.size > 0 && myUAIds.length === 0) {
+                log('⚠ '+accounts[idx].username+' owns none of the selected items — skipping', 'warn');
+                failed += count; continue;
+            }
+        } else {
+            myUAIds = Array.from(mySelected);
+        }
+
+        for (let n = 0; n < count; n++) {
+            const ok = await sendTradeOfferFrom(idx, acctId, myUAIds, theirUserAssetIds);
+            if (ok) sent++; else failed++;
+            setTradeStatus('Sending '+(sent+failed)+'/'+total+'...', '#eab308');
+        }
+    }
+
+    if (sent > 0) {
+        setTradeStatus('✓ Sent '+sent+'/'+total+' trade offer'+(total>1?'s':'')+' to '+tradeTargetName, '#22c55e');
         if (btn) {
             btn.innerHTML        = '✓ Trade Sent!';
             btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
             btn.style.boxShadow  = '0 0 14px rgba(34,197,94,0.3)';
             setTimeout(() => {
-                if (btn) {
-                    btn.innerHTML = '🔄 Send Trade Offer';
-                    btn.style.background = btn.style.boxShadow = '';
-                    btn.disabled = false; btn.style.opacity='1'; btn.style.pointerEvents='auto';
-                }
+                if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.style.background=btn.style.boxShadow=''; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
             }, 2500);
         }
         mySelected.clear(); theirSelected.clear();
