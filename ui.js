@@ -807,7 +807,13 @@ function buildUI() {
                                 <div class="st-sec-title">Daily Chest</div>
                                 <div class="st-sec-sub">Claim your daily reward for the selected account(s) — already-claimed accounts are skipped gracefully</div>
                             </div>
-                            <button id="st-daily-btn" class="st-btn-primary" style="padding:13px 30px;font-size:14px;">🎁 Claim Daily Chest</button>
+                            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;">
+                                <div style="display:flex;gap:8px;">
+                                    <button id="st-daily-btn" class="st-btn-primary" style="padding:12px 22px;">🎁 Claim Now</button>
+                                    <button id="st-daily-auto-btn" class="st-btn-primary" style="padding:12px 22px;">🔁 Start Auto-Claim</button>
+                                </div>
+                                <div id="st-daily-countdown" style="font-size:11px;color:var(--c-text4);font-family:'Fira Code',monospace;text-align:right;min-height:16px;"></div>
+                            </div>
                         </div>
 
                         <div id="st-daily-status" style="display:none;padding:12px 16px;border-radius:11px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:12px;color:var(--c-text2);margin-bottom:16px;word-break:break-word;"></div>
@@ -815,9 +821,9 @@ function buildUI() {
                         <div id="st-daily-results" style="margin-bottom:16px;"></div>
 
                         <div style="padding:16px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
-                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Reward preview</div>
-                            <div>• Rewards are given in <span style="color:var(--c-text2);">Robux or Tix</span> depending on the day</div>
-                            <div>• Using <span style="color:var(--c-text2);">All Accounts</span> will claim for every saved account sequentially</div>
+                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">How it works</div>
+                            <div>• <span style="color:var(--c-text2);">Claim Now</span> — manually claims once for the selected account(s)</div>
+                            <div>• <span style="color:var(--c-text2);">Auto-Claim</span> — claims immediately then repeats every 24 hours automatically</div>
                             <div>• Accounts that have already claimed today show as <span style="color:var(--c-warn);">Already claimed</span></div>
                         </div>
                     </div>
@@ -939,7 +945,8 @@ function buildUI() {
     document.getElementById('st-friend-input').addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequests(); });
     document.getElementById('st-msg-btn').addEventListener('click', sendMessages);
     document.getElementById('st-msg-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('st-msg-subject')?.focus(); });
-    document.getElementById('st-daily-btn').addEventListener('click', claimDailyChest);
+    document.getElementById('st-daily-btn').addEventListener('click', () => claimDailyChest(false));
+    document.getElementById('st-daily-auto-btn').addEventListener('click', startDailyAuto);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
 }
 
