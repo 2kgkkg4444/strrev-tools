@@ -105,37 +105,30 @@ async function fetchAcctPreview(i) {
     const acct = accounts[i];
     const preview = {};
 
-    // ── Currency: try every known endpoint pattern ──────────────────────────
-    const currencyEndpoints = [
+    // ── Currency: response is { robux, tickets } ────────────────────────────
+    const uid = acct.id;
+    const currencyEndpoints = uid ? [
+        '/apisite/economy/v1/users/' + uid + '/currency',
+        '/api/economy/users/' + uid + '/currency',
+        '/api/users/' + uid + '/currency',
+        '/apisite/economy/v1/user/currency',
         '/api/currency',
         '/api/user/currency',
-        '/api/economy/currency',
-        '/api/me',
-        '/api/user',
-        '/api/users/authenticated',
+    ] : [
         '/apisite/economy/v1/user/currency',
-        '/apisite/users/v1/users/authenticated',
+        '/api/currency',
+        '/api/user/currency',
     ];
     for (const ep of currencyEndpoints) {
         try {
             const r = await acctFetch(i, BASE + ep);
             if (!r.ok) continue;
             const j = await r.json();
-            // Try every field name we've seen across platforms
-            const robux = j.robux ?? j.Robux ?? j.balance ?? j.Balance
-                       ?? j.currency ?? j.Currency ?? j.robuxBalance
-                       ?? j.user?.robux ?? j.user?.balance ?? null;
-            const tix   = j.tickets ?? j.Tickets ?? j.tix ?? j.Tix
-                       ?? j.ticketBalance ?? j.ticket_balance
-                       ?? j.user?.tickets ?? j.user?.tix ?? null;
-            if (robux !== null || tix !== null) {
-                preview.robux   = robux;
-                preview.tickets = tix;
-                log('💰 Balance via ' + ep + ' → R$' + robux + ' T$' + tix, 'info');
+            if (j.robux != null || j.tickets != null) {
+                preview.robux   = j.robux   ?? null;
+                preview.tickets = j.tickets ?? null;
                 break;
             }
-            // Log the raw keys so we can see what the API returns
-            log('⚠ ' + ep + ' returned: ' + Object.keys(j).join(', '), 'info');
         } catch(_) {}
     }
 
