@@ -1,11 +1,14 @@
 // ─── Trade ────────────────────────────────────────────────────────────────
 
-// Helper: resolve which account index to use for trade fetches.
-// When "All Accounts" (-2) is selected, fall back to session (-1) for trades.
-function tradeAcctIdx() { return selectedAcctIdx === -2 ? -1 : selectedAcctIdx; }
+// For lookups/inventory fetches we just need one valid identity.
+// When All Accounts (-2) is selected, use account[0] if available, else session (-1).
+function tradeLookupIdx() {
+    if (selectedAcctIdx === -2) return accounts.length > 0 ? 0 : -1;
+    return selectedAcctIdx;
+}
 
 async function fetchMyUserId() {
-    const idx = tradeAcctIdx();
+    const idx = tradeLookupIdx();
     if (idx >= 0 && accounts[idx]?.id) return accounts[idx].id;
     try {
         const r = idx >= 0
@@ -16,7 +19,7 @@ async function fetchMyUserId() {
 }
 
 async function fetchInventory(userId) {
-    const idx = tradeAcctIdx();
+    const idx = tradeLookupIdx();
     try {
         const r = idx >= 0
             ? await acctFetch(idx, BASE+'/apisite/inventory/v1/users/'+userId+'/assets/collectibles')
@@ -26,7 +29,7 @@ async function fetchInventory(userId) {
 }
 
 async function lookupUser(input) {
-    const idx = tradeAcctIdx();
+    const idx = tradeLookupIdx();
     input = input.trim();
     let r;
     if (/^\d+$/.test(input)) {
@@ -37,7 +40,7 @@ async function lookupUser(input) {
         const j = await r.json(); return { id:j.id, name:j.name||j.displayName||'User '+input };
     }
     const body = JSON.stringify({ usernames:[input], excludeBannedUsers:false });
-    if (idx < 0) await fetchSessionCsrf();   // ensure CSRF before POST
+    if (idx < 0) await fetchSessionCsrf();
     r = idx >= 0
         ? await acctFetch(idx, BASE+'/apisite/users/v1/usernames/users', { method:'POST', body })
         : await sessFetch(BASE+'/apisite/users/v1/usernames/users', {
@@ -74,7 +77,10 @@ function renderInvSkel(id) {
 function renderInvList(id, items, sel) {
     const el = document.getElementById(id); if (!el) return;
     el.innerHTML = '';
-    if (!items.length) { el.innerHTML='<div style="padding:10px;text-align:center;color:var(--c-text4);font-size:10px;">No tradeable items</div>'; return; }
+    if (!items.length) {
+        el.innerHTML = '<div style="padding:10px;text-align:center;color:var(--c-text4);font-size:10px;">No tradeable items</div>';
+        return;
+    }
     items.forEach(item => {
         const uaid   = item.userAssetId;
         const active = sel.has(uaid);
@@ -145,48 +151,125 @@ async function loadTradeTarget() {
     if (btn) { btn.innerHTML='Load'; btn.disabled=false; }
 }
 
+// Send a trade offer from one specific account index (or session if idx === -1)
+async function sendTradeOfferFrom(idx, myId, payload) {
+    const label = idx === -1 ? 'session' : accounts[idx].username;
+    try {
+        let res;
+        if (idx >= 0) {
+            res = await acctFetch(idx, BASE+'/apisite/trades/v1/trades/send', { method:'POST', body:payload });
+        } else {
+            await fetchSessionCsrf();
+            res = await sessFetch(BASE+'/apisite/trades/v1/trades/send', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','x-csrf-token':sessionCsrf},
+                body:payload,
+            });
+        }
+        if (res.ok) {
+            log('✓ Trade sent to '+tradeTargetName+' as '+label, 'success');
+            return true;
+        }
+        let msg = 'HTTP '+res.status;
+        try { const d=await res.json(); msg=d.errors?.[0]?.message||d.errorMessage||msg; } catch(_){}
+        log('✗ Trade failed ('+label+'): '+msg, 'err');
+        return false;
+    } catch(e) {
+        log('✗ Trade error ('+label+'): '+e.message, 'err');
+        return false;
+    }
+}
+
 async function sendTradeOffer() {
-    const idx = tradeAcctIdx();
     const myId = await fetchMyUserId();
     if (!myId || !tradeTargetId) return;
+
     const btn = document.getElementById('st-send-btn');
     if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Sending...'; btn.disabled=true; }
-    const myIds = Array.from(mySelected), thIds = Array.from(theirSelected);
-    log('Sending trade to '+tradeTargetName+' ('+myIds.length+'↔'+thIds.length+' items)...', 'info');
-    try {
-        const payload = JSON.stringify({ offers:[
-            { robux:null, userAssetIds:myIds, userId:myId },
-            { robux:null, userAssetIds:thIds, userId:tradeTargetId },
-        ]});
-        if (idx < 0) await fetchSessionCsrf();
-        const res = idx >= 0
-            ? await acctFetch(idx, BASE+'/apisite/trades/v1/trades/send', { method:'POST', body:payload })
-            : await sessFetch(BASE+'/apisite/trades/v1/trades/send', {
-                  method:'POST',
-                  headers:{'Content-Type':'application/json','x-csrf-token':sessionCsrf},
-                  body:payload,
-              });
-        if (res.ok) {
-            log('✓ Trade sent to '+tradeTargetName+'!', 'success');
-            setTradeStatus('✓ Trade offer sent to '+tradeTargetName+'!', '#22c55e');
-            if (btn) {
-                btn.innerHTML        = '✓ Trade Sent!';
-                btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-                btn.style.boxShadow  = '0 0 14px rgba(34,197,94,0.3)';
-                setTimeout(() => { if(btn){ btn.innerHTML='🔄 Send Trade Offer'; btn.style.background=''; btn.style.boxShadow=''; }}, 2500);
-            }
-            mySelected.clear(); theirSelected.clear();
-            renderInvList('st-my-inv', myInventory, mySelected);
-            renderInvList('st-th-inv', theirInventory, theirSelected);
-            updateTradeSummary();
-        } else {
-            let msg = 'HTTP '+res.status;
-            try { const d=await res.json(); msg=d.errors?.[0]?.message||d.errorMessage||msg; } catch(_){}
-            log('Trade failed: '+msg, 'err'); setTradeStatus('✕ '+msg, '#ef4444');
+
+    const myIds   = Array.from(mySelected);
+    const thIds   = Array.from(theirSelected);
+    const payload = JSON.stringify({ offers:[
+        { robux:null, userAssetIds:myIds, userId:myId },
+        { robux:null, userAssetIds:thIds, userId:tradeTargetId },
+    ]});
+
+    let results = [];
+
+    if (selectedAcctIdx === -2) {
+        // All Accounts — send from every saved account in parallel
+        if (!accounts.length) {
+            log('No accounts saved — nothing to send', 'warn');
+            setTradeStatus('✕ No accounts saved', '#ef4444');
             if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+            return;
         }
-    } catch(e) {
-        log('Trade error: '+e.message, 'err'); setTradeStatus('✕ '+e.message, '#ef4444');
-        if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+        log('Sending trade to '+tradeTargetName+' from '+accounts.length+' account(s)...', 'info');
+
+        // Each account needs its own myId resolved
+        const sends = accounts.map(async (acct, i) => {
+            // Resolve this account's own user ID for the offer
+            let acctMyId = acct.id;
+            if (!acctMyId) {
+                try {
+                    const r = await acctFetch(i, BASE+'/apisite/users/v1/users/authenticated');
+                    const j = await r.json(); acctMyId = j.id || null;
+                    if (acctMyId) { accounts[i].id = acctMyId; saveAccounts(); }
+                } catch(_){}
+            }
+            if (!acctMyId) { log('✗ Could not get ID for '+acct.username, 'err'); return false; }
+
+            const p = JSON.stringify({ offers:[
+                { robux:null, userAssetIds:myIds, userId:acctMyId },
+                { robux:null, userAssetIds:thIds, userId:tradeTargetId },
+            ]});
+            return sendTradeOfferFrom(i, acctMyId, p);
+        });
+
+        results = await Promise.all(sends);
+
+    } else if (selectedAcctIdx === -1) {
+        // Session only
+        log('Sending trade to '+tradeTargetName+' (session)...', 'info');
+        results = [await sendTradeOfferFrom(-1, myId, payload)];
+    } else {
+        // Single specific account
+        log('Sending trade to '+tradeTargetName+' as '+accounts[selectedAcctIdx]?.username+'...', 'info');
+        results = [await sendTradeOfferFrom(selectedAcctIdx, myId, payload)];
+    }
+
+    const anyOk = results.some(Boolean);
+    const allOk = results.every(Boolean);
+
+    if (anyOk) {
+        const sent = results.filter(Boolean).length;
+        setTradeStatus('✓ Trade sent from '+sent+'/'+results.length+' account(s) to '+tradeTargetName, '#22c55e');
+        if (btn) {
+            btn.innerHTML        = '✓ Trade Sent!';
+            btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+            btn.style.boxShadow  = '0 0 14px rgba(34,197,94,0.3)';
+            setTimeout(() => {
+                if (btn) {
+                    btn.innerHTML        = '🔄 Send Trade Offer';
+                    btn.style.background = '';
+                    btn.style.boxShadow  = '';
+                    btn.disabled         = false;
+                    btn.style.opacity    = '1';
+                    btn.style.pointerEvents = 'auto';
+                }
+            }, 2500);
+        }
+        mySelected.clear(); theirSelected.clear();
+        renderInvList('st-my-inv', myInventory, mySelected);
+        renderInvList('st-th-inv', theirInventory, theirSelected);
+        updateTradeSummary();
+    } else {
+        setTradeStatus('✕ All trades failed — check the activity log', '#ef4444');
+        if (btn) {
+            btn.innerHTML = '🔄 Send Trade Offer';
+            btn.disabled  = false;
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        }
     }
 }
