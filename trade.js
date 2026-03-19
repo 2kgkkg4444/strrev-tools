@@ -344,14 +344,11 @@ async function sendTradeOffer() {
         return;
     }
 
-    // Build flat task list: all accounts × count, interleaved so accounts fire simultaneously
-    // e.g. 3 accounts × 4 = [a0,a1,a2, a0,a1,a2, a0,a1,a2, a0,a1,a2]
-    const tasks = [];
-    for (let n = 0; n < count; n++)
-        for (const meta of validMeta) tasks.push(meta);
-
+    // count = total trades to send, round-robined across all valid accounts
+    // e.g. count=12, 3 accounts → each sends 4
+    const tasks = Array.from({length: count}, (_, n) => validMeta[n % validMeta.length]);
     const total = tasks.length;
-    log('Sending '+total+' trade(s) to '+tradeTargetName+' — '+TRADE_CONCURRENCY+' at a time globally...', 'info');
+    log('Sending '+total+' trade(s) to '+tradeTargetName+' across '+validMeta.length+' account(s) — '+TRADE_CONCURRENCY+' at a time...', 'info');
     setTradeStatus('Sending 0/'+total+'...', '#eab308');
 
     let sent = 0, failed = 0;
