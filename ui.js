@@ -939,7 +939,7 @@ function buildUI() {
 
     document.getElementById('st-acct-sel').addEventListener('change', e => {
         selectedAcctIdx = parseInt(e.target.value);
-        try { GM_setValue('st_acct_idx', selectedAcctIdx); } catch(_) {}
+        try { GM_setValue('st_acct_idx', String(selectedAcctIdx)); } catch(_) {}
         tradeTargetId = null; tradeTargetName = '';
         myInventory = []; theirInventory = [];
         mySelected.clear(); theirSelected.clear();
@@ -981,15 +981,16 @@ function init() {
     const savedTheme = (() => { try { return GM_getValue('st_theme','void'); } catch(_){ return 'void'; } })();
     if (savedTheme && THEMES[savedTheme]) applyTheme(savedTheme);
 
-    // Restore selected account
-    const savedAcct = (() => { try { return GM_getValue('st_acct_idx', -1); } catch(_){ return -1; } })();
-    // Only restore if the index is still valid (account may have been removed)
+    // Restore selected account — GM_getValue may return string or number so always parseInt
+    const savedAcct = (() => { try { return parseInt(GM_getValue('st_acct_idx', '-1')); } catch(_){ return -1; } })();
     if (savedAcct === -1 || savedAcct === -2 || (savedAcct >= 0 && accounts[savedAcct])) {
         selectedAcctIdx = savedAcct;
-        const sel = document.getElementById('st-acct-sel');
-        if (sel) sel.value = String(selectedAcctIdx);
-        updateMiniAcct();
+    } else {
+        selectedAcctIdx = -1; // saved account no longer exists, fall back to session
     }
+    const sel = document.getElementById('st-acct-sel');
+    if (sel) sel.value = String(selectedAcctIdx);
+    updateMiniAcct();
 
     // Restore auto-claim
     const savedAutoDaily = (() => { try { return GM_getValue('st_daily_auto', false); } catch(_){ return false; } })();
