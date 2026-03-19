@@ -25,6 +25,58 @@ function schedDomUpdate() {
     });
 }
 
+// ─── Sniper Settings ─────────────────────────────────────────────────────
+function saveSniperSettings() {
+    try { GM_setValue('st_sniper_settings', JSON.stringify(sniperSettings)); } catch(_) {}
+}
+
+function loadSniperSettings() {
+    try {
+        const saved = JSON.parse(GM_getValue('st_sniper_settings', 'null'));
+        if (saved && typeof saved === 'object') Object.assign(sniperSettings, saved);
+    } catch(_) {}
+    syncSniperSettingsUI();
+}
+
+function syncSniperSettingsUI() {
+    const g = (id, val) => { const e = document.getElementById(id); if (e) e.value = val; };
+    const t = (id, val) => { const e = document.getElementById(id); if (e) setToggle(id, val); };
+    g('st-snip-max-robux', sniperSettings.maxPriceRobux);
+    g('st-snip-max-tix',   sniperSettings.maxPriceTix);
+    g('st-snip-delay',     sniperSettings.delayMs);
+    t('st-snip-limiteds',  sniperSettings.limitedsOnly);
+    t('st-snip-limitedu',  sniperSettings.limitedUsOnly);
+    t('st-snip-robux-only',sniperSettings.robuxOnly);
+    t('st-snip-tix-only',  sniperSettings.tixOnly);
+}
+
+// Returns true if item should be sniped based on current settings
+function itemPassesFilters(item) {
+    const restrictions = item.itemRestrictions || [];
+    const isLimited  = restrictions.includes('Limited') || restrictions.includes('LimitedUnique');
+    const isLimitedU = restrictions.includes('LimitedUnique');
+    const isTix      = item.priceTickets != null && item.priceTickets > 0;
+    const isRobux    = !isTix;
+    const price      = item.lowestPrice ?? item.price ?? 0;
+    const priceTix   = item.priceTickets ?? 0;
+
+    if (sniperSettings.limitedsOnly  && !isLimited)  { log('⏭ Skipped (not limited): '      + (item.name||item.id), 'info'); return false; }
+    if (sniperSettings.limitedUsOnly && !isLimitedU) { log('⏭ Skipped (not LimitedU): '     + (item.name||item.id), 'info'); return false; }
+    if (sniperSettings.robuxOnly     && !isRobux)    { log('⏭ Skipped (not Robux item): '   + (item.name||item.id), 'info'); return false; }
+    if (sniperSettings.tixOnly       && !isTix)      { log('⏭ Skipped (not Tix item): '     + (item.name||item.id), 'info'); return false; }
+
+    if (sniperSettings.maxPriceRobux !== '' && isRobux) {
+        const max = parseInt(sniperSettings.maxPriceRobux);
+        if (!isNaN(max) && price > max) { log('⏭ Skipped (R$' + price + ' > max R$' + max + '): ' + (item.name||item.id), 'info'); return false; }
+    }
+    if (sniperSettings.maxPriceTix !== '' && isTix) {
+        const max = parseInt(sniperSettings.maxPriceTix);
+        if (!isNaN(max) && priceTix > max) { log('⏭ Skipped (T$' + priceTix + ' > max T$' + max + '): ' + (item.name||item.id), 'info'); return false; }
+    }
+
+    return true;
+}
+
 // ─── Resolve full item details before buying ──────────────────────────────
 async function resolveItemDetailsForBuy(rawItem) {
     try {
@@ -165,17 +217,25 @@ function dispatchOne(signal) {
                 for (let i = 0; i < d.length; i++) {
                     const item = d[i];
                     if (!sniperBlacklist[item.id]) {
+                        // Apply user filters before committing to a snipe
+                        if (!itemPassesFilters(item)) {
+                            // Add to blacklist so we don't re-evaluate this item on next poll
+                            sniperBlacklist[item.id] = true;
+                            continue;
+                        }
                         sniperActive = false; abortCtrl.abort();
                         clearInterval(dispatchTimer); clearInterval(cpsTimer);
                         dispatchTimer = null;
                         GM_setValue('sniperActive', false);
                         await onSniperHit({
-                            id:       item.id,
-                            assetId:  String(item.id),
-                            name:     item.name || 'Item #'+item.id,
-                            price:    item.lowestPrice || item.price || 0,
-                            currency: 1,
-                            sellerId: item.creatorTargetId || 1,
+                            id:              item.id,
+                            assetId:         String(item.id),
+                            name:            item.name || 'Item #'+item.id,
+                            price:           item.lowestPrice ?? item.price ?? 0,
+                            currency:        item.priceTickets ? 2 : 1,
+                            sellerId:        item.creatorTargetId || null,
+                            itemRestrictions: item.itemRestrictions || [],
+                            priceTickets:    item.priceTickets ?? null,
                         });
                         return;
                     }
@@ -194,14 +254,16 @@ function startDispatch() {
     abortCtrl   = new AbortController();
     const signal = abortCtrl.signal;
     concurrency = 3; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
+    const delayMs = (sniperSettings.delayMs > 0 ? sniperSettings.delayMs : DISPATCH_MS);
     dispatchTimer = setInterval(() => {
         if (!sniperActive) { clearInterval(dispatchTimer); return; }
         if (inFlight < concurrency) dispatchOne(signal);
-    }, DISPATCH_MS);
+    }, delayMs);
     cpsTimer = setInterval(() => { checksPerSec = cpsCount; cpsCount = 0; schedDomUpdate(); }, 1000);
 }
 
 async function startSniper() {
+    loadSniperSettings();
     const btn = document.getElementById('st-sniper-btn');
     if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Snapshotting...'; btn.disabled=true; }
     setSniperStatus('Fetching catalog snapshot...', 'loading');
