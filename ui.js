@@ -809,8 +809,15 @@ function buildUI() {
                                         <textarea id="st-msg-body" class="st-input" rows="3" placeholder="Write your message…" style="resize:vertical;min-height:70px;"></textarea>
                                     </div>
                                     <div style="margin-bottom:12px;">
-                                        <div class="st-field-label">Send how many times?</div>
-                                        <input id="st-msg-count" class="st-input" type="number" min="1" max="100" value="1" style="width:100px;">
+                                        <div class="st-field-label" style="margin-bottom:7px;">Send how many times?</div>
+                                        <div style="display:flex;align-items:center;gap:0;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;width:fit-content;background:var(--c-bg0);">
+                                            <button onclick="(function(){var i=document.getElementById('st-msg-count');var v=Math.max(1,parseInt(i.value||1)-1);i.value=v;document.getElementById('st-msg-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">−</button>
+                                            <div style="min-width:52px;text-align:center;border-left:1px solid var(--c-border2);border-right:1px solid var(--c-border2);">
+                                                <input id="st-msg-count" type="number" min="1" max="100" value="1" oninput="document.getElementById('st-msg-count-display').textContent=Math.max(1,Math.min(100,parseInt(this.value)||1))" style="display:none;">
+                                                <span id="st-msg-count-display" style="display:block;font-size:14px;font-weight:700;color:var(--c-accent);font-family:'Fira Code',monospace;padding:8px 10px;line-height:1;">1</span>
+                                            </div>
+                                            <button onclick="(function(){var i=document.getElementById('st-msg-count');var v=Math.min(100,parseInt(i.value||1)+1);i.value=v;document.getElementById('st-msg-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">+</button>
+                                        </div>
                                     </div>
                                     <button id="st-msg-btn" class="st-btn-primary" style="width:100%;padding:11px;">✉️ Send Message</button>
                                     <div id="st-msg-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
@@ -842,10 +849,15 @@ function buildUI() {
                                         <span style="color:var(--c-text3);margin:0 14px;">↔</span>
                                         <span style="color:#3b82f6;font-weight:700;">You request: <span id="st-th-count">0</span></span>
                                     </div>
-                                    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
-                                        <div style="flex:1;">
-                                            <div class="st-field-label" style="margin-bottom:5px;">Send how many times?</div>
-                                            <input id="st-trade-count" class="st-input" type="number" min="1" max="100" value="1" style="width:100px;">
+                                    <div style="margin-top:12px;">
+                                        <div class="st-field-label" style="margin-bottom:7px;">Send how many times?</div>
+                                        <div style="display:flex;align-items:center;gap:0;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;width:fit-content;background:var(--c-bg0);">
+                                            <button onclick="(function(){var i=document.getElementById('st-trade-count');var v=Math.max(1,parseInt(i.value||1)-1);i.value=v;document.getElementById('st-trade-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">−</button>
+                                            <div style="min-width:52px;text-align:center;border-left:1px solid var(--c-border2);border-right:1px solid var(--c-border2);">
+                                                <input id="st-trade-count" type="number" min="1" max="100" value="1" oninput="document.getElementById('st-trade-count-display').textContent=Math.max(1,Math.min(100,parseInt(this.value)||1))" style="display:none;">
+                                                <span id="st-trade-count-display" style="display:block;font-size:14px;font-weight:700;color:var(--c-accent);font-family:'Fira Code',monospace;padding:8px 10px;line-height:1;">1</span>
+                                            </div>
+                                            <button onclick="(function(){var i=document.getElementById('st-trade-count');var v=Math.min(100,parseInt(i.value||1)+1);i.value=v;document.getElementById('st-trade-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">+</button>
                                         </div>
                                     </div>
                                     <button id="st-send-btn" disabled class="st-btn-primary" style="width:100%;padding:13px;margin-top:10px;opacity:0.4;pointer-events:none;">
