@@ -290,7 +290,7 @@ function switchManage(section) {
         if (c) c.style.display = s===section ? 'block' : 'none';
     });
     document.getElementById('st-tab-settings')?.classList.remove('st-ctab-active');
-    if (section === 'catalog') renderCatalogList();
+    if (section === 'catalog') { buildCatalogControls(); renderCatalogList(); }
 }
 
 function switchTab(tab) {
