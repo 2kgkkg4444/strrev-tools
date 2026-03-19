@@ -284,7 +284,7 @@ function applyTheme(key) {
 
 // ─── Section & Tab Switch ─────────────────────────────────────────────────
 function switchManage(section) {
-    ['sniper','catalog','trade','friends'].forEach(s => {
+    ['sniper','catalog','trade','friends','daily'].forEach(s => {
         document.getElementById('st-msec-'+s)?.classList.toggle('st-ctab-active', s===section);
         const c = document.getElementById('st-msec-content-'+s);
         if (c) c.style.display = s===section ? 'block' : 'none';
@@ -304,7 +304,7 @@ function switchTab(tab) {
         if (manage)   manage.style.display   = 'none';
         if (settings) settings.style.display = 'flex';
         document.getElementById('st-tab-settings')?.classList.add('st-ctab-active');
-        ['sniper','catalog','trade','friends'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
+        ['sniper','catalog','trade','friends','daily'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
         rebuildSettingsAcctList();
         rebuildThemeGrid();
     }
@@ -638,6 +638,7 @@ function buildUI() {
                 <button class="st-ctab" id="st-msec-catalog"><div class="st-ctab-accent"></div>🛒 Catalog</button>
                 <button class="st-ctab" id="st-msec-trade"><div class="st-ctab-accent"></div>🔄 Trade</button>
                 <button class="st-ctab" id="st-msec-friends"><div class="st-ctab-accent"></div>👤 Friends</button>
+                <button class="st-ctab" id="st-msec-daily"><div class="st-ctab-accent"></div>🎁 Daily</button>
                 <div class="st-ctab-sep"></div>
                 <button class="st-ctab" id="st-tab-settings"><div class="st-ctab-accent"></div>⚙️ Settings</button>
             </div>
@@ -799,6 +800,28 @@ function buildUI() {
                         </div>
                     </div>
 
+                    <!-- DAILY CHEST -->
+                    <div id="st-msec-content-daily" style="display:none;">
+                        <div class="st-sec-header">
+                            <div>
+                                <div class="st-sec-title">Daily Chest</div>
+                                <div class="st-sec-sub">Claim your daily reward for the selected account(s) — already-claimed accounts are skipped gracefully</div>
+                            </div>
+                            <button id="st-daily-btn" class="st-btn-primary" style="padding:13px 30px;font-size:14px;">🎁 Claim Daily Chest</button>
+                        </div>
+
+                        <div id="st-daily-status" style="display:none;padding:12px 16px;border-radius:11px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:12px;color:var(--c-text2);margin-bottom:16px;word-break:break-word;"></div>
+
+                        <div id="st-daily-results" style="margin-bottom:16px;"></div>
+
+                        <div style="padding:16px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
+                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Reward preview</div>
+                            <div>• Rewards are given in <span style="color:var(--c-text2);">Robux or Tix</span> depending on the day</div>
+                            <div>• Using <span style="color:var(--c-text2);">All Accounts</span> will claim for every saved account sequentially</div>
+                            <div>• Accounts that have already claimed today show as <span style="color:var(--c-warn);">Already claimed</span></div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -879,7 +902,7 @@ function buildUI() {
     });
     document.getElementById('st-close-btn').addEventListener('click', closeUI);
 
-    ['sniper','catalog','trade','friends'].forEach(s => {
+    ['sniper','catalog','trade','friends','daily'].forEach(s => {
         document.getElementById('st-msec-'+s).addEventListener('click', () => {
             const manage   = document.getElementById('st-tab-content-manage');
             const settings = document.getElementById('st-tab-content-settings');
@@ -916,6 +939,7 @@ function buildUI() {
     document.getElementById('st-friend-input').addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequests(); });
     document.getElementById('st-msg-btn').addEventListener('click', sendMessages);
     document.getElementById('st-msg-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('st-msg-subject')?.focus(); });
+    document.getElementById('st-daily-btn').addEventListener('click', claimDailyChest);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
 }
 
