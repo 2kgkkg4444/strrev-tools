@@ -808,10 +808,14 @@ function buildUI() {
 
     const openUI  = () => {
         overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
         rebuildAcctSelector();
         if (THEMES[currentTheme]?.anim) startThemeAnim(currentTheme);
     };
-    const closeUI = () => { overlay.classList.remove('open'); };
+    const closeUI = () => {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+    };
 
     // Tab key toggle (skip when focus is in a text field)
     document.addEventListener('keydown', e => {
