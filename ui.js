@@ -817,7 +817,7 @@ function buildUI() {
                                 <div id="st-daily-countdown" style="font-size:11px;color:var(--c-text4);font-family:'Fira Code',monospace;min-height:16px;"></div>
                             </div>
                             <!-- Toggle switch -->
-                            <div id="st-daily-toggle" onclick="toggleDailyAuto()" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
+                            <div id="st-daily-toggle" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
                                 <span id="st-daily-toggle-label" style="font-size:12px;font-weight:600;color:var(--c-text3);">Auto-Claim OFF</span>
                                 <div id="st-daily-toggle-track" style="width:44px;height:24px;border-radius:99px;background:var(--c-border);position:relative;transition:background 0.2s;flex-shrink:0;">
                                     <div id="st-daily-toggle-thumb" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>
@@ -965,6 +965,7 @@ function buildUI() {
     document.getElementById('st-msg-btn').addEventListener('click', sendMessages);
     document.getElementById('st-msg-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('st-msg-subject')?.focus(); });
     document.getElementById('st-daily-btn').addEventListener('click', () => claimDailyChest(false));
+    document.getElementById('st-daily-toggle').addEventListener('click', toggleDailyAuto);
     document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
