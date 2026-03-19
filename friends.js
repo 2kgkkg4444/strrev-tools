@@ -224,16 +224,25 @@ async function sendMessages() {
         senders = [selectedAcctIdx];
     }
 
-    let sent = 0, failed = 0, total = senders.length * count;
+    // Flatten into task list
+    const tasks = [];
+    for (const idx of senders) for (let n = 0; n < count; n++) tasks.push(idx);
+    const total = tasks.length;
+
+    let sent = 0, failed = 0;
     setMsgStatus('Sending 0/'+total+'...', 'var(--c-warn)');
 
-    for (const idx of senders) {
-        for (let n = 0; n < count; n++) {
+    // Send up to 5 at a time
+    let taskIdx = 0;
+    async function runWorker() {
+        while (taskIdx < tasks.length) {
+            const idx = tasks[taskIdx++];
             const r = await sendMessageFrom(idx, target.id, subject, body);
             if (r.ok) sent++; else failed++;
-            setMsgStatus('Sending '+( sent+failed)+'/'+total+'...', 'var(--c-warn)');
+            setMsgStatus('Sending '+(sent+failed)+'/'+total+' — '+sent+' sent, '+failed+' failed...', 'var(--c-warn)');
         }
     }
+    await Promise.all(Array.from({ length: Math.min(5, total) }, runWorker));
 
     if (sent > 0) {
         setMsgStatus('✓ Sent '+sent+'/'+total+' message'+(total>1?'s':'')+' to '+target.name, 'var(--c-success)');
