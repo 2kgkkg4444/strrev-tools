@@ -123,6 +123,7 @@ function stopDailyAuto() {
     dailyNextClaimAt = null;
     if (dailyAutoTimeout)        { clearTimeout(dailyAutoTimeout);          dailyAutoTimeout = null; }
     if (dailyCountdownInterval)  { clearInterval(dailyCountdownInterval);   dailyCountdownInterval = null; }
+    try { GM_setValue('st_daily_auto', false); } catch(_) {}
     updateDailyToggleUI();
     updateDailyCountdownUI();
     setDailyStatus('Auto-claim stopped', 'var(--c-warn)');
@@ -182,6 +183,7 @@ async function runAutoClaim() {
 function startDailyAuto() {
     if (dailyAutoEnabled) { stopDailyAuto(); return; }
     dailyAutoEnabled = true;
+    try { GM_setValue('st_daily_auto', true); } catch(_) {}
     updateDailyToggleUI();
     log('Auto-claim enabled', 'success');
 
