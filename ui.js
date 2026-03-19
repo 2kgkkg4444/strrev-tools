@@ -91,30 +91,43 @@ const THEMES = {
             '--c-tabbar':'#010306','--c-tab':'#020508','--c-tab-active':'#03070f',
         }
     },
-    toxic: {
-        name: 'Toxic', icon: '☢️', desc: 'Neon green hazard', anim: false,
-        preview: ['#010a01','#84cc16','#051405'],
+    aurora: {
+        name: 'Aurora', icon: '🌌', desc: 'Northern lights drift', anim: true,
+        preview: ['#010a0d','#00ffd0','#041520'],
         vars: {
-            '--c-bg0':'#010a01','--c-bg1':'#020f02','--c-bg2':'#051405','--c-bg3':'#081c08',
-            '--c-border':'#0d280d','--c-border2':'#091c09',
-            '--c-accent':'#84cc16','--c-accent2':'#4d7c0f','--c-accent-glow':'rgba(132,204,22,0.3)',
-            '--c-text0':'#ecfccb','--c-text1':'#bef264','--c-text2':'#84cc16',
-            '--c-text3':'#3f6212','--c-text4':'#1a2e05','--c-text5':'#0d1a02',
-            '--c-success':'#a3e635','--c-warn':'#facc15','--c-err':'#f87171',
-            '--c-tabbar':'#010601','--c-tab':'#010901','--c-tab-active':'#020f02',
+            '--c-bg0':'#010a0d','--c-bg1':'#020f14','--c-bg2':'#041520','--c-bg3':'#061e2c',
+            '--c-border':'#082a3a','--c-border2':'#052030',
+            '--c-accent':'#00ffd0','--c-accent2':'#00bfa0','--c-accent-glow':'rgba(0,255,208,0.28)',
+            '--c-text0':'#ccfff6','--c-text1':'#5fffd8','--c-text2':'#00e8bb',
+            '--c-text3':'#00806a','--c-text4':'#004d40','--c-text5':'#002a22',
+            '--c-success':'#00ffd0','--c-warn':'#fbbf24','--c-err':'#f87171',
+            '--c-tabbar':'#01080b','--c-tab':'#010c10','--c-tab-active':'#020f14',
         }
     },
-    ocean: {
-        name: 'Ocean', icon: '🌊', desc: 'Deep teal & seafoam', anim: false,
-        preview: ['#020c10','#06b6d4','#041820'],
+    inferno: {
+        name: 'Inferno', icon: '🔥', desc: 'Living fire & embers', anim: true,
+        preview: ['#0a0200','#ff6a00','#1a0800'],
         vars: {
-            '--c-bg0':'#020c10','--c-bg1':'#031218','--c-bg2':'#041820','--c-bg3':'#062030',
-            '--c-border':'#083040','--c-border2':'#052535',
-            '--c-accent':'#06b6d4','--c-accent2':'#0891b2','--c-accent-glow':'rgba(6,182,212,0.28)',
-            '--c-text0':'#cffafe','--c-text1':'#67e8f9','--c-text2':'#22d3ee',
-            '--c-text3':'#0e7490','--c-text4':'#164e63','--c-text5':'#083344',
+            '--c-bg0':'#0a0200','--c-bg1':'#100400','--c-bg2':'#1a0800','--c-bg3':'#220c00',
+            '--c-border':'#2e1000','--c-border2':'#200a00',
+            '--c-accent':'#ff6a00','--c-accent2':'#cc4400','--c-accent-glow':'rgba(255,106,0,0.35)',
+            '--c-text0':'#fff0e0','--c-text1':'#ffb347','--c-text2':'#ff6a00',
+            '--c-text3':'#8b3000','--c-text4':'#4a1800','--c-text5':'#260c00',
+            '--c-success':'#4ade80','--c-warn':'#fbbf24','--c-err':'#ff3333',
+            '--c-tabbar':'#080100','--c-tab':'#0c0200','--c-tab-active':'#100400',
+        }
+    },
+    storm: {
+        name: 'Storm', icon: '⚡', desc: 'Lightning & dark clouds', anim: true,
+        preview: ['#050508','#7c3aed','#0e0b1a'],
+        vars: {
+            '--c-bg0':'#050508','--c-bg1':'#080810','--c-bg2':'#0e0b1a','--c-bg3':'#140f24',
+            '--c-border':'#1e1535','--c-border2':'#160e28',
+            '--c-accent':'#7c3aed','--c-accent2':'#5b21b6','--c-accent-glow':'rgba(124,58,237,0.35)',
+            '--c-text0':'#ede9fe','--c-text1':'#c4b5fd','--c-text2':'#a78bfa',
+            '--c-text3':'#5b21b6','--c-text4':'#3b0764','--c-text5':'#1e0338',
             '--c-success':'#34d399','--c-warn':'#fbbf24','--c-err':'#f87171',
-            '--c-tabbar':'#010809','--c-tab':'#020c0e','--c-tab-active':'#031218',
+            '--c-tabbar':'#030306','--c-tab':'#06060c','--c-tab-active':'#080810',
         }
     },
 };
@@ -314,11 +327,224 @@ function animSynthwave() {
     stopAnim = () => { alive = false; };
 }
 
+function animAurora() {
+    const cv = makeBgCanvas(); if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    let alive = true, t = 0;
+    // Multiple aurora bands with different speeds and hues
+    const bands = [
+        { y: H*0.25, vy: 0.012, hue: 168, amp: H*0.09, freq: 0.0018, speed: 0.0008 },
+        { y: H*0.38, vy: 0.009, hue: 185, amp: H*0.07, freq: 0.0024, speed: 0.0012 },
+        { y: H*0.18, vy: 0.007, hue: 155, amp: H*0.06, freq: 0.0014, speed: 0.0006 },
+    ];
+    function frame() {
+        if (!alive) return;
+        ctx.clearRect(0, 0, W, H);
+        bands.forEach(b => {
+            b.y += Math.sin(t * b.vy) * 0.4;
+            for (let x = 0; x < W; x += 2) {
+                const wave = Math.sin(x * b.freq + t * b.speed) * b.amp;
+                const bandY = b.y + wave;
+                const brightness = 0.55 + 0.45 * Math.sin(x * 0.004 + t * 0.002);
+                const alpha = brightness * (0.12 + 0.08 * Math.abs(Math.sin(t * 0.005 + x * 0.002)));
+                const grd = ctx.createLinearGradient(x, bandY - b.amp*0.8, x, bandY + b.amp*1.8);
+                grd.addColorStop(0, 'transparent');
+                grd.addColorStop(0.3, `hsla(${b.hue + Math.sin(t*0.003)*15},100%,65%,${alpha*0.6})`);
+                grd.addColorStop(0.5, `hsla(${b.hue},100%,72%,${alpha})`);
+                grd.addColorStop(0.7, `hsla(${b.hue+20},100%,60%,${alpha*0.5})`);
+                grd.addColorStop(1, 'transparent');
+                ctx.fillStyle = grd;
+                ctx.fillRect(x, bandY - b.amp, 2, b.amp * 2.8);
+            }
+        });
+        // Subtle stars
+        ctx.fillStyle = 'rgba(180,255,240,0.55)';
+        for (let i = 0; i < 6; i++) {
+            const sx = (Math.sin(i*137.5 + t*0.0003)*0.5+0.5)*W;
+            const sy = (Math.cos(i*97.3)*0.5+0.5)*H*0.5;
+            ctx.beginPath(); ctx.arc(sx, sy, 0.8, 0, Math.PI*2); ctx.fill();
+        }
+        t++;
+        requestAnimationFrame(frame);
+    }
+    frame();
+    stopAnim = () => { alive = false; };
+}
+
+function animInferno() {
+    const cv = makeBgCanvas(); if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    let alive = true;
+    // Particle system for flames + embers
+    const particles = Array.from({length: 120}, () => makeFireParticle(W, H));
+    const embers = Array.from({length: 55}, () => makeEmber(W, H));
+    function makeFireParticle(w, h) {
+        return {
+            x: (Math.random() - 0.5) * w * 1.2 + w * 0.5,
+            y: h + Math.random() * 40,
+            vy: -(Math.random() * 3.5 + 1.5),
+            vx: (Math.random() - 0.5) * 1.2,
+            life: 0, maxLife: 60 + Math.random() * 80,
+            size: Math.random() * 28 + 10,
+            hue: Math.random() * 30,
+        };
+    }
+    function makeEmber(w, h) {
+        return {
+            x: Math.random() * w,
+            y: h + Math.random() * 20,
+            vx: (Math.random() - 0.5) * 2.5,
+            vy: -(Math.random() * 4 + 2),
+            life: 0, maxLife: 80 + Math.random() * 120,
+            size: Math.random() * 2.5 + 0.8,
+        };
+    }
+    function frame() {
+        if (!alive) return;
+        ctx.fillStyle = 'rgba(10,2,0,0.18)';
+        ctx.fillRect(0, 0, W, H);
+        // Flames
+        particles.forEach(p => {
+            p.life++;
+            if (p.life >= p.maxLife) { Object.assign(p, makeFireParticle(W, H)); p.life = 0; return; }
+            p.x += p.vx + Math.sin(p.life * 0.12) * 0.6;
+            p.y += p.vy;
+            const prog = p.life / p.maxLife;
+            const alpha = (1 - prog) * 0.22;
+            const shrink = p.size * (1 - prog * 0.6);
+            const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, shrink);
+            grd.addColorStop(0, `hsla(${p.hue + 40},100%,80%,${alpha * 1.8})`);
+            grd.addColorStop(0.4, `hsla(${p.hue + 15},100%,55%,${alpha})`);
+            grd.addColorStop(1, 'transparent');
+            ctx.fillStyle = grd;
+            ctx.beginPath(); ctx.arc(p.x, p.y, shrink, 0, Math.PI * 2); ctx.fill();
+        });
+        // Embers
+        embers.forEach(e => {
+            e.life++;
+            if (e.life >= e.maxLife) { Object.assign(e, makeEmber(W, H)); e.life = 0; return; }
+            e.x += e.vx; e.y += e.vy; e.vy += 0.03; // slight gravity
+            const p = e.life / e.maxLife;
+            const a = p < 0.15 ? p/0.15 : p > 0.7 ? (1-p)/0.3 : 1;
+            ctx.globalAlpha = a * 0.9;
+            ctx.fillStyle = p < 0.4 ? '#fff8e0' : '#ff8800';
+            ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(frame);
+    }
+    frame();
+    stopAnim = () => { alive = false; };
+}
+
+function animStorm() {
+    const cv = makeBgCanvas(); if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    let alive = true, t = 0;
+    // Cloud layers
+    const clouds = Array.from({length: 18}, (_, i) => ({
+        x: Math.random() * W * 1.4 - W * 0.2,
+        y: Math.random() * H * 0.55,
+        r: Math.random() * 180 + 80,
+        vx: -(Math.random() * 0.35 + 0.1),
+        alpha: Math.random() * 0.12 + 0.04,
+        layer: i % 3,
+    }));
+    // Lightning bolts
+    let bolts = [], boltTimer = 0, boltInterval = 90 + Math.random() * 120;
+    function makeBolt(w, h) {
+        const x = Math.random() * w;
+        const segs = [];
+        let cx = x, cy = 0;
+        while (cy < h * 0.7) {
+            const nx = cx + (Math.random() - 0.5) * 80;
+            const ny = cy + Math.random() * 60 + 30;
+            segs.push({x1:cx, y1:cy, x2:nx, y2:ny});
+            cx = nx; cy = ny;
+            // Branch
+            if (Math.random() > 0.65 && segs.length > 2) {
+                let bx = cx, by = cy;
+                const branchLen = Math.floor(Math.random() * 4) + 2;
+                for (let i = 0; i < branchLen; i++) {
+                    const bnx = bx + (Math.random() - 0.3) * 50;
+                    const bny = by + Math.random() * 40 + 15;
+                    segs.push({x1:bx, y1:by, x2:bnx, y2:bny, branch:true});
+                    bx = bnx; by = bny;
+                }
+            }
+        }
+        return { segs, life: 0, maxLife: 18 + Math.random() * 10 };
+    }
+    // Rain
+    const rain = Array.from({length: 200}, () => ({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vy: Math.random() * 14 + 8,
+        len: Math.random() * 18 + 8,
+    }));
+    function frame() {
+        if (!alive) return;
+        ctx.clearRect(0, 0, W, H);
+        // Clouds
+        clouds.forEach(c => {
+            c.x += c.vx; if (c.x < -c.r*2) c.x = W + c.r;
+            const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
+            const dark = c.layer === 0 ? 'rgba(20,10,50,' : c.layer === 1 ? 'rgba(30,15,70,' : 'rgba(15,8,40,';
+            g.addColorStop(0, dark + (c.alpha*1.6) + ')');
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+        });
+        // Rain
+        rain.forEach(r => {
+            r.y += r.vy; if (r.y > H) { r.y = -r.len; r.x = Math.random() * W; }
+            ctx.strokeStyle = 'rgba(160,130,255,0.18)';
+            ctx.lineWidth = 0.7;
+            ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + r.len); ctx.stroke();
+        });
+        // Lightning
+        boltTimer++;
+        if (boltTimer >= boltInterval) {
+            bolts.push(makeBolt(W, H));
+            boltTimer = 0;
+            boltInterval = 80 + Math.random() * 130;
+            // Flash
+            ctx.fillStyle = 'rgba(180,140,255,0.07)';
+            ctx.fillRect(0, 0, W, H);
+        }
+        bolts = bolts.filter(b => b.life < b.maxLife);
+        bolts.forEach(b => {
+            b.life++;
+            const prog = b.life / b.maxLife;
+            const a = prog < 0.15 ? prog/0.15 : 1 - prog;
+            b.segs.forEach(seg => {
+                const w = seg.branch ? 0.8 : (1.5 + (1-prog)*2);
+                ctx.strokeStyle = seg.branch ? `rgba(200,170,255,${a*0.5})` : `rgba(230,210,255,${a*0.9})`;
+                ctx.lineWidth = w;
+                ctx.shadowColor = '#a855f7';
+                ctx.shadowBlur = seg.branch ? 4 : 14;
+                ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2); ctx.stroke();
+            });
+        });
+        ctx.shadowBlur = 0;
+        t++;
+        requestAnimationFrame(frame);
+    }
+    frame();
+    stopAnim = () => { alive = false; };
+}
+
 function startThemeAnim(key) {
     clearBgCanvas();
     if (key === 'hacker')    setTimeout(animHacker,    60);
     if (key === 'galaxy')    setTimeout(animGalaxy,    60);
     if (key === 'synthwave') setTimeout(animSynthwave, 60);
+    if (key === 'aurora')    setTimeout(animAurora,    60);
+    if (key === 'inferno')   setTimeout(animInferno,   60);
+    if (key === 'storm')     setTimeout(animStorm,     60);
 }
 
 // ─── Apply Theme ──────────────────────────────────────────────────────────
