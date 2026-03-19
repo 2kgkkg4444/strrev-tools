@@ -187,6 +187,7 @@ async function sendMessages() {
     const input   = document.getElementById('st-msg-input')?.value?.trim();
     const subject = document.getElementById('st-msg-subject')?.value?.trim();
     const body    = document.getElementById('st-msg-body')?.value?.trim();
+    const count   = Math.max(1, Math.min(100, parseInt(document.getElementById('st-msg-count')?.value) || 1));
 
     if (!input)   { setMsgStatus('⚠ Enter a username or user ID', 'var(--c-warn)'); return; }
     if (!subject) { setMsgStatus('⚠ Enter a subject', 'var(--c-warn)'); return; }
@@ -206,38 +207,40 @@ async function sendMessages() {
         return;
     }
 
-    log('Sending message to '+target.name+' ('+target.id+')...', 'info');
+    log('Sending '+count+'x message(s) to '+target.name+'...', 'info');
 
-    let results = [];
-
+    // Build list of [acctIdx] to send from, then send count times each
+    let senders = [];
     if (selectedAcctIdx === -2) {
         if (!accounts.length) {
             setMsgStatus('✕ No accounts saved', 'var(--c-err)');
             if (btn) { btn.innerHTML='✉️ Send Message'; btn.disabled=false; }
             return;
         }
-        setMsgStatus('Sending from '+accounts.length+' account(s)...', 'var(--c-warn)');
-        for (let i = 0; i < accounts.length; i++) {
-            results.push(await sendMessageFrom(i, target.id, subject, body));
-        }
+        senders = accounts.map((_, i) => i);
     } else if (selectedAcctIdx === -1) {
-        results = [await sendMessageFrom(-1, target.id, subject, body)];
+        senders = [-1];
     } else {
-        results = [await sendMessageFrom(selectedAcctIdx, target.id, subject, body)];
+        senders = [selectedAcctIdx];
     }
 
-    const sent   = results.filter(r => r.ok).length;
-    const failed = results.filter(r => !r.ok).length;
-    const total  = results.length;
+    let sent = 0, failed = 0, total = senders.length * count;
+    setMsgStatus('Sending 0/'+total+'...', 'var(--c-warn)');
+
+    for (const idx of senders) {
+        for (let n = 0; n < count; n++) {
+            const r = await sendMessageFrom(idx, target.id, subject, body);
+            if (r.ok) sent++; else failed++;
+            setMsgStatus('Sending '+( sent+failed)+'/'+total+'...', 'var(--c-warn)');
+        }
+    }
 
     if (sent > 0) {
-        setMsgStatus('✓ Message sent to '+target.name+' from '+sent+'/'+total+' account'+(total>1?'s':''), 'var(--c-success)');
+        setMsgStatus('✓ Sent '+sent+'/'+total+' message'+(total>1?'s':'')+' to '+target.name, 'var(--c-success)');
         if (btn) {
             btn.innerHTML        = '✓ Sent!';
             btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-            setTimeout(() => {
-                if (btn) { btn.innerHTML='✉️ Send Message'; btn.style.background=''; btn.disabled=false; }
-            }, 2500);
+            setTimeout(() => { if (btn) { btn.innerHTML='✉️ Send Message'; btn.style.background=''; btn.disabled=false; } }, 2500);
         }
     } else {
         setMsgStatus('✕ All messages failed — check the activity log', 'var(--c-err)');
