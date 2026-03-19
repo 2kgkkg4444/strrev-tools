@@ -198,6 +198,25 @@ async function fetchAcctPreview(i) {
                 preview.created     = uj.created     || null;
             }
         } catch(_) {}
+        // ── Membership ───────────────────────────────────────────────────────
+        try {
+            const mr = await acctFetch(i, BASE + '/apisite/premiumfeatures/v1/users/' + acct.id + '/subscriptions');
+            if (mr.ok) {
+                const mj = await mr.json();
+                // Try common field names across platforms
+                preview.membership = mj.membershipType || mj.membership || mj.type
+                    || mj.subscriptionProductModel?.name || mj.data?.membershipType || null;
+            }
+        } catch(_) {}
+        if (!preview.membership) {
+            try {
+                const mr2 = await acctFetch(i, BASE + '/api/users/' + acct.id + '/membership');
+                if (mr2.ok) {
+                    const mj2 = await mr2.json();
+                    preview.membership = mj2.membershipType || mj2.membership || mj2.type || null;
+                }
+            } catch(_) {}
+        }
     }
     return preview;
 }
@@ -248,6 +267,19 @@ function renderAcctCard(a, i, preview, cardEl) {
         joined.style.cssText = 'font-size:10px;color:var(--c-text4);';
         joined.textContent = '· Joined ' + new Date(preview.created).getFullYear();
         subRow.appendChild(joined);
+    }
+    if (preview && preview.membership) {
+        const mColors = {
+            OutrageousBuildersClub: { bg:'rgba(251,191,36,0.12)', border:'rgba(251,191,36,0.3)', text:'#fbbf24', label:'👑 OBC' },
+            TurboBuildersClub:      { bg:'rgba(139,92,246,0.12)', border:'rgba(139,92,246,0.3)', text:'#a78bfa', label:'⚡ TBC' },
+            BuildersClub:           { bg:'rgba(59,130,246,0.12)', border:'rgba(59,130,246,0.3)', text:'#60a5fa', label:'🔨 BC'  },
+            None:                   { bg:'rgba(100,116,139,0.1)', border:'rgba(100,116,139,0.2)', text:'#64748b', label:'🚫 None'},
+        };
+        const mc = mColors[preview.membership] || { bg:'rgba(100,116,139,0.1)', border:'rgba(100,116,139,0.2)', text:'#94a3b8', label: preview.membership };
+        const memBadge = document.createElement('span');
+        memBadge.style.cssText = `font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;background:${mc.bg};border:1px solid ${mc.border};color:${mc.text};`;
+        memBadge.textContent = mc.label;
+        subRow.appendChild(memBadge);
     }
     nameBlock.append(nameRow, subRow);
 
