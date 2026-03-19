@@ -1,275 +1,341 @@
 // ─── Theme Definitions ────────────────────────────────────────────────────
 const THEMES = {
     void: {
-        name: 'Void',
-        icon: '🌑',
-        desc: 'Deep crimson & space',
-        preview: ['#02050e','#e94560','#0d1829','#f1f5f9'],
-        anim: false,
+        name: 'Void',  icon: '🌑',  desc: 'Deep crimson & space',  anim: false,
+        preview: ['#02050e','#e94560','#0d1829'],
         vars: {
-            '--c-bg0':          '#02050e',
-            '--c-bg1':          '#060c18',
-            '--c-bg2':          '#0d1829',
-            '--c-bg3':          '#111e33',
-            '--c-border':       '#0f1e35',
-            '--c-border2':      '#0a1525',
-            '--c-accent':       '#e94560',
-            '--c-accent2':      '#b91c4a',
-            '--c-accent-glow':  'rgba(233,69,96,0.3)',
-            '--c-text0':        '#f1f5f9',
-            '--c-text1':        '#94a3b8',
-            '--c-text2':        '#475569',
-            '--c-text3':        '#334155',
-            '--c-text4':        '#1e3a5f',
-            '--c-text5':        '#0a1525',
-            '--c-success':      '#22c55e',
-            '--c-warn':         '#eab308',
-            '--c-err':          '#ef4444',
-            '--c-tabbar':       '#010408',
-            '--c-tab':          '#04080f',
-            '--c-tab-active':   '#060c18',
-            '--font-mono':      "'Fira Code','Courier New',monospace",
+            '--c-bg0':'#02050e','--c-bg1':'#060c18','--c-bg2':'#0d1829','--c-bg3':'#111e33',
+            '--c-border':'#0f1e35','--c-border2':'#0a1525',
+            '--c-accent':'#e94560','--c-accent2':'#b91c4a','--c-accent-glow':'rgba(233,69,96,0.3)',
+            '--c-text0':'#f1f5f9','--c-text1':'#94a3b8','--c-text2':'#475569',
+            '--c-text3':'#334155','--c-text4':'#1e3a5f','--c-text5':'#0a1525',
+            '--c-success':'#22c55e','--c-warn':'#eab308','--c-err':'#ef4444',
+            '--c-tabbar':'#010408','--c-tab':'#030810','--c-tab-active':'#060c18',
         }
     },
     hacker: {
-        name: 'Hacker',
-        icon: '💀',
-        desc: 'Terminal green matrix',
-        preview: ['#000000','#00ff41','#0a120a','#00ff41'],
-        anim: true,
+        name: 'Hacker', icon: '💀', desc: 'Matrix rain terminal', anim: true,
+        preview: ['#000000','#00ff41','#0a120a'],
         vars: {
-            '--c-bg0':          '#000000',
-            '--c-bg1':          '#030803',
-            '--c-bg2':          '#060d06',
-            '--c-bg3':          '#0a140a',
-            '--c-border':       '#0d200d',
-            '--c-border2':      '#091509',
-            '--c-accent':       '#00ff41',
-            '--c-accent2':      '#00cc33',
-            '--c-accent-glow':  'rgba(0,255,65,0.3)',
-            '--c-text0':        '#00ff41',
-            '--c-text1':        '#00cc33',
-            '--c-text2':        '#009922',
-            '--c-text3':        '#006614',
-            '--c-text4':        '#003d0d',
-            '--c-text5':        '#001f07',
-            '--c-success':      '#00ff41',
-            '--c-warn':         '#ffff00',
-            '--c-err':          '#ff3333',
-            '--c-tabbar':       '#000000',
-            '--c-tab':          '#020702',
-            '--c-tab-active':   '#030803',
-            '--font-mono':      "'Fira Code','Courier New',monospace",
+            '--c-bg0':'#000000','--c-bg1':'#020502','--c-bg2':'#050d05','--c-bg3':'#091409',
+            '--c-border':'#0d1f0d','--c-border2':'#071007',
+            '--c-accent':'#00ff41','--c-accent2':'#00cc33','--c-accent-glow':'rgba(0,255,65,0.3)',
+            '--c-text0':'#00ff41','--c-text1':'#00dd38','--c-text2':'#00aa2b',
+            '--c-text3':'#007720','--c-text4':'#004d14','--c-text5':'#002a0b',
+            '--c-success':'#00ff41','--c-warn':'#ffff00','--c-err':'#ff3333',
+            '--c-tabbar':'#000000','--c-tab':'#010801','--c-tab-active':'#020502',
         }
     },
     galaxy: {
-        name: 'Galaxy',
-        icon: '🌌',
-        desc: 'Cosmic stars & nebula',
-        preview: ['#04010f','#a855f7','#120a30','#e9d5ff'],
-        anim: true,
+        name: 'Galaxy', icon: '🌌', desc: 'Cosmic starfield & nebula', anim: true,
+        preview: ['#04010f','#a855f7','#0e0828'],
         vars: {
-            '--c-bg0':          '#04010f',
-            '--c-bg1':          '#07031a',
-            '--c-bg2':          '#0e0828',
-            '--c-bg3':          '#160d3a',
-            '--c-border':       '#1e0f4a',
-            '--c-border2':      '#160a38',
-            '--c-accent':       '#a855f7',
-            '--c-accent2':      '#7c3aed',
-            '--c-accent-glow':  'rgba(168,85,247,0.35)',
-            '--c-text0':        '#ede9fe',
-            '--c-text1':        '#c4b5fd',
-            '--c-text2':        '#8b5cf6',
-            '--c-text3':        '#6d28d9',
-            '--c-text4':        '#4c1d95',
-            '--c-text5':        '#2e1065',
-            '--c-success':      '#34d399',
-            '--c-warn':         '#fbbf24',
-            '--c-err':          '#f87171',
-            '--c-tabbar':       '#020008',
-            '--c-tab':          '#060214',
-            '--c-tab-active':   '#07031a',
-            '--font-mono':      "'Fira Code','Courier New',monospace",
+            '--c-bg0':'#04010f','--c-bg1':'#07031a','--c-bg2':'#0e0828','--c-bg3':'#160d3a',
+            '--c-border':'#1e0f4a','--c-border2':'#130a35',
+            '--c-accent':'#a855f7','--c-accent2':'#7c3aed','--c-accent-glow':'rgba(168,85,247,0.35)',
+            '--c-text0':'#ede9fe','--c-text1':'#c4b5fd','--c-text2':'#8b5cf6',
+            '--c-text3':'#6d28d9','--c-text4':'#4c1d95','--c-text5':'#2e1065',
+            '--c-success':'#34d399','--c-warn':'#fbbf24','--c-err':'#f87171',
+            '--c-tabbar':'#020008','--c-tab':'#050012','--c-tab-active':'#07031a',
         }
     },
     synthwave: {
-        name: 'Synthwave',
-        icon: '🌆',
-        desc: 'Retro neon & chrome',
-        preview: ['#0d0015','#ff00ff','#1e0035','#ffe4ff'],
-        anim: true,
+        name: 'Synthwave', icon: '🌆', desc: 'Retro neon grid', anim: true,
+        preview: ['#0d0015','#ff2dff','#1a0030'],
         vars: {
-            '--c-bg0':          '#0d0015',
-            '--c-bg1':          '#120020',
-            '--c-bg2':          '#1a0030',
-            '--c-bg3':          '#220040',
-            '--c-border':       '#2d0050',
-            '--c-border2':      '#220040',
-            '--c-accent':       '#ff2dff',
-            '--c-accent2':      '#cc00cc',
-            '--c-accent-glow':  'rgba(255,45,255,0.35)',
-            '--c-text0':        '#ffe4ff',
-            '--c-text1':        '#ff9eff',
-            '--c-text2':        '#cc44cc',
-            '--c-text3':        '#882288',
-            '--c-text4':        '#551155',
-            '--c-text5':        '#2a0a2a',
-            '--c-success':      '#00ffcc',
-            '--c-warn':         '#ffcc00',
-            '--c-err':          '#ff3366',
-            '--c-tabbar':       '#080010',
-            '--c-tab':          '#0d0018',
-            '--c-tab-active':   '#120020',
-            '--font-mono':      "'Fira Code','Courier New',monospace",
+            '--c-bg0':'#0d0015','--c-bg1':'#120020','--c-bg2':'#1a0030','--c-bg3':'#220040',
+            '--c-border':'#2d0050','--c-border2':'#1e0038',
+            '--c-accent':'#ff2dff','--c-accent2':'#cc00cc','--c-accent-glow':'rgba(255,45,255,0.35)',
+            '--c-text0':'#ffe4ff','--c-text1':'#ff9eff','--c-text2':'#cc44cc',
+            '--c-text3':'#882288','--c-text4':'#551155','--c-text5':'#2a0a2a',
+            '--c-success':'#00ffcc','--c-warn':'#ffcc00','--c-err':'#ff3366',
+            '--c-tabbar':'#080010','--c-tab':'#0d0018','--c-tab-active':'#120020',
         }
     },
     frost: {
-        name: 'Frost',
-        icon: '❄️',
-        desc: 'Arctic ice & steel',
-        preview: ['#070d18','#38bdf8','#0f2035','#e0f2fe'],
-        anim: false,
+        name: 'Frost', icon: '❄️', desc: 'Arctic ice & steel', anim: false,
+        preview: ['#070d18','#38bdf8','#122035'],
         vars: {
-            '--c-bg0':          '#070d18',
-            '--c-bg1':          '#0c1525',
-            '--c-bg2':          '#122035',
-            '--c-bg3':          '#1a2d45',
-            '--c-border':       '#1e3a5a',
-            '--c-border2':      '#162d48',
-            '--c-accent':       '#38bdf8',
-            '--c-accent2':      '#0284c7',
-            '--c-accent-glow':  'rgba(56,189,248,0.3)',
-            '--c-text0':        '#e0f2fe',
-            '--c-text1':        '#7dd3fc',
-            '--c-text2':        '#38bdf8',
-            '--c-text3':        '#0369a1',
-            '--c-text4':        '#0c4a6e',
-            '--c-text5':        '#082f49',
-            '--c-success':      '#34d399',
-            '--c-warn':         '#fbbf24',
-            '--c-err':          '#f87171',
-            '--c-tabbar':       '#040810',
-            '--c-tab':          '#080e1c',
-            '--c-tab-active':   '#0c1525',
-            '--font-mono':      "'Fira Code','Courier New',monospace",
+            '--c-bg0':'#070d18','--c-bg1':'#0c1525','--c-bg2':'#122035','--c-bg3':'#1a2d45',
+            '--c-border':'#1e3a5a','--c-border2':'#142c48',
+            '--c-accent':'#38bdf8','--c-accent2':'#0284c7','--c-accent-glow':'rgba(56,189,248,0.3)',
+            '--c-text0':'#e0f2fe','--c-text1':'#7dd3fc','--c-text2':'#38bdf8',
+            '--c-text3':'#0369a1','--c-text4':'#0c4a6e','--c-text5':'#082f49',
+            '--c-success':'#34d399','--c-warn':'#fbbf24','--c-err':'#f87171',
+            '--c-tabbar':'#040810','--c-tab':'#080e1c','--c-tab-active':'#0c1525',
         }
     },
 };
 
 let currentTheme = 'void';
+let stopAnim     = null;
 
+// ─── Canvas Animations ────────────────────────────────────────────────────
+function clearBgCanvas() {
+    if (stopAnim) { stopAnim(); stopAnim = null; }
+    const old = document.getElementById('st-anim-canvas');
+    if (old) old.remove();
+}
+
+function makeBgCanvas() {
+    clearBgCanvas();
+    const fx = document.getElementById('st-bg-fx'); if (!fx) return null;
+    const cv = document.createElement('canvas');
+    cv.id = 'st-anim-canvas';
+    cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+    cv.width  = fx.offsetWidth  || window.innerWidth;
+    cv.height = fx.offsetHeight || window.innerHeight;
+    fx.appendChild(cv);
+    return cv;
+}
+
+function animHacker() {
+    const cv = makeBgCanvas(); if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    const FS   = 14;
+    const cols = Math.floor(W / FS);
+    const drops = Array.from({length: cols}, () => Math.random() * -50);
+    const CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF><{}[]|/\\';
+    let alive = true;
+    function frame() {
+        if (!alive) return;
+        ctx.fillStyle = 'rgba(0,0,0,0.055)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = FS + 'px "Fira Code",monospace';
+        for (let i = 0; i < cols; i++) {
+            const y = drops[i] * FS;
+            const chr = CHARS[Math.floor(Math.random() * CHARS.length)];
+            // bright head
+            ctx.fillStyle = '#ccffcc';
+            ctx.fillText(chr, i * FS, y);
+            // dim body on previous row
+            if (drops[i] > 1) {
+                ctx.fillStyle = 'rgba(0,200,50,0.6)';
+                ctx.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], i * FS, y - FS);
+            }
+            if (y > H && Math.random() > 0.975) drops[i] = 0;
+            drops[i] += 0.55;
+        }
+        requestAnimationFrame(frame);
+    }
+    frame();
+    stopAnim = () => { alive = false; };
+}
+
+function animGalaxy() {
+    const cv = makeBgCanvas(); if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    const COLORS = ['#ffffff','#d8b4fe','#c084fc','#e9d5ff','#a78bfa','#ede9fe'];
+    const stars = Array.from({length: 320}, () => ({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.9 + 0.2,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.018 + 0.004,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    }));
+    const shooters = Array.from({length: 4}, () => resetShooter({}, W, H));
+    function resetShooter(s, w, h) {
+        s.x = Math.random() * w; s.y = Math.random() * h * 0.6;
+        s.vx = -(Math.random() * 7 + 3); s.vy = Math.random() * 3.5 + 1;
+        s.life = 0; s.maxLife = 70 + Math.random() * 80;
+        return s;
+    }
+    const nebulas = [
+        {x:W*0.18,y:H*0.28,r:W*0.38,c:'rgba(110,30,210,0.09)'},
+        {x:W*0.82,y:H*0.72,r:W*0.3, c:'rgba(70,15,170,0.07)'},
+        {x:W*0.52,y:H*0.12,r:W*0.24,c:'rgba(190,90,255,0.06)'},
+    ];
+    let alive = true;
+    function frame() {
+        if (!alive) return;
+        ctx.clearRect(0, 0, W, H);
+        // Nebulas
+        nebulas.forEach(n => {
+            const g = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r);
+            g.addColorStop(0, n.c); g.addColorStop(1,'transparent');
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fill();
+        });
+        // Stars
+        stars.forEach(s => {
+            s.phase += s.speed;
+            const a = 0.35 + 0.65 * Math.abs(Math.sin(s.phase));
+            ctx.globalAlpha = a;
+            ctx.fillStyle = s.color;
+            ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+            if (s.r > 1.5 && a > 0.8) {
+                ctx.globalAlpha = a * 0.25;
+                ctx.beginPath(); ctx.arc(s.x,s.y,s.r*3.5,0,Math.PI*2); ctx.fill();
+            }
+        });
+        // Shooting stars
+        shooters.forEach(s => {
+            s.life++;
+            if (s.life > s.maxLife) { resetShooter(s,W,H); return; }
+            const p = s.life / s.maxLife;
+            const alpha = p < 0.2 ? p/0.2 : p > 0.8 ? (1-p)/0.2 : 1;
+            ctx.globalAlpha = alpha * 0.75;
+            const tail = s.len || 60;
+            const grd = ctx.createLinearGradient(s.x,s.y,s.x-s.vx*tail/8,s.y-s.vy*tail/8);
+            grd.addColorStop(0,'#ffffff'); grd.addColorStop(1,'transparent');
+            ctx.strokeStyle = grd; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x-s.vx*tail/8,s.y-s.vy*tail/8); ctx.stroke();
+            s.x += s.vx * 0.5; s.y += s.vy * 0.5;
+            if (s.x < -50 || s.y > H + 50) resetShooter(s,W,H);
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(frame);
+    }
+    frame();
+    stopAnim = () => { alive = false; };
+}
+
+function animSynthwave() {
+    const cv = makeBgCanvas(); if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    const HRZ = H * 0.52;
+    let offset = 0, alive = true;
+    function frame() {
+        if (!alive) return;
+        ctx.clearRect(0, 0, W, H);
+        // Sky
+        const sky = ctx.createLinearGradient(0,0,0,HRZ);
+        sky.addColorStop(0,'rgba(13,0,21,0.95)');
+        sky.addColorStop(0.65,'rgba(35,0,55,0.7)');
+        sky.addColorStop(1,'rgba(80,0,120,0.25)');
+        ctx.fillStyle = sky; ctx.fillRect(0,0,W,HRZ);
+        // Sun
+        const sunY = HRZ * 0.7, sunR = H * 0.155;
+        const sg = ctx.createRadialGradient(W/2,sunY,sunR*0.05,W/2,sunY,sunR);
+        sg.addColorStop(0,'#ff9500'); sg.addColorStop(0.35,'#ff2dff'); sg.addColorStop(1,'transparent');
+        ctx.fillStyle = sg;
+        ctx.beginPath(); ctx.arc(W/2,sunY,sunR,0,Math.PI*2); ctx.fill();
+        // Sun stripes
+        for (let i = 0; i < 7; i++) {
+            const sy = sunY - sunR * 0.28 + i * (sunR * 0.8 / 7);
+            if (sy > sunY - sunR && sy < sunY + sunR) {
+                ctx.fillStyle = 'rgba(13,0,21,0.72)';
+                ctx.fillRect(W/2 - sunR, sy, sunR*2, sunR * 0.075);
+            }
+        }
+        // Ground clip
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, HRZ, W, H-HRZ); ctx.clip();
+        const gnd = ctx.createLinearGradient(0,HRZ,0,H);
+        gnd.addColorStop(0,'rgba(55,0,90,0.5)'); gnd.addColorStop(1,'rgba(8,0,16,0.9)');
+        ctx.fillStyle = gnd; ctx.fillRect(0,HRZ,W,H-HRZ);
+        // Horizontal grid lines
+        for (let i = 1; i <= 16; i++) {
+            const t = i / 16;
+            const persp = Math.pow(t, 2.4);
+            const baseY = HRZ + (H - HRZ) * persp;
+            const anim  = ((offset * 0.7 * Math.sqrt(t)) % ((H - HRZ) / 16));
+            const fy    = baseY + anim;
+            if (fy < HRZ || fy > H) continue;
+            const a = Math.min(1, t * 2) * 0.9;
+            ctx.strokeStyle = `rgba(255,45,255,${a})`;
+            ctx.lineWidth = 0.6 + t * 2;
+            ctx.beginPath(); ctx.moveTo(0,fy); ctx.lineTo(W,fy); ctx.stroke();
+        }
+        // Vertical lines
+        for (let i = -12; i <= 12; i++) {
+            const spread = (W * 0.65 / 12) * i;
+            ctx.strokeStyle = 'rgba(255,45,255,0.45)';
+            ctx.lineWidth = 0.7;
+            ctx.beginPath();
+            ctx.moveTo(W/2 + spread*0.012, HRZ);
+            ctx.lineTo(W/2 + spread, H);
+            ctx.stroke();
+        }
+        ctx.restore();
+        // Scan line overlay
+        ctx.fillStyle = 'rgba(0,0,0,0.04)';
+        for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 2);
+        offset += 1.4;
+        requestAnimationFrame(frame);
+    }
+    frame();
+    stopAnim = () => { alive = false; };
+}
+
+function startThemeAnim(key) {
+    clearBgCanvas();
+    if (key === 'hacker')    setTimeout(animHacker,    60);
+    if (key === 'galaxy')    setTimeout(animGalaxy,    60);
+    if (key === 'synthwave') setTimeout(animSynthwave, 60);
+}
+
+// ─── Apply Theme ──────────────────────────────────────────────────────────
 function applyTheme(key) {
     if (!THEMES[key]) return;
     currentTheme = key;
-    const win = document.getElementById('st-window');
-    if (!win) return;
-    const vars = THEMES[key].vars;
-    Object.entries(vars).forEach(([k,v]) => win.style.setProperty(k, v));
+    const win = document.getElementById('st-window'); if (!win) return;
+    Object.entries(THEMES[key].vars).forEach(([k,v]) => win.style.setProperty(k,v));
     win.setAttribute('data-theme', key);
-    document.querySelectorAll('.st-theme-card').forEach(c =>
-        c.classList.toggle('active', c.dataset.theme === key)
-    );
-    try { GM_setValue('st_theme', key); } catch(_) {}
-}
-
-// ─── Galaxy Stars Generator ───────────────────────────────────────────────
-function injectGalaxyStars() {
-    const existing = document.getElementById('st-galaxy-stars-style');
-    if (existing) return;
-    const rng = (min, max) => min + Math.random() * (max - min);
-    const layers = [
-        Array.from({length:120}, () => `${rng(1,2).toFixed(1)}px ${rng(1,2).toFixed(1)}px rgba(255,255,255,${rng(0.3,0.9).toFixed(2)})`),
-        Array.from({length:60},  () => `${rng(1,3).toFixed(1)}px ${rng(1,3).toFixed(1)}px rgba(200,180,255,${rng(0.2,0.7).toFixed(2)})`),
-        Array.from({length:25},  () => `${rng(1,4).toFixed(1)}px ${rng(1,4).toFixed(1)}px rgba(255,255,255,${rng(0.5,1.0).toFixed(2)})`),
-    ];
-    const genPositions = (count, maxDim) =>
-        Array.from({length:count}, () =>
-            `${Math.floor(rng(0,maxDim))}px ${Math.floor(rng(0,window.innerHeight||800))}px`
-        );
-    const s1 = genPositions(120, window.innerWidth||1400);
-    const s2 = genPositions(60,  window.innerWidth||1400);
-    const s3 = genPositions(25,  window.innerWidth||1400);
-    const style = document.createElement('style');
-    style.id = 'st-galaxy-stars-style';
-    style.textContent = `
-        [data-theme="galaxy"] #st-bg-fx::before {
-            content:'';position:absolute;inset:0;
-            background:transparent;
-            box-shadow:${s1.map((p,i)=>`${p} 1px 1px rgba(255,255,255,${(0.3+Math.random()*0.7).toFixed(2)})`).join(',')};
-            animation:st-stars-drift 80s linear infinite;
-        }
-        [data-theme="galaxy"] #st-bg-fx::after {
-            content:'';position:absolute;inset:0;
-            background:transparent;
-            box-shadow:${s2.map((p,i)=>`${p} 2px 2px rgba(180,160,255,${(0.2+Math.random()*0.6).toFixed(2)})`).join(',')};
-            animation:st-stars-drift 120s linear infinite reverse;
-        }
-    `;
-    document.head.appendChild(style);
+    document.querySelectorAll('.st-theme-card').forEach(c => c.classList.toggle('active', c.dataset.theme === key));
+    if (THEMES[key].anim) startThemeAnim(key);
+    else clearBgCanvas();
+    try { GM_setValue('st_theme', key); } catch(_){}
 }
 
 // ─── Section & Tab Switch ─────────────────────────────────────────────────
 function switchManage(section) {
     ['sniper','catalog','trade'].forEach(s => {
-        const tab  = document.getElementById('st-msec-'+s);
-        const cont = document.getElementById('st-msec-content-'+s);
-        const on   = s === section;
-        if (tab)  tab.classList.toggle('st-ctab-active', on);
-        if (cont) cont.style.display = on ? 'block' : 'none';
+        document.getElementById('st-msec-'+s)?.classList.toggle('st-ctab-active', s===section);
+        const c = document.getElementById('st-msec-content-'+s);
+        if (c) c.style.display = s===section ? 'block' : 'none';
     });
-    const stab = document.getElementById('st-tab-settings');
-    if (stab) stab.classList.remove('st-ctab-active');
+    document.getElementById('st-tab-settings')?.classList.remove('st-ctab-active');
     if (section === 'catalog') renderCatalogList();
 }
 
 function switchTab(tab) {
     const manage   = document.getElementById('st-tab-content-manage');
     const settings = document.getElementById('st-tab-content-settings');
-    const stab     = document.getElementById('st-tab-settings');
     if (tab === 'manage') {
         if (manage)   manage.style.display   = 'contents';
         if (settings) settings.style.display = 'none';
-        if (stab)     stab.classList.remove('st-ctab-active');
+        document.getElementById('st-tab-settings')?.classList.remove('st-ctab-active');
     } else {
         if (manage)   manage.style.display   = 'none';
         if (settings) settings.style.display = 'flex';
-        if (stab)     stab.classList.add('st-ctab-active');
-        ['sniper','catalog','trade'].forEach(s =>
-            document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active')
-        );
+        document.getElementById('st-tab-settings')?.classList.add('st-ctab-active');
+        ['sniper','catalog','trade'].forEach(s => document.getElementById('st-msec-'+s)?.classList.remove('st-ctab-active'));
         rebuildSettingsAcctList();
         rebuildThemeGrid();
     }
 }
 
-// ─── Theme Grid Builder ───────────────────────────────────────────────────
+// ─── Theme Grid ───────────────────────────────────────────────────────────
 function rebuildThemeGrid() {
     const el = document.getElementById('st-theme-grid');
     if (!el || el.dataset.built) return;
     el.dataset.built = '1';
     el.innerHTML = '';
-    Object.entries(THEMES).forEach(([key, theme]) => {
+    Object.entries(THEMES).forEach(([key, t]) => {
+        const [bg, accent, bg2] = t.preview;
         const card = document.createElement('div');
         card.className = 'st-theme-card' + (key === currentTheme ? ' active' : '');
         card.dataset.theme = key;
-        const [bg, accent, bg2, text] = theme.preview;
         card.innerHTML = `
-            <div class="st-theme-preview" style="background:${bg};border:1px solid ${accent}33;">
-                <div class="st-theme-swatch" style="background:${accent};box-shadow:0 0 8px ${accent}88;"></div>
-                <div class="st-theme-swatch-sm" style="background:${bg2};"></div>
-                <div class="st-theme-swatch-sm" style="background:${text}33;"></div>
-                ${theme.anim ? '<div class="st-theme-anim-badge">ANIMATED</div>' : ''}
+            <div class="st-theme-preview" style="background:${bg};border-bottom:1px solid ${accent}33;">
+                <div style="width:34px;height:34px;border-radius:10px;background:${accent};box-shadow:0 0 16px ${accent}99;flex-shrink:0;"></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div style="width:44px;height:10px;border-radius:4px;background:${bg2};"></div>
+                    <div style="width:30px;height:10px;border-radius:4px;background:${accent}44;"></div>
+                </div>
+                ${t.anim ? '<div class="st-anim-badge">✦ LIVE</div>' : ''}
             </div>
-            <div class="st-theme-card-body">
-                <div class="st-theme-card-name" style="color:${accent};">${theme.icon} ${theme.name}</div>
-                <div class="st-theme-card-desc">${theme.desc}</div>
+            <div style="padding:11px 13px 13px;">
+                <div style="font-size:13px;font-weight:700;color:${accent};margin-bottom:3px;">${t.icon} ${t.name}</div>
+                <div style="font-size:10px;color:var(--c-text3);">${t.desc}</div>
             </div>
         `;
-        card.addEventListener('click', () => {
-            applyTheme(key);
-            if (key === 'galaxy') injectGalaxyStars();
-        });
+        card.addEventListener('click', () => applyTheme(key));
         el.appendChild(card);
     });
 }
@@ -278,509 +344,280 @@ function rebuildThemeGrid() {
 function injectStyles() {
     const s = document.createElement('style');
     s.textContent = `
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fira+Code:wght@400;500;600&display=swap');
 
-        /* ── FAB ── */
-        #st-open-btn {
-            position:fixed;bottom:22px;right:22px;z-index:999998;
-            display:flex;align-items:center;gap:8px;
-            padding:11px 20px;border:none;border-radius:999px;
-            background:linear-gradient(135deg,var(--c-accent,#e94560),var(--c-accent2,#b91c4a));
-            color:#fff;font-size:12px;font-weight:700;cursor:pointer;
-            box-shadow:0 4px 24px var(--c-accent-glow,rgba(233,69,96,0.4)),0 0 0 1px rgba(255,255,255,0.06);
-            transition:transform 0.15s,box-shadow 0.15s,opacity 0.15s;
-            animation:st-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
-            font-family:'DM Sans',system-ui,sans-serif;letter-spacing:0.2px;user-select:none;
-        }
-        #st-open-btn:hover  { transform:translateY(-2px);box-shadow:0 8px 32px var(--c-accent-glow,rgba(233,69,96,0.5)); }
-        #st-open-btn:active { transform:scale(0.95); }
-        #st-open-btn.hidden { opacity:0;pointer-events:none; }
-
-        /* ── Fullscreen Overlay ── */
         #st-overlay {
             position:fixed;inset:0;z-index:999999;
-            display:flex;align-items:stretch;justify-content:stretch;
+            display:flex;align-items:stretch;
             opacity:0;pointer-events:none;
-            transition:opacity 0.2s ease;
+            transition:opacity 0.18s ease;
         }
         #st-overlay.open { opacity:1;pointer-events:all; }
 
-        /* ── Main Window ── */
         #st-window {
-            /* Void theme defaults */
             --c-bg0:#02050e; --c-bg1:#060c18; --c-bg2:#0d1829; --c-bg3:#111e33;
             --c-border:#0f1e35; --c-border2:#0a1525;
             --c-accent:#e94560; --c-accent2:#b91c4a; --c-accent-glow:rgba(233,69,96,0.3);
             --c-text0:#f1f5f9; --c-text1:#94a3b8; --c-text2:#475569;
             --c-text3:#334155; --c-text4:#1e3a5f; --c-text5:#0a1525;
             --c-success:#22c55e; --c-warn:#eab308; --c-err:#ef4444;
-            --c-tabbar:#010408; --c-tab:#04080f; --c-tab-active:#060c18;
-            --font-mono:'Fira Code','Courier New',monospace;
+            --c-tabbar:#010408; --c-tab:#030810; --c-tab-active:#060c18;
 
             flex:1;display:flex;flex-direction:column;overflow:hidden;
-            background:var(--c-bg1);
-            transform:scale(0.98);opacity:0;
-            transition:transform 0.28s cubic-bezier(0.16,1,0.3,1),opacity 0.2s ease;
-            position:relative;
+            background:var(--c-tab-active);position:relative;
+            transform:scale(0.985);opacity:0;
+            transition:transform 0.25s cubic-bezier(0.16,1,0.3,1),opacity 0.18s ease;
         }
         #st-overlay.open #st-window { transform:scale(1);opacity:1; }
         #st-window * { box-sizing:border-box;margin:0;padding:0;font-family:'DM Sans',system-ui,sans-serif !important; }
-        #st-window ::-webkit-scrollbar { width:3px;height:3px; }
+        #st-window ::-webkit-scrollbar { width:4px;height:4px; }
         #st-window ::-webkit-scrollbar-track { background:transparent; }
         #st-window ::-webkit-scrollbar-thumb { background:var(--c-border);border-radius:99px; }
         #st-window ::-webkit-scrollbar-thumb:hover { background:var(--c-accent); }
 
-        /* ── Background FX Layer ── */
         #st-bg-fx {
-            position:absolute;inset:0;pointer-events:none;z-index:0;
-            overflow:hidden;
+            position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+            background:var(--c-bg1);
         }
+        [data-theme="void"]      #st-bg-fx { background:var(--c-bg1); }
+        [data-theme="hacker"]    #st-bg-fx { background:#000; }
+        [data-theme="galaxy"]    #st-bg-fx { background:#04010f; }
+        [data-theme="synthwave"] #st-bg-fx { background:#0d0015; }
+        [data-theme="frost"]     #st-bg-fx { background:var(--c-bg1); }
 
-        /* VOID: subtle breathe */
-        [data-theme="void"] #st-bg-fx::before {
+        [data-theme="void"] #st-bg-fx::after {
             content:'';position:absolute;inset:0;
-            background:radial-gradient(ellipse 60% 60% at 80% 20%, rgba(233,69,96,0.04) 0%, transparent 70%),
-                        radial-gradient(ellipse 40% 40% at 10% 90%, rgba(185,28,74,0.03) 0%, transparent 60%);
-            animation:st-void-breathe 6s ease-in-out infinite alternate;
+            background:radial-gradient(ellipse 55% 55% at 78% 18%,rgba(233,69,96,0.06) 0%,transparent 60%),
+                        radial-gradient(ellipse 35% 40% at 12% 85%,rgba(185,28,74,0.04) 0%,transparent 55%);
+            animation:st-void-pulse 7s ease-in-out infinite alternate;
         }
-
-        /* HACKER: scanlines + phosphor glow */
-        [data-theme="hacker"] #st-bg-fx {
-            background:repeating-linear-gradient(
-                0deg,
-                transparent 0px, transparent 2px,
-                rgba(0,255,65,0.025) 2px, rgba(0,255,65,0.025) 4px
-            );
-            animation:st-scanline-scroll 12s linear infinite;
-        }
-        [data-theme="hacker"] #st-bg-fx::before {
+        [data-theme="frost"] #st-bg-fx::after {
             content:'';position:absolute;inset:0;
-            background:radial-gradient(ellipse 70% 70% at 50% 0%, rgba(0,255,65,0.06) 0%, transparent 60%),
-                        radial-gradient(ellipse 100% 30% at 50% 100%, rgba(0,180,40,0.04) 0%, transparent 100%);
-        }
-        [data-theme="hacker"] #st-bg-fx::after {
-            content:'';position:absolute;inset:0;
-            background:linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.4) 100%);
+            background:radial-gradient(ellipse 60% 50% at 75% 20%,rgba(56,189,248,0.07) 0%,transparent 55%),
+                        radial-gradient(ellipse 45% 35% at 15% 80%,rgba(14,165,233,0.05) 0%,transparent 50%);
+            animation:st-frost-shimmer 9s ease-in-out infinite alternate;
         }
 
-        /* GALAXY: nebula gradients + stars via JS */
-        [data-theme="galaxy"] #st-bg-fx {
-            background:
-                radial-gradient(ellipse 80% 60% at 20% 30%, rgba(120,40,220,0.18) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 50% at 80% 70%, rgba(80,20,180,0.14) 0%, transparent 55%),
-                radial-gradient(ellipse 40% 40% at 50% 10%, rgba(200,100,255,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse 100% 100% at 50% 50%, rgba(20,5,50,0.6) 0%, transparent 100%);
-            animation:st-galaxy-drift 12s ease-in-out infinite alternate;
-        }
-
-        /* SYNTHWAVE: retro grid */
-        [data-theme="synthwave"] #st-bg-fx::before {
-            content:'';position:absolute;
-            bottom:0;left:0;right:0;height:55%;
-            background:
-                linear-gradient(to top, rgba(255,45,255,0.15) 0%, transparent 100%),
-                repeating-linear-gradient(90deg, rgba(255,45,255,0.12) 0px, transparent 1px, transparent 49px, rgba(255,45,255,0.12) 50px),
-                repeating-linear-gradient(0deg,  rgba(255,45,255,0.12) 0px, transparent 1px, transparent 49px, rgba(255,45,255,0.12) 50px);
-            background-size:100% 100%, 50px 50px, 50px 50px;
-            transform:perspective(600px) rotateX(45deg);
-            transform-origin:bottom center;
-            animation:st-grid-slide 3s linear infinite;
-        }
-        [data-theme="synthwave"] #st-bg-fx::after {
-            content:'';position:absolute;
-            top:0;left:0;right:0;height:50%;
-            background:
-                radial-gradient(ellipse 80% 60% at 50% 100%, rgba(255,45,255,0.08) 0%, transparent 70%),
-                linear-gradient(to bottom, rgba(13,0,21,0.8) 0%, transparent 100%);
-        }
-
-        /* FROST: subtle ice shimmer */
-        [data-theme="frost"] #st-bg-fx::before {
-            content:'';position:absolute;inset:0;
-            background:radial-gradient(ellipse 60% 50% at 70% 20%, rgba(56,189,248,0.06) 0%, transparent 60%),
-                        radial-gradient(ellipse 50% 40% at 20% 80%, rgba(14,165,233,0.04) 0%, transparent 55%);
-            animation:st-frost-shimmer 8s ease-in-out infinite alternate;
-        }
-
-        /* ── Chrome Tab Bar ── */
+        /* ── Tab Bar ──
+           THE FIX: active tab gets margin-bottom:-1px + border-bottom-color matching
+           the content background. No box-shadow corner trick = no black artifacts. */
         #st-tabbar {
             display:flex;align-items:flex-end;
-            height:50px;min-height:50px;flex-shrink:0;
+            height:54px;min-height:54px;flex-shrink:0;
             background:var(--c-tabbar);
-            padding:0 0 0 12px;
+            padding:0 0 0 16px;
             position:relative;z-index:10;
+            border-bottom:1px solid var(--c-border);
             user-select:none;
         }
-
         #st-tabbar-logo {
-            display:flex;align-items:center;gap:9px;
-            padding:0 14px 8px 4px;flex-shrink:0;
-            border-right:1px solid var(--c-border2);margin-right:8px;
+            display:flex;align-items:center;gap:10px;
+            padding:0 20px 10px 4px;flex-shrink:0;
+            border-right:1px solid var(--c-border2);margin-right:10px;
         }
         #st-logo-icon {
-            width:26px;height:26px;border-radius:8px;
+            width:30px;height:30px;border-radius:9px;
             background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));
             display:flex;align-items:center;justify-content:center;
-            font-size:13px;flex-shrink:0;
-            box-shadow:0 2px 8px var(--c-accent-glow);
+            font-size:15px;flex-shrink:0;box-shadow:0 2px 10px var(--c-accent-glow);
         }
-        #st-logo-text {
-            font-size:12px;font-weight:700;color:var(--c-text2);
-            white-space:nowrap;line-height:1;
-        }
-        #st-logo-text span { color:var(--c-text4);font-weight:500; }
-
+        #st-logo-name { font-size:13px;font-weight:700;color:var(--c-text1);white-space:nowrap; }
+        #st-logo-name span { color:var(--c-text4);font-weight:500; }
         #st-tabs-area {
-            display:flex;align-items:flex-end;
-            gap:2px;flex:1;overflow-x:auto;overflow-y:visible;
-            padding-bottom:0;
-            scrollbar-width:none;min-width:0;
+            display:flex;align-items:flex-end;gap:3px;
+            flex:1;overflow-x:auto;overflow-y:visible;
+            scrollbar-width:none;
         }
         #st-tabs-area::-webkit-scrollbar { display:none; }
 
         .st-ctab {
-            position:relative;
-            height:38px;
-            padding:0 18px;
+            position:relative;height:42px;padding:0 24px;
             border-radius:10px 10px 0 0;
-            background:var(--c-tab);
-            border:1px solid var(--c-border2);
-            border-bottom:none;
-            display:flex;align-items:center;gap:7px;
-            cursor:pointer;
-            font-size:11px;font-weight:600;
-            color:var(--c-text3);
+            border:1px solid transparent;
+            border-bottom:1px solid var(--c-border);
+            display:flex;align-items:center;gap:8px;
+            cursor:pointer;font-size:12px;font-weight:600;
+            color:var(--c-text3);background:transparent;
             white-space:nowrap;flex-shrink:0;
-            transition:color 0.15s,background 0.15s;
-            outline:none;
-            min-width:110px;
-            justify-content:center;
+            transition:color 0.15s,background 0.15s,border-color 0.15s;
+            outline:none;min-width:126px;justify-content:center;
+            margin-bottom:-1px;   /* overlap the tabbar border-bottom */
+            z-index:1;
         }
-        .st-ctab:hover { background:var(--c-bg2);color:var(--c-text2); }
+        .st-ctab:hover {
+            background:var(--c-tab);color:var(--c-text2);
+            border-color:var(--c-border2);
+            border-bottom-color:var(--c-border); /* keep the underline visible on hover */
+        }
         .st-ctab.st-ctab-active {
             background:var(--c-tab-active);
             color:var(--c-text0);
             border-color:var(--c-border);
-            z-index:2;
+            border-bottom-color:var(--c-tab-active); /* <-- seamless: hides the bottom seam */
+            z-index:5;
         }
-        .st-ctab.st-ctab-active::before,
-        .st-ctab.st-ctab-active::after {
-            content:'';position:absolute;bottom:0;
-            width:12px;height:12px;pointer-events:none;z-index:3;
-        }
-        .st-ctab.st-ctab-active::before {
-            left:-12px;
-            background:var(--c-tabbar);
-            border-bottom-right-radius:8px;
-            box-shadow:5px 5px 0 5px var(--c-tab-active);
-        }
-        .st-ctab.st-ctab-active::after {
-            right:-12px;
-            background:var(--c-tabbar);
-            border-bottom-left-radius:8px;
-            box-shadow:-5px 5px 0 5px var(--c-tab-active);
-        }
-        .st-ctab-active-accent {
-            position:absolute;top:0;left:0;right:0;height:2px;
+        .st-ctab-accent {
+            position:absolute;top:0;left:0;right:0;height:2.5px;
             background:linear-gradient(90deg,var(--c-accent),var(--c-accent2));
-            border-radius:10px 10px 0 0;
-            opacity:0;transition:opacity 0.2s;
+            border-radius:10px 10px 0 0;opacity:0;transition:opacity 0.18s;
         }
-        .st-ctab.st-ctab-active .st-ctab-active-accent { opacity:1; }
-
-        .st-ctab-divider {
-            width:1px;height:24px;margin:0 4px 8px;
+        .st-ctab.st-ctab-active .st-ctab-accent { opacity:1; }
+        .st-ctab-sep {
+            width:1px;height:22px;margin:0 6px 10px;
             background:var(--c-border2);flex-shrink:0;align-self:flex-end;
         }
 
         #st-tabbar-controls {
-            display:flex;align-items:center;gap:6px;
-            padding:0 12px 8px;flex-shrink:0;
+            display:flex;align-items:center;gap:9px;
+            padding:0 16px 10px;flex-shrink:0;
         }
-
-        /* Compact account display */
-        #st-acct-mini {
-            padding:4px 10px;background:var(--c-bg2);
-            border:1px solid var(--c-border2);border-radius:8px;
-            cursor:default;max-width:160px;
+        #st-acct-chip {
+            padding:6px 13px;background:var(--c-bg2);
+            border:1px solid var(--c-border2);border-radius:9px;max-width:180px;cursor:default;
         }
-        #st-acct-mini-name {
-            font-size:11px;font-weight:700;color:var(--c-accent);
-            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;
-        }
-        #st-acct-mini-sub {
-            font-size:9px;color:var(--c-text4);margin-top:1px;
-            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-        }
-
+        #st-acct-mini-name { font-size:12px;font-weight:700;color:var(--c-accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4; }
+        #st-acct-mini-sub  { font-size:9px;color:var(--c-text4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         select#st-acct-sel {
             background:var(--c-bg2);border:1px solid var(--c-border);
-            color:var(--c-text1);border-radius:8px;
-            padding:6px 8px;font-size:10px;outline:none;cursor:pointer;
-            transition:border-color 0.15s;max-width:140px;
+            color:var(--c-text1);border-radius:9px;
+            padding:7px 10px;font-size:11px;outline:none;cursor:pointer;
+            transition:border-color 0.15s;max-width:160px;
         }
         select#st-acct-sel:focus { border-color:var(--c-accent); }
-
         #st-close-btn {
-            width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+            width:33px;height:33px;display:flex;align-items:center;justify-content:center;
             background:rgba(255,255,255,0.03);border:1px solid var(--c-border);
-            color:var(--c-text3);font-size:13px;cursor:pointer;border-radius:8px;
+            color:var(--c-text3);font-size:14px;cursor:pointer;border-radius:9px;
             transition:all 0.15s;flex-shrink:0;
         }
         #st-close-btn:hover { background:rgba(233,69,96,0.15);color:#e94560;border-color:rgba(233,69,96,0.3); }
 
-        /* ── Thin accent line below tab bar ── */
-        #st-tabbar-underline {
-            height:1px;background:var(--c-border);flex-shrink:0;
-            position:relative;z-index:9;
-        }
-
-        /* ── Body & Content Area ── */
-        #st-body {
-            flex:1;overflow:hidden;display:flex;flex-direction:column;
-            position:relative;z-index:1;background:var(--c-tab-active);
-        }
+        #st-body { flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative;z-index:1; }
         #st-sidebar { display:none; }
-        #st-main {
-            flex:1;overflow-y:auto;padding:28px 32px;
-        }
+        #st-main { flex:1;overflow-y:auto;padding:34px 42px; }
+        #st-tab-content-settings { flex:1;overflow-y:auto;padding:38px 42px;display:none; }
 
-        #st-tab-content-settings {
-            flex:1;overflow-y:auto;padding:32px;display:none;
-        }
+        .st-sec-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:26px;gap:18px; }
+        .st-sec-title  { color:var(--c-text0);font-size:22px;font-weight:700;line-height:1.2; }
+        .st-sec-sub    { color:var(--c-text3);font-size:11px;margin-top:5px;line-height:1.6; }
 
-        /* ── Sniper Section ── */
-        .st-section-header {
-            display:flex;align-items:flex-start;justify-content:space-between;
-            margin-bottom:22px;
-        }
-        .st-section-title { color:var(--c-text0);font-size:16px;font-weight:700;line-height:1.2; }
-        .st-section-sub { color:var(--c-text3);font-size:10px;margin-top:3px; }
-
-        .st-primary-btn {
-            padding:10px 22px;border:none;border-radius:10px;cursor:pointer;
-            font-weight:700;font-size:12px;color:#fff;letter-spacing:0.2px;
+        .st-btn-primary {
+            padding:13px 28px;border:none;border-radius:11px;cursor:pointer;
+            font-weight:700;font-size:13px;color:#fff;
             background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));
-            box-shadow:0 0 20px var(--c-accent-glow);
+            box-shadow:0 0 22px var(--c-accent-glow);
             transition:opacity 0.15s,transform 0.12s,box-shadow 0.15s;
             white-space:nowrap;flex-shrink:0;
         }
-        .st-primary-btn:hover:not(:disabled) { opacity:0.85;transform:translateY(-1px);box-shadow:0 4px 28px var(--c-accent-glow); }
-        .st-primary-btn:active:not(:disabled) { transform:scale(0.97); }
-        .st-primary-btn:disabled { cursor:not-allowed;opacity:0.5; }
+        .st-btn-primary:hover:not(:disabled) { opacity:0.87;transform:translateY(-1px);box-shadow:0 5px 30px var(--c-accent-glow); }
+        .st-btn-primary:active:not(:disabled) { transform:scale(0.97); }
+        .st-btn-primary:disabled { opacity:0.45;cursor:not-allowed; }
 
-        #st-sniper-status {
-            display:flex;align-items:center;gap:10px;
-            padding:10px 14px;background:var(--c-bg0);
-            border:1px solid var(--c-border2);border-radius:10px;
-            margin-bottom:18px;transition:background 0.3s,border-color 0.3s;
+        .st-btn-secondary {
+            padding:11px 18px;background:var(--c-bg0);color:var(--c-text3);
+            border:1px solid var(--c-border2);border-radius:10px;cursor:pointer;
+            font-size:12px;font-weight:600;transition:all 0.15s;
+            display:flex;align-items:center;gap:7px;
         }
-        .st-dot { width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background 0.3s,box-shadow 0.3s; }
-        .st-dot-idle    { background:var(--c-border); }
-        .st-dot-active  { background:var(--c-success);box-shadow:0 0 6px var(--c-success);animation:st-pulse-g 1.8s infinite; }
-        .st-dot-hot     { background:var(--c-accent);box-shadow:0 0 6px var(--c-accent);animation:st-pulse-r 1.2s infinite; }
-        .st-dot-loading { background:var(--c-warn);box-shadow:0 0 6px var(--c-warn); }
-        .st-dot-text { font-size:10px;color:var(--c-text2); }
+        .st-btn-secondary:hover { background:var(--c-bg2);color:var(--c-text1);border-color:var(--c-border); }
 
-        .st-stats-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px; }
+        /* Sniper 2-col */
+        #st-sniper-layout { display:grid;grid-template-columns:1fr 400px;gap:26px;align-items:start; }
+        #st-sniper-status {
+            display:flex;align-items:center;gap:13px;
+            padding:14px 18px;background:var(--c-bg0);
+            border:1px solid var(--c-border2);border-radius:12px;
+            margin-bottom:22px;transition:background 0.3s,border-color 0.3s;
+        }
+        .st-dot { width:9px;height:9px;border-radius:50%;flex-shrink:0;transition:background 0.3s,box-shadow 0.3s; }
+        .st-dot-idle    { background:var(--c-border); }
+        .st-dot-active  { background:var(--c-success);box-shadow:0 0 8px var(--c-success);animation:st-pulse-g 1.8s infinite; }
+        .st-dot-hot     { background:var(--c-accent);box-shadow:0 0 8px var(--c-accent);animation:st-pulse-r 1.2s infinite; }
+        .st-dot-loading { background:var(--c-warn);box-shadow:0 0 8px var(--c-warn); }
+        .st-dot-text    { font-size:12px;color:var(--c-text2); }
+
+        .st-stats-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:20px; }
         .st-stat {
-            background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:10px;
-            padding:12px 14px;transition:border-color 0.15s;
+            background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;
+            padding:17px 20px;transition:border-color 0.15s;
         }
         .st-stat:hover { border-color:var(--c-border); }
-        .st-stat-label { color:var(--c-text4);font-size:9px;text-transform:uppercase;letter-spacing:0.9px;font-weight:700;margin-bottom:5px; }
-        .st-stat-val { color:var(--c-text0);font-size:20px;font-weight:700;font-family:var(--font-mono) !important;line-height:1; }
+        .st-stat-label { color:var(--c-text4);font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px; }
+        .st-stat-val   { color:var(--c-text0);font-size:30px;font-weight:700;font-family:'Fira Code',monospace !important;line-height:1; }
 
-        .st-rtt-bar-wrap { margin-bottom:18px; }
-        .st-rtt-bar-labels { display:flex;justify-content:space-between;margin-bottom:5px; }
-        .st-rtt-bar-labels span { color:var(--c-text4);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px; }
-        .st-rtt-bar { height:4px;background:var(--c-bg0);border-radius:3px;overflow:hidden;border:1px solid var(--c-border2); }
-        #st-rtt-fill { height:100%;border-radius:3px;background:linear-gradient(90deg,var(--c-success),var(--c-warn),var(--c-err));transition:width 0.4s ease; }
+        .st-rtt-wrap { margin-bottom:0; }
+        .st-rtt-labels { display:flex;justify-content:space-between;margin-bottom:7px; }
+        .st-rtt-labels span { color:var(--c-text4);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.9px; }
+        .st-rtt-track { height:6px;background:var(--c-bg0);border-radius:4px;overflow:hidden;border:1px solid var(--c-border2); }
+        #st-rtt-fill  { height:100%;border-radius:4px;background:linear-gradient(90deg,var(--c-success),var(--c-warn),var(--c-err));transition:width 0.4s ease; }
 
-        .st-log-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:7px; }
-        .st-log-title { color:var(--c-text4);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px; }
-        #st-log-clear {
-            background:none;border:none;color:var(--c-text5);font-size:9px;
-            cursor:pointer;padding:2px 6px;border-radius:4px;transition:color 0.12s;
-        }
+        .st-log-panel { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:16px;display:flex;flex-direction:column;min-height:320px; }
+        .st-log-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
+        .st-log-hdr-lbl { color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px; }
+        #st-log-clear { background:none;border:none;color:var(--c-text5);font-size:10px;cursor:pointer;padding:3px 8px;border-radius:5px;transition:color 0.12s; }
         #st-log-clear:hover { color:var(--c-text2); }
-        #st-log {
-            background:var(--c-bg0);border:1px solid var(--c-border2);
-            border-radius:10px;padding:8px;max-height:200px;overflow-y:auto;
-        }
+        #st-log { flex:1;overflow-y:auto;min-height:0; }
 
-        /* ── Catalog Section ── */
-        .st-cat-toolbar { display:flex;justify-content:space-between;align-items:center;margin-bottom:12px; }
-        .st-secondary-btn {
-            padding:8px 14px;background:var(--c-bg0);color:var(--c-text3);
-            border:1px solid var(--c-border2);border-radius:8px;cursor:pointer;
-            font-size:11px;font-weight:600;transition:all 0.15s;display:flex;align-items:center;gap:5px;
-        }
-        .st-secondary-btn:hover { background:var(--c-bg2);color:var(--c-text1);border-color:var(--c-border); }
+        .st-cat-toolbar { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
+        #st-cat-list { padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:7px; }
 
-        /* ── Trade Section ── */
         .st-input {
-            width:100%;padding:9px 12px;background:var(--c-bg0);
-            border:1px solid var(--c-border2);border-radius:9px;
-            color:var(--c-text1);font-size:11px;outline:none;
-            transition:border-color 0.15s;
+            width:100%;padding:12px 15px;background:var(--c-bg0);
+            border:1px solid var(--c-border2);border-radius:10px;
+            color:var(--c-text1);font-size:12px;outline:none;transition:border-color 0.15s;
         }
         .st-input:focus { border-color:var(--c-accent); }
         .st-input::placeholder { color:var(--c-text5); }
+        #st-trade-status { display:none;padding:11px 14px;border-radius:10px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);margin-bottom:13px;word-break:break-word; }
+        .st-trade-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:13px; }
+        .st-inv-lbl { font-size:10px;color:var(--c-text4);font-weight:700;text-transform:uppercase;letter-spacing:0.9px;margin-bottom:7px;display:flex;align-items:center;gap:7px; }
+        .st-inv-dot { width:6px;height:6px;border-radius:50%;flex-shrink:0; }
+        .st-inv-box { overflow-y:auto;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:10px;padding:5px;max-height:230px;min-height:80px; }
+        .st-trade-hint { padding:9px 12px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:9px;font-size:10px;color:var(--c-text4);text-align:center;margin-bottom:13px; }
+        #st-trade-summary { display:none;padding:11px 16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:10px;margin-bottom:13px;text-align:center;font-size:12px; }
 
-        #st-trade-status {
-            display:none;padding:8px 10px;border-radius:8px;
-            border:1px solid var(--c-border2);background:var(--c-bg0);
-            font-size:10px;color:var(--c-text2);margin-bottom:10px;word-break:break-word;
-        }
-        .st-trade-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px; }
-        .st-inv-label {
-            font-size:9px;color:var(--c-text4);font-weight:700;
-            text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;
-            display:flex;align-items:center;gap:6px;
-        }
-        .st-inv-dot { width:5px;height:5px;border-radius:50%;flex-shrink:0; }
-        .st-inv-box {
-            overflow-y:auto;background:var(--c-bg0);border:1px solid var(--c-border2);
-            border-radius:8px;padding:4px;max-height:200px;min-height:60px;
-        }
-        .st-trade-hint {
-            padding:6px 8px;background:var(--c-bg0);border:1px solid var(--c-border2);
-            border-radius:7px;font-size:9px;color:var(--c-text4);text-align:center;margin-bottom:10px;
-        }
-        #st-trade-summary {
-            display:none;padding:8px 12px;background:var(--c-bg0);
-            border:1px solid var(--c-border2);border-radius:8px;margin-bottom:10px;text-align:center;font-size:10px;
-        }
+        .st-settings-wrap { max-width:860px;margin:0 auto; }
+        .st-set-section   { margin-bottom:38px; }
+        .st-set-title     { color:var(--c-text0);font-size:19px;font-weight:700;margin-bottom:5px; }
+        .st-set-sub       { color:var(--c-text3);font-size:11px;margin-bottom:22px;line-height:1.6; }
 
-        /* ── Settings ── */
-        .st-settings-inner { max-width:680px;margin:0 auto; }
-        .st-settings-section { margin-bottom:32px; }
-        .st-settings-heading {
-            color:var(--c-text0);font-size:15px;font-weight:700;margin-bottom:4px;
-        }
-        .st-settings-subheading {
-            color:var(--c-text3);font-size:10px;margin-bottom:18px;
-        }
-
-        /* Theme Cards Grid */
-        #st-theme-grid {
-            display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px;
-        }
+        #st-theme-grid { display:grid;grid-template-columns:repeat(5,1fr);gap:13px; }
         .st-theme-card {
-            border-radius:11px;border:2px solid var(--c-border);
-            overflow:hidden;cursor:pointer;transition:border-color 0.15s,transform 0.12s,box-shadow 0.15s;
-            background:var(--c-bg0);
+            border-radius:14px;border:2px solid var(--c-border);
+            overflow:hidden;cursor:pointer;background:var(--c-bg0);
+            transition:border-color 0.15s,transform 0.12s,box-shadow 0.15s;
         }
-        .st-theme-card:hover { border-color:var(--c-border);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4); }
-        .st-theme-card.active { border-color:var(--c-accent);box-shadow:0 0 0 1px var(--c-accent),0 0 20px var(--c-accent-glow); }
-        .st-theme-preview {
-            height:64px;position:relative;display:flex;align-items:center;
-            justify-content:center;gap:6px;padding:10px;
-        }
-        .st-theme-swatch {
-            width:20px;height:20px;border-radius:6px;flex-shrink:0;
-        }
-        .st-theme-swatch-sm {
-            width:12px;height:12px;border-radius:4px;flex-shrink:0;
-        }
-        .st-theme-anim-badge {
-            position:absolute;top:5px;right:5px;
-            font-size:7px;font-weight:700;padding:2px 5px;border-radius:20px;
-            background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);
-            letter-spacing:0.5px;
-        }
-        .st-theme-card-body { padding:8px 10px 10px; }
-        .st-theme-card-name { font-size:11px;font-weight:700;margin-bottom:2px; }
-        .st-theme-card-desc { font-size:9px;color:var(--c-text3); }
+        .st-theme-card:hover { transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,0.55); }
+        .st-theme-card.active { border-color:var(--c-accent);box-shadow:0 0 0 1px var(--c-accent),0 0 26px var(--c-accent-glow); }
+        .st-theme-preview { height:78px;position:relative;display:flex;align-items:center;justify-content:center;gap:11px;padding:15px; }
+        .st-anim-badge { position:absolute;top:7px;right:7px;font-size:8px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,0.13);color:rgba(255,255,255,0.7);letter-spacing:0.5px; }
 
-        /* Account settings */
-        .st-card {
-            background:var(--c-bg0);border:1px solid var(--c-border2);
-            border-radius:12px;padding:18px;margin-bottom:16px;
-        }
-        .st-card-title {
-            font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;
-            color:var(--c-text4);margin-bottom:14px;
-        }
-        .st-field { margin-bottom:10px; }
-        .st-field-label { font-size:10px;color:var(--c-text3);margin-bottom:4px; }
-        .st-set-input {
-            width:100%;padding:8px 10px;background:var(--c-bg2);
-            border:1px solid var(--c-border);border-radius:7px;
-            color:var(--c-text1);font-size:11px;outline:none;transition:border-color 0.15s;
-        }
+        .st-card { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:14px;padding:22px;margin-bottom:15px; }
+        .st-card-title { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--c-text4);margin-bottom:18px; }
+        .st-field { margin-bottom:13px; }
+        .st-field-label { font-size:11px;color:var(--c-text3);margin-bottom:5px; }
+        .st-set-input { width:100%;padding:10px 13px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:9px;color:var(--c-text1);font-size:11px;outline:none;transition:border-color 0.15s; }
         .st-set-input:focus { border-color:var(--c-accent); }
         .st-set-input::placeholder { color:var(--c-text5); }
 
-        /* ── Shared Components ── */
-        .st-skel {
-            background:linear-gradient(90deg,var(--c-bg2) 25%,var(--c-bg3) 50%,var(--c-bg2) 75%);
-            background-size:200% 100%;animation:st-shimmer 1.4s infinite;
-        }
+        .st-skel { background:linear-gradient(90deg,var(--c-bg2) 25%,var(--c-bg3) 50%,var(--c-bg2) 75%);background-size:200% 100%;animation:st-shimmer 1.4s infinite; }
         .st-spin { display:inline-block;animation:st-spin 0.7s linear infinite; }
         .st-sniper-active { animation:st-pulse-g 1.8s infinite; }
 
-        /* ── Hacker font override ── */
-        [data-theme="hacker"] .st-stat-val,
-        [data-theme="hacker"] #st-checks,
-        [data-theme="hacker"] #st-cps,
-        [data-theme="hacker"] #st-rtt,
-        [data-theme="hacker"] #st-conc,
-        [data-theme="hacker"] .st-section-title,
-        [data-theme="hacker"] .st-settings-heading,
-        [data-theme="hacker"] #st-logo-text {
-            font-family:var(--font-mono) !important;
-        }
-        [data-theme="hacker"] #st-window * {
-            font-family:var(--font-mono) !important;
-        }
+        [data-theme="hacker"] #st-window * { font-family:'Fira Code',monospace !important; }
 
-        /* ── Animations ── */
-        @keyframes st-popin   { 0%{transform:scale(0.7);opacity:0} 100%{transform:scale(1);opacity:1} }
-        @keyframes st-spin    { to{transform:rotate(360deg)} }
-        @keyframes st-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-        @keyframes st-pulse-g { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.5)} 70%{box-shadow:0 0 0 8px rgba(34,197,94,0)} }
-        @keyframes st-pulse-r { 0%,100%{box-shadow:0 0 0 0 rgba(233,69,96,0.5)} 70%{box-shadow:0 0 0 8px rgba(233,69,96,0)} }
-
-        @keyframes st-void-breathe {
-            0% { opacity:0.6;transform:scale(1); }
-            100% { opacity:1;transform:scale(1.05); }
-        }
-        @keyframes st-scanline-scroll {
-            0% { background-position:0 0; }
-            100% { background-position:0 100px; }
-        }
-        @keyframes st-galaxy-drift {
-            0%   { background-position:0% 50%, 100% 50%, 50% 0%, 50% 50%; }
-            100% { background-position:10% 60%, 90% 40%, 55% 5%, 50% 50%; }
-        }
-        @keyframes st-stars-drift {
-            0%   { transform:translateY(0) rotate(0deg); }
-            100% { transform:translateY(-30px) rotate(0.5deg); }
-        }
-        @keyframes st-grid-slide {
-            0%   { background-position:0% 100%, 0px 0px, 0px 0px; }
-            100% { background-position:0% 100%, 0px -50px, 0px 0px; }
-        }
-        @keyframes st-frost-shimmer {
-            0%   { opacity:0.7;transform:scale(1); }
-            100% { opacity:1;transform:scale(1.03); }
-        }
+        @keyframes st-spin         { to{transform:rotate(360deg)} }
+        @keyframes st-shimmer      { 0%{background-position:-200% 0}100%{background-position:200% 0} }
+        @keyframes st-pulse-g      { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.5)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)} }
+        @keyframes st-pulse-r      { 0%,100%{box-shadow:0 0 0 0 rgba(233,69,96,0.5)}70%{box-shadow:0 0 0 10px rgba(233,69,96,0)} }
+        @keyframes st-void-pulse   { 0%{opacity:0.6;transform:scale(1)}100%{opacity:1;transform:scale(1.04)} }
+        @keyframes st-frost-shimmer{ 0%{opacity:0.7;transform:scale(1)}100%{opacity:1;transform:scale(1.03)} }
     `;
     document.head.appendChild(s);
 }
 
 // ─── Build UI ─────────────────────────────────────────────────────────────
 function buildUI() {
-
-    // FAB
-    const openBtn = document.createElement('button');
-    openBtn.id = 'st-open-btn';
-    openBtn.innerHTML = '🛒 Tools';
-    document.body.appendChild(openBtn);
-
-    // Full-screen overlay
     const overlay = document.createElement('div');
     overlay.id = 'st-overlay';
 
@@ -789,245 +626,207 @@ function buildUI() {
     win.setAttribute('data-theme', 'void');
 
     win.innerHTML = `
-        <!-- Background FX -->
         <div id="st-bg-fx"></div>
 
-        <!-- Chrome Tab Bar -->
         <div id="st-tabbar">
             <div id="st-tabbar-logo">
                 <div id="st-logo-icon">🛒</div>
-                <div id="st-logo-text">Strrev <span>Tools</span></div>
+                <div id="st-logo-name">Strrev <span>Tools</span></div>
             </div>
-
             <div id="st-tabs-area">
-                <button class="st-ctab st-ctab-active" id="st-msec-sniper">
-                    <div class="st-ctab-active-accent"></div>
-                    🎯 <span>Sniper</span>
-                </button>
-                <button class="st-ctab" id="st-msec-catalog">
-                    <div class="st-ctab-active-accent"></div>
-                    🛒 <span>Catalog</span>
-                </button>
-                <button class="st-ctab" id="st-msec-trade">
-                    <div class="st-ctab-active-accent"></div>
-                    🔄 <span>Trade</span>
-                </button>
-                <div class="st-ctab-divider"></div>
-                <button class="st-ctab" id="st-tab-settings">
-                    <div class="st-ctab-active-accent"></div>
-                    ⚙️ <span>Settings</span>
-                </button>
+                <button class="st-ctab st-ctab-active" id="st-msec-sniper"><div class="st-ctab-accent"></div>🎯 Sniper</button>
+                <button class="st-ctab" id="st-msec-catalog"><div class="st-ctab-accent"></div>🛒 Catalog</button>
+                <button class="st-ctab" id="st-msec-trade"><div class="st-ctab-accent"></div>🔄 Trade</button>
+                <div class="st-ctab-sep"></div>
+                <button class="st-ctab" id="st-tab-settings"><div class="st-ctab-accent"></div>⚙️ Settings</button>
             </div>
-
             <div id="st-tabbar-controls">
-                <div id="st-acct-mini">
+                <div id="st-acct-chip">
                     <div id="st-acct-mini-name">Session</div>
                     <div id="st-acct-mini-sub">Current browser session</div>
                 </div>
-                <select id="st-acct-sel">
-                    <option value="-1">🌐 Current Session</option>
-                </select>
-                <!-- Hidden compat element -->
+                <select id="st-acct-sel"><option value="-1">🌐 Current Session</option></select>
                 <button id="st-tab-manage" style="display:none;"></button>
-                <button id="st-close-btn">✕</button>
+                <button id="st-close-btn" title="Close (Esc)">✕</button>
             </div>
         </div>
 
-        <!-- Tab Bar Underline -->
-        <div id="st-tabbar-underline"></div>
-
-        <!-- Body -->
         <div id="st-body">
-
-            <!-- ── MANAGE CONTENT ── -->
             <div id="st-tab-content-manage" style="display:contents;">
                 <div id="st-sidebar"></div>
                 <div id="st-main">
 
                     <!-- SNIPER -->
                     <div id="st-msec-content-sniper">
-                        <div class="st-section-header">
+                        <div class="st-sec-header">
                             <div>
-                                <div class="st-section-title">Auto-Buy Sniper</div>
-                                <div class="st-section-sub">Polls catalog API — silently buys for selected account(s) on hit</div>
+                                <div class="st-sec-title">Auto-Buy Sniper</div>
+                                <div class="st-sec-sub">Polls the catalog API — auto-buys the moment a new item appears for the selected account(s)</div>
                             </div>
-                            <button id="st-sniper-btn" class="st-primary-btn"
-                                onmouseenter="if(!this.disabled){this.style.opacity='0.85';this.style.transform='translateY(-1px)'}"
-                                onmouseleave="this.style.opacity='1';this.style.transform=''">
-                                🎯 Start Sniper
-                            </button>
+                            <button id="st-sniper-btn" class="st-btn-primary">🎯 Start Sniper</button>
                         </div>
-
                         <div id="st-sniper-status">
                             <div class="st-dot st-dot-idle"></div>
                             <span class="st-dot-text">Idle — press Start to begin sniping</span>
                         </div>
-
-                        <div class="st-stats-grid">
-                            <div class="st-stat"><div class="st-stat-label">Checks</div><div id="st-checks" class="st-stat-val">0</div></div>
-                            <div class="st-stat"><div class="st-stat-label">Speed</div><div id="st-cps" class="st-stat-val">—</div></div>
-                            <div class="st-stat"><div class="st-stat-label">Avg RTT</div><div id="st-rtt" class="st-stat-val">—</div></div>
-                            <div class="st-stat"><div class="st-stat-label">Workers</div><div id="st-conc" class="st-stat-val">—</div></div>
-                        </div>
-
-                        <div class="st-rtt-bar-wrap">
-                            <div class="st-rtt-bar-labels">
-                                <span>Network Health</span>
-                                <span style="font-family:var(--font-mono)!important;">0ms → 500ms</span>
+                        <div id="st-sniper-layout">
+                            <div>
+                                <div class="st-stats-grid">
+                                    <div class="st-stat"><div class="st-stat-label">Checks</div><div id="st-checks" class="st-stat-val">0</div></div>
+                                    <div class="st-stat"><div class="st-stat-label">Speed</div><div id="st-cps" class="st-stat-val">—</div></div>
+                                    <div class="st-stat"><div class="st-stat-label">Avg RTT</div><div id="st-rtt" class="st-stat-val">—</div></div>
+                                    <div class="st-stat"><div class="st-stat-label">Workers</div><div id="st-conc" class="st-stat-val">—</div></div>
+                                </div>
+                                <div class="st-rtt-wrap">
+                                    <div class="st-rtt-labels">
+                                        <span>Network Health</span>
+                                        <span style="font-family:'Fira Code',monospace!important;">0ms → 500ms</span>
+                                    </div>
+                                    <div class="st-rtt-track"><div id="st-rtt-fill" style="width:0%;"></div></div>
+                                </div>
                             </div>
-                            <div class="st-rtt-bar"><div id="st-rtt-fill" style="width:0%;"></div></div>
+                            <div class="st-log-panel">
+                                <div class="st-log-hdr">
+                                    <span class="st-log-hdr-lbl">Activity Log</span>
+                                    <button id="st-log-clear">Clear</button>
+                                </div>
+                                <div id="st-log"></div>
+                            </div>
                         </div>
-
-                        <div class="st-log-header">
-                            <span class="st-log-title">Activity Log</span>
-                            <button id="st-log-clear"
-                                onmouseenter="this.style.color='var(--c-text2)'"
-                                onmouseleave="this.style.color=''">Clear</button>
-                        </div>
-                        <div id="st-log"></div>
                     </div>
 
                     <!-- CATALOG -->
                     <div id="st-msec-content-catalog" style="display:none;">
-                        <div class="st-section-header">
+                        <div class="st-sec-header">
                             <div>
-                                <div class="st-section-title">Catalog Browser</div>
-                                <div class="st-section-sub">Items visible on this page — buy for active account(s)</div>
+                                <div class="st-sec-title">Catalog Browser</div>
+                                <div class="st-sec-sub">Items visible on this page — click 🛒 to buy for the active account(s)</div>
                             </div>
-                            <button id="st-cat-refresh" class="st-secondary-btn"
-                                onmouseenter="this.style.background='var(--c-bg2)';this.style.color='var(--c-text1)';this.style.borderColor='var(--c-border)'"
-                                onmouseleave="this.style.background='';this.style.color='';this.style.borderColor=''">
-                                <span id="st-refresh-icon" style="font-size:14px;">↻</span> Refresh
+                            <button id="st-cat-refresh" class="st-btn-secondary">
+                                <span id="st-refresh-icon" style="font-size:15px;display:inline-block;">↻</span> Refresh
                             </button>
                         </div>
                         <div class="st-cat-toolbar">
-                            <div id="st-cat-count"><span style="color:var(--c-text3);font-size:10px;">Loading...</span></div>
-                            <div style="display:flex;gap:12px;font-size:9px;font-weight:700;">
+                            <div id="st-cat-count"><span style="color:var(--c-text3);font-size:11px;">Loading...</span></div>
+                            <div style="display:flex;gap:14px;font-size:10px;font-weight:700;">
                                 <span style="color:#f97316;">R$ <span style="font-weight:400;color:var(--c-text2);">Robux</span></span>
                                 <span style="color:#eab308;">T$ <span style="font-weight:400;color:var(--c-text2);">Tix</span></span>
                             </div>
                         </div>
-                        <ul id="st-cat-list" style="padding:0;margin:0;"></ul>
+                        <ul id="st-cat-list"></ul>
                     </div>
 
                     <!-- TRADE -->
                     <div id="st-msec-content-trade" style="display:none;">
-                        <div style="margin-bottom:18px;">
-                            <div class="st-section-title">Trade Sender</div>
-                            <div class="st-section-sub">Send trade offers as the active account — "All Accounts" not supported for trades</div>
+                        <div style="margin-bottom:24px;">
+                            <div class="st-sec-title">Trade Sender</div>
+                            <div class="st-sec-sub">Send trade offers — All Accounts mode falls back to your current browser session for trade lookups</div>
                         </div>
-                        <div style="display:flex;gap:6px;margin-bottom:10px;">
+                        <div style="display:flex;gap:9px;margin-bottom:13px;">
                             <input id="st-trade-input" class="st-input" type="text" placeholder="Username or User ID…" style="flex:1;">
-                            <button id="st-load-btn" class="st-primary-btn"
-                                onmouseenter="if(!this.disabled){this.style.opacity='0.85'}" onmouseleave="this.style.opacity='1'">Load</button>
+                            <button id="st-load-btn" class="st-btn-primary" style="padding:12px 26px;">Load</button>
                         </div>
                         <div id="st-trade-status"></div>
                         <div class="st-trade-grid">
                             <div>
-                                <div class="st-inv-label"><div class="st-inv-dot" style="background:var(--c-accent);"></div>Your Offer</div>
-                                <div id="st-my-inv" class="st-inv-box"><div style="padding:10px;text-align:center;color:var(--c-text4);font-size:9px;">Load a user first</div></div>
+                                <div class="st-inv-lbl"><div class="st-inv-dot" style="background:var(--c-accent);"></div>Your Offer</div>
+                                <div id="st-my-inv" class="st-inv-box"><div style="padding:14px;text-align:center;color:var(--c-text4);font-size:11px;">Load a user first</div></div>
                             </div>
                             <div>
-                                <div class="st-inv-label"><div class="st-inv-dot" style="background:#3b82f6;"></div>Their Offer</div>
-                                <div id="st-th-inv" class="st-inv-box"><div style="padding:10px;text-align:center;color:var(--c-text4);font-size:9px;">Load a user first</div></div>
+                                <div class="st-inv-lbl"><div class="st-inv-dot" style="background:#3b82f6;"></div>Their Offer</div>
+                                <div id="st-th-inv" class="st-inv-box"><div style="padding:14px;text-align:center;color:var(--c-text4);font-size:11px;">Load a user first</div></div>
                             </div>
                         </div>
                         <div class="st-trade-hint">Click items to select them for the trade offer</div>
                         <div id="st-trade-summary">
                             <span style="color:var(--c-accent);font-weight:700;">You offer: <span id="st-my-count">0</span></span>
-                            <span style="color:var(--c-text3);margin:0 12px;">↔</span>
+                            <span style="color:var(--c-text3);margin:0 16px;">↔</span>
                             <span style="color:#3b82f6;font-weight:700;">You request: <span id="st-th-count">0</span></span>
                         </div>
-                        <button id="st-send-btn" disabled class="st-primary-btn"
-                            style="width:100%;margin-top:0;padding:13px;opacity:0.4;pointer-events:none;"
-                            onmouseenter="if(!this.disabled){this.style.opacity='0.85';this.style.transform='translateY(-1px)'}"
-                            onmouseleave="this.style.opacity=this.disabled?'0.4':'1';this.style.transform=''">
+                        <button id="st-send-btn" disabled class="st-btn-primary" style="width:100%;padding:16px;opacity:0.4;pointer-events:none;">
                             🔄 Send Trade Offer
                         </button>
                     </div>
 
-                </div><!-- /st-main -->
-            </div><!-- /st-tab-content-manage -->
+                </div>
+            </div>
 
-            <!-- ── SETTINGS ── -->
+            <!-- SETTINGS -->
             <div id="st-tab-content-settings">
-                <div class="st-settings-inner">
+                <div class="st-settings-wrap">
 
-                    <!-- Themes -->
-                    <div class="st-settings-section">
-                        <div class="st-settings-heading">Themes</div>
-                        <div class="st-settings-subheading">Choose your visual style — animated themes have live background effects</div>
+                    <div class="st-set-section">
+                        <div class="st-set-title">Themes</div>
+                        <div class="st-set-sub">Pick your visual style. Themes marked <strong style="color:var(--c-accent);">✦ LIVE</strong> have real-time canvas-rendered backgrounds.</div>
                         <div id="st-theme-grid"></div>
                     </div>
 
-                    <!-- Accounts -->
-                    <div class="st-settings-section">
-                        <div class="st-settings-heading">Accounts</div>
-                        <div class="st-settings-subheading">Add and remove alt accounts. Stored via GM_setValue.</div>
-                        <div id="st-settings-acct-list" style="margin-bottom:14px;"></div>
-
+                    <div class="st-set-section">
+                        <div class="st-set-title">Accounts</div>
+                        <div class="st-set-sub">Add and remove alt accounts. Stored locally via GM_setValue.</div>
+                        <div id="st-settings-acct-list" style="margin-bottom:16px;"></div>
                         <div class="st-card">
                             <div class="st-card-title">Add Account</div>
                             <div class="st-field">
                                 <div class="st-field-label">.ROBLOSECURITY cookie</div>
                                 <input id="st-add-cookie" class="st-set-input" type="password" placeholder="Paste cookie value here…">
                             </div>
-                            <div class="st-field" style="margin-bottom:16px;">
+                            <div class="st-field" style="margin-bottom:20px;">
                                 <div class="st-field-label">CSRF Token <span style="color:var(--c-text4);">(auto-fetched if blank)</span></div>
                                 <input id="st-add-csrf" class="st-set-input" type="text" placeholder="Leave blank to auto-fetch…">
                             </div>
-                            <button id="st-add-btn" class="st-primary-btn" style="width:100%;padding:12px;"
-                                onmouseenter="if(!this.disabled){this.style.opacity='0.85'}" onmouseleave="this.style.opacity='1'">
-                                🔍 Fetch Username & Save
-                            </button>
-                            <div id="st-add-status" style="margin-top:9px;font-size:10px;min-height:14px;text-align:center;color:var(--c-text2);"></div>
+                            <button id="st-add-btn" class="st-btn-primary" style="width:100%;padding:14px;">🔍 Fetch Username & Save</button>
+                            <div id="st-add-status" style="margin-top:11px;font-size:11px;min-height:16px;text-align:center;color:var(--c-text2);"></div>
                         </div>
                     </div>
 
-                    <!-- About -->
-                    <div class="st-settings-section">
+                    <div class="st-set-section">
                         <div class="st-card" style="display:flex;align-items:center;justify-content:space-between;">
                             <div>
-                                <div style="color:var(--c-text1);font-size:11px;font-weight:600;margin-bottom:3px;">Strrev Tools v9.0</div>
-                                <div style="color:var(--c-text3);font-size:10px;line-height:1.6;">Multi-account catalog buyer, silent sniper &amp; trader</div>
-                                <div style="color:var(--c-text4);font-size:9px;margin-top:2px;">Accounts saved automatically via GM_setValue</div>
+                                <div style="color:var(--c-text1);font-size:14px;font-weight:600;margin-bottom:5px;">Strrev Tools v9.0</div>
+                                <div style="color:var(--c-text3);font-size:11px;line-height:1.8;">Multi-account catalog buyer, silent sniper &amp; trader</div>
+                                <div style="color:var(--c-text4);font-size:10px;margin-top:4px;">
+                                    Press <kbd style="background:var(--c-bg2);border:1px solid var(--c-border);border-radius:4px;padding:1px 7px;font-family:'Fira Code',monospace!important;font-size:10px;">Tab</kbd>
+                                    anywhere to open / close
+                                </div>
                             </div>
-                            <div style="text-align:right;flex-shrink:0;margin-left:20px;">
-                                <div style="color:var(--c-text3);font-size:9px;">made by</div>
-                                <div style="color:var(--c-accent);font-size:14px;font-weight:700;letter-spacing:0.3px;">vinny</div>
-                                <div style="margin-top:6px;font-size:8px;padding:2px 8px;border-radius:20px;font-weight:700;background:rgba(233,69,96,0.1);border:1px solid rgba(233,69,96,0.2);color:var(--c-accent);font-family:var(--font-mono)!important;">v9.0</div>
+                            <div style="text-align:right;flex-shrink:0;margin-left:24px;">
+                                <div style="color:var(--c-text3);font-size:10px;">made by</div>
+                                <div style="color:var(--c-accent);font-size:17px;font-weight:700;letter-spacing:0.3px;">vinny</div>
+                                <div style="margin-top:8px;font-size:9px;padding:3px 10px;border-radius:20px;font-weight:700;background:rgba(233,69,96,0.1);border:1px solid rgba(233,69,96,0.2);color:var(--c-accent);font-family:'Fira Code',monospace!important;">v9.0</div>
                             </div>
                         </div>
                     </div>
 
                 </div>
-            </div><!-- /st-tab-content-settings -->
-
-        </div><!-- /st-body -->
+            </div>
+        </div>
     `;
 
     overlay.appendChild(win);
     document.body.appendChild(overlay);
 
-    // ── Open / Close ──
     const openUI  = () => {
         overlay.classList.add('open');
-        openBtn.classList.add('hidden');
         rebuildAcctSelector();
+        if (THEMES[currentTheme]?.anim) startThemeAnim(currentTheme);
     };
-    const closeUI = () => {
-        overlay.classList.remove('open');
-        openBtn.classList.remove('hidden');
-    };
-    openBtn.addEventListener('click', openUI);
-    document.getElementById('st-close-btn').addEventListener('click', closeUI);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('open')) closeUI(); });
+    const closeUI = () => { overlay.classList.remove('open'); };
 
-    // ── Chrome Tabs ──
+    // Tab key toggle (skip when focus is in a text field)
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Tab' && !e.target.matches('input,textarea,select')) {
+            e.preventDefault();
+            overlay.classList.contains('open') ? closeUI() : openUI();
+            return;
+        }
+        if (e.key === 'Escape' && overlay.classList.contains('open')) closeUI();
+    });
+    document.getElementById('st-close-btn').addEventListener('click', closeUI);
+
     ['sniper','catalog','trade'].forEach(s => {
         document.getElementById('st-msec-'+s).addEventListener('click', () => {
-            // Make manage content visible
-            const manage = document.getElementById('st-tab-content-manage');
+            const manage   = document.getElementById('st-tab-content-manage');
             const settings = document.getElementById('st-tab-content-settings');
             if (manage)   manage.style.display   = 'contents';
             if (settings) settings.style.display = 'none';
@@ -1036,7 +835,6 @@ function buildUI() {
     });
     document.getElementById('st-tab-settings').addEventListener('click', () => switchTab('settings'));
 
-    // ── Account Selector ──
     document.getElementById('st-acct-sel').addEventListener('change', e => {
         selectedAcctIdx = parseInt(e.target.value);
         tradeTargetId = null; tradeTargetName = '';
@@ -1046,25 +844,18 @@ function buildUI() {
         log('Account → '+(selectedAcctIdx===-2?'All Accounts':selectedAcctIdx===-1?'Session':accounts[selectedAcctIdx]?.username||'?'),'info');
     });
 
-    // ── Sniper ──
     document.getElementById('st-sniper-btn').addEventListener('click', toggleSniper);
-    document.getElementById('st-log-clear').addEventListener('click', () => {
-        const l = document.getElementById('st-log'); if (l) l.innerHTML = '';
-    });
+    document.getElementById('st-log-clear').addEventListener('click', () => { const l=document.getElementById('st-log');if(l)l.innerHTML=''; });
 
-    // ── Catalog ──
     document.getElementById('st-cat-refresh').addEventListener('click', () => {
         const icon = document.getElementById('st-refresh-icon');
-        if (icon) { icon.style.transition='transform 0.4s'; icon.style.transform='rotate(360deg)'; setTimeout(()=>{ icon.style.transform=''; },450); }
+        if (icon) { icon.style.transition='transform 0.4s';icon.style.transform='rotate(360deg)';setTimeout(()=>{icon.style.transform='';},450); }
         renderCatalogList();
     });
 
-    // ── Trade ──
     document.getElementById('st-load-btn').addEventListener('click', loadTradeTarget);
-    document.getElementById('st-trade-input').addEventListener('keydown', e => { if (e.key==='Enter') loadTradeTarget(); });
+    document.getElementById('st-trade-input').addEventListener('keydown', e => { if(e.key==='Enter') loadTradeTarget(); });
     document.getElementById('st-send-btn').addEventListener('click', sendTradeOffer);
-
-    // ── Settings Account ──
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
 }
 
@@ -1076,21 +867,16 @@ function init() {
     rebuildAcctSelector();
     updateMiniAcct();
 
-    // Load saved theme
     const savedTheme = (() => { try { return GM_getValue('st_theme','void'); } catch(_){ return 'void'; } })();
-    if (savedTheme && THEMES[savedTheme]) {
-        applyTheme(savedTheme);
-        if (savedTheme === 'galaxy') setTimeout(injectGalaxyStars, 200);
-    }
+    if (savedTheme && THEMES[savedTheme]) applyTheme(savedTheme);
 
-    // Resume sniper if was active
-    const wasActive = (() => { try { return GM_getValue('sniperActive', false); } catch(_){ return false; } })();
+    const wasActive = (() => { try { return GM_getValue('sniperActive',false); } catch(_){ return false; } })();
     if (wasActive) {
         try { sniperBlacklist = JSON.parse(GM_getValue('sniperBlacklist','{}') || '{}'); } catch(_){}
         sniperActive = true;
         updateSniperBtn(true);
-        setSniperStatus('Resuming — '+Object.keys(sniperBlacklist).length+' items blacklisted', 'active');
-        log('Sniper resumed from last session', 'success');
+        setSniperStatus('Resuming — '+Object.keys(sniperBlacklist).length+' items blacklisted','active');
+        log('Sniper resumed from last session','success');
         startDispatch();
     }
 }
