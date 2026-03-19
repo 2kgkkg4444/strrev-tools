@@ -860,7 +860,7 @@ function buildUI() {
                                 <div style="color:var(--c-text1);font-size:14px;font-weight:600;margin-bottom:5px;">Strrev Tools v9.0</div>
                                 <div style="color:var(--c-text3);font-size:11px;line-height:1.8;">Multi-account catalog buyer, silent sniper &amp; trader</div>
                                 <div style="color:var(--c-text4);font-size:10px;margin-top:4px;">
-                                    Press <kbd style="background:var(--c-bg2);border:1px solid var(--c-border);border-radius:4px;padding:1px 7px;font-family:'Fira Code',monospace!important;font-size:10px;">Tab</kbd>
+                                    Press <kbd style="background:var(--c-bg2);border:1px solid var(--c-border);border-radius:4px;padding:1px 7px;font-family:'Fira Code',monospace!important;font-size:10px;">M</kbd>
                                     anywhere to open / close
                                 </div>
                             </div>
@@ -891,9 +891,10 @@ function buildUI() {
         document.body.style.overflow = '';
     };
 
-    // Tab key toggle (skip when focus is in a text field)
+    // M key toggle
     document.addEventListener('keydown', e => {
-        if (e.key === 'Tab' && !e.target.matches('input,textarea,select')) {
+        if (e.key === 'm' || e.key === 'M') {
+            if (e.target.matches('input,textarea,select')) return;
             e.preventDefault();
             overlay.classList.contains('open') ? closeUI() : openUI();
             return;
