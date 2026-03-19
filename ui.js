@@ -751,20 +751,51 @@ function buildUI() {
 
                     <!-- FRIENDS -->
                     <div id="st-msec-content-friends" style="display:none;">
-                        <div style="margin-bottom:24px;">
-                            <div class="st-sec-title">Friend Requester</div>
-                            <div class="st-sec-sub">Send a friend request to any user from the selected account(s)</div>
+                        <div class="st-sec-header">
+                            <div>
+                                <div class="st-sec-title">Friends & Messages</div>
+                                <div class="st-sec-sub">Send friend requests or private messages from the selected account(s)</div>
+                            </div>
                         </div>
-                        <div style="display:flex;gap:9px;margin-bottom:13px;">
-                            <input id="st-friend-input" class="st-input" type="text" placeholder="Username or User ID…" style="flex:1;">
-                            <button id="st-friend-btn" class="st-btn-primary" style="padding:12px 26px;">👤 Send Friend Request</button>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+                            <!-- Friend Request -->
+                            <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">👤 Friend Request</div>
+                                <div style="margin-bottom:10px;">
+                                    <div class="st-field-label">Username or User ID</div>
+                                    <input id="st-friend-input" class="st-input" type="text" placeholder="e.g. Builderman or 156">
+                                </div>
+                                <button id="st-friend-btn" class="st-btn-primary" style="width:100%;padding:12px;">Send Friend Request</button>
+                                <div id="st-friend-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
+                            </div>
+
+                            <!-- Message -->
+                            <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:16px;">✉️ Send Message</div>
+                                <div style="margin-bottom:10px;">
+                                    <div class="st-field-label">Username or User ID</div>
+                                    <input id="st-msg-input" class="st-input" type="text" placeholder="e.g. Builderman or 156">
+                                </div>
+                                <div style="margin-bottom:10px;">
+                                    <div class="st-field-label">Subject</div>
+                                    <input id="st-msg-subject" class="st-input" type="text" placeholder="Message subject…">
+                                </div>
+                                <div style="margin-bottom:14px;">
+                                    <div class="st-field-label">Body</div>
+                                    <textarea id="st-msg-body" class="st-input" rows="4" placeholder="Write your message…" style="resize:vertical;min-height:80px;"></textarea>
+                                </div>
+                                <button id="st-msg-btn" class="st-btn-primary" style="width:100%;padding:12px;">✉️ Send Message</button>
+                                <div id="st-msg-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
+                            </div>
+
                         </div>
-                        <div id="st-friend-status" style="display:none;padding:11px 14px;border-radius:10px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);margin-bottom:13px;word-break:break-word;"></div>
-                        <div style="padding:16px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
-                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How it works</div>
-                            <div>• <span style="color:var(--c-text2);">Session / single account</span> — sends one request as that account</div>
+
+                        <div style="margin-top:16px;padding:14px 16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
+                            <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">How it works</div>
+                            <div>• <span style="color:var(--c-text2);">Session / single account</span> — sends once as that account</div>
                             <div>• <span style="color:var(--c-text2);">All Accounts</span> — sends from every saved account sequentially</div>
-                            <div style="margin-top:8px;color:var(--c-text4);font-size:10px;">Already-friends or pending requests are counted separately and not treated as errors.</div>
                         </div>
                     </div>
 
@@ -883,6 +914,8 @@ function buildUI() {
 
     document.getElementById('st-friend-btn').addEventListener('click', sendFriendRequests);
     document.getElementById('st-friend-input').addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequests(); });
+    document.getElementById('st-msg-btn').addEventListener('click', sendMessages);
+    document.getElementById('st-msg-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('st-msg-subject')?.focus(); });
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
 }
 
