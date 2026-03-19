@@ -32,7 +32,6 @@ let sniperSettings = {
     limitedUsOnly: false,
     robuxOnly:     false,
     tixOnly:       false,
-    delayMs:       0,
 };
 let sniperBlacklist = {};
 let checkCount      = 0;
