@@ -104,37 +104,60 @@ function updateMiniAcct() {
 async function fetchAcctPreview(i) {
     const acct = accounts[i];
     const preview = {};
-    try {
-        // Currency (robux + tix)
-        const cr = await acctFetch(i, BASE + '/apisite/economy/v1/user/currency');
-        if (cr.ok) {
-            const cj = await cr.json();
-            preview.robux   = cj.robux   ?? cj.balance ?? null;
-            preview.tickets = cj.tickets ?? cj.tix     ?? null;
-        }
-    } catch(_) {}
-    try {
-        // Avatar headshot thumbnail
-        if (acct.id) {
+
+    // ── Currency: try every known endpoint pattern ──────────────────────────
+    const currencyEndpoints = [
+        '/api/currency',
+        '/api/user/currency',
+        '/api/economy/currency',
+        '/api/me',
+        '/api/user',
+        '/api/users/authenticated',
+        '/apisite/economy/v1/user/currency',
+        '/apisite/users/v1/users/authenticated',
+    ];
+    for (const ep of currencyEndpoints) {
+        try {
+            const r = await acctFetch(i, BASE + ep);
+            if (!r.ok) continue;
+            const j = await r.json();
+            // Try every field name we've seen across platforms
+            const robux = j.robux ?? j.Robux ?? j.balance ?? j.Balance
+                       ?? j.currency ?? j.Currency ?? j.robuxBalance
+                       ?? j.user?.robux ?? j.user?.balance ?? null;
+            const tix   = j.tickets ?? j.Tickets ?? j.tix ?? j.Tix
+                       ?? j.ticketBalance ?? j.ticket_balance
+                       ?? j.user?.tickets ?? j.user?.tix ?? null;
+            if (robux !== null || tix !== null) {
+                preview.robux   = robux;
+                preview.tickets = tix;
+                log('💰 Balance via ' + ep + ' → R$' + robux + ' T$' + tix, 'info');
+                break;
+            }
+            // Log the raw keys so we can see what the API returns
+            log('⚠ ' + ep + ' returned: ' + Object.keys(j).join(', '), 'info');
+        } catch(_) {}
+    }
+
+    // ── Avatar ───────────────────────────────────────────────────────────────
+    if (acct.id) {
+        try {
             const tr = await acctFetch(i, BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + acct.id + '&size=150x150&format=Png&isCircular=false');
             if (tr.ok) {
                 const tj = await tr.json();
                 preview.avatar = tj.data?.[0]?.imageUrl || null;
             }
-        }
-    } catch(_) {}
-    try {
-        // User profile for description / join date
-        if (acct.id) {
+        } catch(_) {}
+        // ── Profile / join date ──────────────────────────────────────────────
+        try {
             const ur = await acctFetch(i, BASE + '/apisite/users/v1/users/' + acct.id);
             if (ur.ok) {
                 const uj = await ur.json();
                 preview.displayName = uj.displayName || null;
                 preview.created     = uj.created     || null;
-                preview.description = uj.description || null;
             }
-        }
-    } catch(_) {}
+        } catch(_) {}
+    }
     return preview;
 }
 
