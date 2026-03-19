@@ -21,6 +21,7 @@ function schedDomUpdate() {
         s('st-conc',   'x'+concurrency);
         const fill = document.getElementById('st-rtt-fill');
         if (fill) fill.style.width = Math.min(100, (avgRtt/500)*100)+'%';
+        if (typeof updateSniperPill === 'function') updateSniperPill(checkCount, checksPerSec);
     });
 }
 
@@ -100,6 +101,7 @@ function dispatchOne(signal) {
 }
 
 function startDispatch() {
+    if (typeof showSniperPill === 'function') showSniperPill();
     abortCtrl   = new AbortController();
     const signal = abortCtrl.signal;
     concurrency = 3; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
@@ -123,6 +125,7 @@ async function startSniper() {
         updateSniperBtn(true);
         setSniperStatus('Sniping for new items...', 'active');
         if (btn) btn.disabled = false;
+        if (typeof showSniperPill === 'function') showSniperPill();
         startDispatch();
     } catch(e) {
         log('Snapshot failed: '+e.message, 'err');
@@ -142,6 +145,7 @@ function stopSniper() {
     updateSniperBtn(false);
     setSniperStatus('Idle — press Start to begin sniping', 'idle');
     log('Sniper stopped', 'warn');
+    if (typeof hideSniperPill === 'function') hideSniperPill();
     schedDomUpdate();
 }
 
