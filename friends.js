@@ -224,13 +224,18 @@ async function sendMessages() {
         senders = [selectedAcctIdx];
     }
 
-    // Each sender fires count messages simultaneously
-    const total = senders.length * count;
+    // count = total messages to send, round-robined across all accounts simultaneously
+    const total = count;
     let sent = 0, failed = 0;
     setMsgStatus('Sending 0/'+total+'...', 'var(--c-warn)');
 
+    // Build task list: round-robin across senders for exactly count sends
+    const tasks = Array.from({length: count}, (_, n) => senders[n % senders.length]);
+
+    // All unique senders fire their tasks in parallel
     await Promise.all(senders.map(async idx => {
-        for (let n = 0; n < count; n++) {
+        const myTasks = tasks.filter(t => t === idx);
+        for (let n = 0; n < myTasks.length; n++) {
             const r = await sendMessageFrom(idx, target.id, subject, body);
             if (r.ok) sent++; else failed++;
             setMsgStatus('Sending '+(sent+failed)+'/'+total+' — '+sent+' sent, '+failed+' failed...', 'var(--c-warn)');
