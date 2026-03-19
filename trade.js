@@ -286,6 +286,8 @@ async function resolveAcctUserId(i) {
 }
 
 // ─── Main send dispatcher ─────────────────────────────────────────────────
+const TRADE_CONCURRENCY = 4; // max simultaneous trade requests globally
+
 async function sendTradeOffer() {
     if (!tradeTargetId) return;
     const theirUserAssetIds = Array.from(theirSelected);
@@ -310,22 +312,16 @@ async function sendTradeOffer() {
         senderIdxs = [selectedAcctIdx];
     }
 
-    const total = senderIdxs.length * count;
-    let sent = 0, failed = 0;
-    log('Sending '+count+'x trade(s) to '+tradeTargetName+' from '+senderIdxs.length+' account(s)...', 'info');
-    setTradeStatus('Sending 0/'+total+'...', '#eab308');
-
-    for (const idx of senderIdxs) {
-        // Resolve acctId once per sender
+    // Pre-resolve all account IDs + userAssetIds in parallel
+    setTradeStatus('Resolving accounts...', '#eab308');
+    const senderMeta = await Promise.all(senderIdxs.map(async idx => {
         let acctId;
-        if (idx === -1) {
-            acctId = await fetchMyUserId();
-        } else {
-            acctId = await resolveAcctUserId(idx);
+        if (idx === -1) acctId = await fetchMyUserId();
+        else            acctId = await resolveAcctUserId(idx);
+        if (!acctId) {
+            log('Could not get ID for '+(idx===-1?'session':accounts[idx]?.username)+' — skipping', 'err');
+            return null;
         }
-        if (!acctId) { log('Could not get ID for '+(idx===-1?'session':accounts[idx]?.username)+' — skipping', 'err'); failed += count; continue; }
-
-        // Resolve userAssetIds for this sender once (same items each loop)
         let myUAIds;
         if (idx === -1) {
             myUAIds = Array.from(mySelected);
@@ -333,18 +329,44 @@ async function sendTradeOffer() {
             myUAIds = await resolveUserAssetIds(idx, acctId);
             if (mySelected.size > 0 && myUAIds.length === 0) {
                 log('⚠ '+accounts[idx].username+' owns none of the selected items — skipping', 'warn');
-                failed += count; continue;
+                return null;
             }
         } else {
             myUAIds = Array.from(mySelected);
         }
+        return { idx, acctId, myUAIds };
+    }));
 
-        for (let n = 0; n < count; n++) {
-            const ok = await sendTradeOfferFrom(idx, acctId, myUAIds, theirUserAssetIds);
+    // Flatten into a task list: every (sender × repeat) combination
+    const tasks = [];
+    for (const meta of senderMeta) {
+        if (!meta) continue;
+        for (let n = 0; n < count; n++) tasks.push(meta);
+    }
+
+    const total = tasks.length;
+    if (!total) {
+        setTradeStatus('✕ No valid senders', '#ef4444');
+        if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+        return;
+    }
+
+    log('Sending '+total+' trade(s) to '+tradeTargetName+' — '+TRADE_CONCURRENCY+' at a time...', 'info');
+    setTradeStatus('Sending 0/'+total+'...', '#eab308');
+
+    let sent = 0, failed = 0;
+
+    // Process with global concurrency cap of TRADE_CONCURRENCY
+    let taskIdx = 0;
+    async function runWorker() {
+        while (taskIdx < tasks.length) {
+            const task = tasks[taskIdx++];
+            const ok = await sendTradeOfferFrom(task.idx, task.acctId, task.myUAIds, theirUserAssetIds);
             if (ok) sent++; else failed++;
-            setTradeStatus('Sending '+(sent+failed)+'/'+total+'...', '#eab308');
+            setTradeStatus('Sending '+(sent+failed)+'/'+total+' — '+sent+' sent, '+failed+' failed...', '#eab308');
         }
     }
+    await Promise.all(Array.from({ length: Math.min(TRADE_CONCURRENCY, total) }, runWorker));
 
     if (sent > 0) {
         setTradeStatus('✓ Sent '+sent+'/'+total+' trade offer'+(total>1?'s':'')+' to '+tradeTargetName, '#22c55e');
