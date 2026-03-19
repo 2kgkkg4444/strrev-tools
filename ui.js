@@ -805,26 +805,34 @@ function buildUI() {
                         <div class="st-sec-header">
                             <div>
                                 <div class="st-sec-title">Daily Chest</div>
-                                <div class="st-sec-sub">Claim your daily reward for the selected account(s) — already-claimed accounts are skipped gracefully</div>
+                                <div class="st-sec-sub">Claim your daily reward — auto-claim checks the cooldown and claims the moment it expires</div>
                             </div>
-                            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;">
-                                <div style="display:flex;gap:8px;">
-                                    <button id="st-daily-btn" class="st-btn-primary" style="padding:12px 22px;">🎁 Claim Now</button>
-                                    <button id="st-daily-auto-btn" class="st-btn-primary" style="padding:12px 22px;">🔁 Start Auto-Claim</button>
+                            <button id="st-daily-btn" class="st-btn-primary" style="padding:12px 24px;">🎁 Claim Now</button>
+                        </div>
+
+                        <!-- Auto-claim toggle card -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;margin-bottom:16px;">
+                            <div>
+                                <div style="font-size:13px;font-weight:700;color:var(--c-text0);margin-bottom:3px;">Auto-Claim</div>
+                                <div id="st-daily-countdown" style="font-size:11px;color:var(--c-text4);font-family:'Fira Code',monospace;min-height:16px;"></div>
+                            </div>
+                            <!-- Toggle switch -->
+                            <div id="st-daily-toggle" onclick="toggleDailyAuto()" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
+                                <span id="st-daily-toggle-label" style="font-size:12px;font-weight:600;color:var(--c-text3);">Auto-Claim OFF</span>
+                                <div id="st-daily-toggle-track" style="width:44px;height:24px;border-radius:99px;background:var(--c-border);position:relative;transition:background 0.2s;flex-shrink:0;">
+                                    <div id="st-daily-toggle-thumb" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>
                                 </div>
-                                <div id="st-daily-countdown" style="font-size:11px;color:var(--c-text4);font-family:'Fira Code',monospace;text-align:right;min-height:16px;"></div>
                             </div>
                         </div>
 
                         <div id="st-daily-status" style="display:none;padding:12px 16px;border-radius:11px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:12px;color:var(--c-text2);margin-bottom:16px;word-break:break-word;"></div>
-
                         <div id="st-daily-results" style="margin-bottom:16px;"></div>
 
                         <div style="padding:16px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;font-size:11px;color:var(--c-text3);line-height:2;">
                             <div style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">How it works</div>
-                            <div>• <span style="color:var(--c-text2);">Claim Now</span> — manually claims once for the selected account(s)</div>
-                            <div>• <span style="color:var(--c-text2);">Auto-Claim</span> — claims immediately then repeats every 24 hours automatically</div>
-                            <div>• Accounts that have already claimed today show as <span style="color:var(--c-warn);">Already claimed</span></div>
+                            <div>• <span style="color:var(--c-text2);">Claim Now</span> — one-shot manual claim for selected account(s)</div>
+                            <div>• <span style="color:var(--c-text2);">Auto-Claim</span> — checks the API cooldown, waits exactly that long, then claims and repeats</div>
+                            <div>• Already-claimed accounts are skipped and shown in <span style="color:var(--c-warn);">yellow</span></div>
                         </div>
                     </div>
 
@@ -946,7 +954,6 @@ function buildUI() {
     document.getElementById('st-msg-btn').addEventListener('click', sendMessages);
     document.getElementById('st-msg-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('st-msg-subject')?.focus(); });
     document.getElementById('st-daily-btn').addEventListener('click', () => claimDailyChest(false));
-    document.getElementById('st-daily-auto-btn').addEventListener('click', startDailyAuto);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
 }
 
