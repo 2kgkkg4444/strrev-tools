@@ -614,6 +614,52 @@ function injectStyles() {
         @keyframes st-frost-shimmer{ 0%{opacity:0.7;transform:scale(1)}100%{opacity:1;transform:scale(1.03)} }
     `;
     document.head.appendChild(s);
+
+    // Sniper pill (global, always visible outside overlay)
+    const pillStyle = document.createElement('style');
+    pillStyle.textContent = `
+        #st-sniper-pill {
+            position:fixed;top:14px;left:50%;
+            transform:translateX(-50%) translateY(-80px);
+            z-index:1000000;
+            display:flex;align-items:center;gap:9px;
+            padding:9px 20px 9px 14px;
+            background:rgba(4,14,4,0.94);
+            border:1px solid rgba(34,197,94,0.38);
+            border-radius:999px;
+            backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+            box-shadow:0 4px 28px rgba(0,0,0,0.65),0 0 0 1px rgba(34,197,94,0.12),0 0 18px rgba(34,197,94,0.08);
+            transition:transform 0.42s cubic-bezier(0.16,1,0.3,1),opacity 0.3s ease;
+            opacity:0;pointer-events:none;user-select:none;cursor:pointer;
+            font-family:'Fira Code',monospace;
+        }
+        #st-sniper-pill.visible {
+            transform:translateX(-50%) translateY(0);
+            opacity:1;pointer-events:auto;
+        }
+        #st-sniper-pill:hover { border-color:rgba(34,197,94,0.65);box-shadow:0 4px 28px rgba(0,0,0,0.65),0 0 26px rgba(34,197,94,0.22); }
+        #st-pill-dot { width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;animation:st-pill-pulse 1.8s infinite; }
+        /* hide number input spinners globally */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none;margin:0; }
+        input[type=number] { -moz-appearance:textfield; }
+        @keyframes st-pill-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.5)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0)} }
+    `;
+    document.head.appendChild(pillStyle);
+}
+
+// ─── Sniper Pill ──────────────────────────────────────────────────────────
+function showSniperPill() {
+    const p = document.getElementById('st-sniper-pill'); if (!p) return;
+    p.classList.add('visible');
+}
+function hideSniperPill() {
+    const p = document.getElementById('st-sniper-pill'); if (!p) return;
+    p.classList.remove('visible');
+}
+function updateSniperPill(checks, cps) {
+    const c = document.getElementById('st-pill-checks'); if (!c) return;
+    c.textContent = checks > 0 ? ' · ' + checks.toLocaleString() + ' checks  ' + cps + '/s' : '';
 }
 
 // ─── Build UI ─────────────────────────────────────────────────────────────
@@ -810,13 +856,10 @@ function buildUI() {
                                     </div>
                                     <div style="margin-bottom:12px;">
                                         <div class="st-field-label" style="margin-bottom:7px;">Send how many times?</div>
-                                        <div style="display:flex;align-items:center;gap:0;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;width:fit-content;background:var(--c-bg0);">
-                                            <button onclick="(function(){var i=document.getElementById('st-msg-count');var v=Math.max(1,parseInt(i.value||1)-1);i.value=v;document.getElementById('st-msg-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">−</button>
-                                            <div style="min-width:52px;text-align:center;border-left:1px solid var(--c-border2);border-right:1px solid var(--c-border2);">
-                                                <input id="st-msg-count" type="number" min="1" max="100" value="1" oninput="document.getElementById('st-msg-count-display').textContent=Math.max(1,Math.min(100,parseInt(this.value)||1))" style="display:none;">
-                                                <span id="st-msg-count-display" style="display:block;font-size:14px;font-weight:700;color:var(--c-accent);font-family:'Fira Code',monospace;padding:8px 10px;line-height:1;">1</span>
-                                            </div>
-                                            <button onclick="(function(){var i=document.getElementById('st-msg-count');var v=Math.min(100,parseInt(i.value||1)+1);i.value=v;document.getElementById('st-msg-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">+</button>
+                                        <div style="display:flex;align-items:center;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;width:fit-content;background:var(--c-bg0);">
+                                            <button onclick="(function(){var i=document.getElementById('st-msg-count');var v=Math.max(1,(parseInt(i.value)||1)-1);i.value=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;border-right:1px solid var(--c-border2);color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;flex-shrink:0;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">−</button>
+                                            <input id="st-msg-count" type="number" min="1" max="100" value="1" onblur="var v=parseInt(this.value);if(isNaN(v)||v<1)this.value=1;else if(v>100)this.value=100;" style="width:62px;text-align:center;background:transparent;border:none;color:var(--c-accent);font-size:14px;font-weight:700;font-family:'Fira Code',monospace;padding:8px 4px;outline:none;">
+                                            <button onclick="(function(){var i=document.getElementById('st-msg-count');var v=Math.min(100,(parseInt(i.value)||1)+1);i.value=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;border-left:1px solid var(--c-border2);color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;flex-shrink:0;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">+</button>
                                         </div>
                                     </div>
                                     <button id="st-msg-btn" class="st-btn-primary" style="width:100%;padding:11px;">✉️ Send Message</button>
@@ -851,13 +894,10 @@ function buildUI() {
                                     </div>
                                     <div style="margin-top:12px;">
                                         <div class="st-field-label" style="margin-bottom:7px;">Send how many times?</div>
-                                        <div style="display:flex;align-items:center;gap:0;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;width:fit-content;background:var(--c-bg0);">
-                                            <button onclick="(function(){var i=document.getElementById('st-trade-count');var v=Math.max(1,parseInt(i.value||1)-1);i.value=v;document.getElementById('st-trade-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">−</button>
-                                            <div style="min-width:52px;text-align:center;border-left:1px solid var(--c-border2);border-right:1px solid var(--c-border2);">
-                                                <input id="st-trade-count" type="number" min="1" max="100" value="1" oninput="document.getElementById('st-trade-count-display').textContent=Math.max(1,Math.min(100,parseInt(this.value)||1))" style="display:none;">
-                                                <span id="st-trade-count-display" style="display:block;font-size:14px;font-weight:700;color:var(--c-accent);font-family:'Fira Code',monospace;padding:8px 10px;line-height:1;">1</span>
-                                            </div>
-                                            <button onclick="(function(){var i=document.getElementById('st-trade-count');var v=Math.min(100,parseInt(i.value||1)+1);i.value=v;document.getElementById('st-trade-count-display').textContent=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">+</button>
+                                        <div style="display:flex;align-items:center;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;width:fit-content;background:var(--c-bg0);">
+                                            <button onclick="(function(){var i=document.getElementById('st-trade-count');var v=Math.max(1,(parseInt(i.value)||1)-1);i.value=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;border-right:1px solid var(--c-border2);color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;flex-shrink:0;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">−</button>
+                                            <input id="st-trade-count" type="number" min="1" max="100" value="1" onblur="var v=parseInt(this.value);if(isNaN(v)||v<1)this.value=1;else if(v>100)this.value=100;" style="width:62px;text-align:center;background:transparent;border:none;color:var(--c-accent);font-size:14px;font-weight:700;font-family:'Fira Code',monospace;padding:8px 4px;outline:none;">
+                                            <button onclick="(function(){var i=document.getElementById('st-trade-count');var v=Math.min(100,(parseInt(i.value)||1)+1);i.value=v;})()" style="width:36px;height:36px;background:var(--c-bg2);border:none;border-left:1px solid var(--c-border2);color:var(--c-text1);font-size:17px;cursor:pointer;transition:background 0.12s;line-height:1;font-weight:700;flex-shrink:0;" onmouseenter="this.style.background='var(--c-bg3)'" onmouseleave="this.style.background='var(--c-bg2)'">+</button>
                                         </div>
                                     </div>
                                     <button id="st-send-btn" disabled class="st-btn-primary" style="width:100%;padding:13px;margin-top:10px;opacity:0.4;pointer-events:none;">
@@ -908,12 +948,23 @@ function buildUI() {
     overlay.appendChild(win);
     document.body.appendChild(overlay);
 
+    // Sniper pill — lives outside the overlay, always visible
+    const pill = document.createElement('div');
+    pill.id = 'st-sniper-pill';
+    pill.title = 'Click to open Strrev Tools';
+    pill.innerHTML = '<div id="st-pill-dot"></div>'
+        + '<span style="font-size:11px;font-weight:700;color:#22c55e;letter-spacing:0.4px;">SNIPER ACTIVE</span>'
+        + '<span id="st-pill-checks" style="font-size:10px;color:rgba(34,197,94,0.55);"></span>'
+        + '<span style="font-size:10px;color:rgba(255,255,255,0.25);margin-left:3px;">· tap to open</span>';
+    document.body.appendChild(pill);
+
     const openUI  = () => {
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
         rebuildAcctSelector();
         if (THEMES[currentTheme]?.anim) startThemeAnim(currentTheme);
     };
+    pill.addEventListener('click', openUI);
     const closeUI = () => {
         overlay.classList.remove('open');
         document.body.style.overflow = '';
