@@ -209,38 +209,72 @@ async function onSniperHit(rawItem) {
     setTimeout(() => { if (!sniperActive) startSniper(); }, 3000);
 }
 
+// ─── Pre-warmed CSRF + sellerId cache ─────────────────────────────────────
+let _cachedCsrf   = '';
+let _lastRespHash = '';   // response diffing — skip processing if unchanged
+
+async function prewarmBuyCache() {
+    // Fetch and cache CSRF token at startup so buy fires instantly on hit
+    try {
+        const r = await fetch(BASE + '/apisite/economy/v1/purchases/products/0', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': '' },
+            body: '{}',
+        });
+        const t = r.headers.get('x-csrf-token');
+        if (t) { _cachedCsrf = t; sessionCsrf = t; log('🔥 CSRF pre-warmed', 'info'); }
+    } catch(_) {}
+}
+
+// Fast 32-bit hash of a string — much faster than JSON.stringify comparison
+function fastHash(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = (h * 0x01000193) >>> 0;
+    }
+    return h.toString(16);
+}
+
 function dispatchOne(signal) {
     if (!sniperActive || signal.aborted) return;
     inFlight++;
     const t0 = performance.now();
-    // Use GM_xmlhttpRequest to bypass browser's per-domain connection limit (max 6)
-    // This lets us truly saturate with MAX_INFLIGHT parallel requests
+    // GM_xmlhttpRequest bypasses browser's 6-connection-per-domain limit
+    // sortType=2 = newest first so new items hit data[0] immediately
     GM_xmlhttpRequest({
-        method: 'GET',
-        url: CATALOG_API + '&_=' + Date.now(),
+        method:  'GET',
+        url:     BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(),
         headers: { 'Accept': 'application/json' },
         onload: async (r) => {
             if (!sniperActive || signal.aborted) { inFlight--; return; }
             recordRtt(performance.now() - t0);
             checkCount++; cpsCount++; inFlight--;
+
+            // Response diffing — if identical to last response, skip all processing
+            const hash = fastHash(r.responseText);
+            if (hash === _lastRespHash) return;
+            _lastRespHash = hash;
+
             let json;
             try { json = JSON.parse(r.responseText); } catch(_) { return; }
             const d = json.data;
             if (!d) return;
+
             for (let i = 0; i < d.length; i++) {
                 const item = d[i];
-                // Fast path: skip if ID is known
+                // O(1) fast path: ID ≤ max seen = definitely not new
+                if (item.id <= sniperMaxSeenId && sniperMaxSeenId > 0) continue;
+                // Check blacklist
                 if (sniperBlacklist[item.id]) continue;
-                // Quick ID check — if it's lower than max seen, likely not new
-                if (item.id <= sniperMaxSeenId && sniperMaxSeenId > 0) {
-                    sniperBlacklist[item.id] = true;
-                    continue;
-                }
+                // Passes filters?
                 if (!itemPassesFilters(item)) {
                     sniperBlacklist[item.id] = true;
                     continue;
                 }
-                sniperActive = false; abortCtrl.abort();
+                // HIT — stop everything immediately
+                sniperActive = false;
+                abortCtrl.abort();
                 clearInterval(dispatchTimer); clearInterval(cpsTimer);
                 dispatchTimer = null;
                 GM_setValue('sniperActive', false);
@@ -264,12 +298,14 @@ function dispatchOne(signal) {
 
 function startDispatch() {
     if (typeof showSniperPill === 'function') showSniperPill();
-    abortCtrl   = new AbortController();
+    abortCtrl = new AbortController();
     const signal = abortCtrl.signal;
     concurrency = MAX_INFLIGHT; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
+    _lastRespHash = '';
     dispatchTimer = setInterval(() => {
         if (!sniperActive) { clearInterval(dispatchTimer); return; }
-        if (inFlight < concurrency) dispatchOne(signal);
+        // Fire as many as we can up to concurrency — no artificial wait
+        while (inFlight < concurrency && sniperActive) dispatchOne(signal);
     }, DISPATCH_MS);
     cpsTimer = setInterval(() => { checksPerSec = cpsCount; cpsCount = 0; schedDomUpdate(); }, 1000);
 }
@@ -284,7 +320,7 @@ async function snapshotAllPages() {
     const MAX_SNAPSHOT_PAGES = 8; // snapshot up to 8 pages = 224 items
     setSniperStatus('Snapshotting ' + MAX_SNAPSHOT_PAGES + ' pages...', 'loading');
     do {
-        let url = CATALOG_API + '&_=' + Date.now();
+        let url = BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now();
         if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
         const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
         if (!r.ok) break;
@@ -306,6 +342,8 @@ async function startSniper() {
     const btn = document.getElementById('st-sniper-btn');
     if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Snapshotting...'; btn.disabled=true; }
     setSniperStatus('Fetching catalog snapshot...', 'loading');
+    // Pre-warm CSRF token in parallel with snapshot
+    prewarmBuyCache();
     try {
         sniperBlacklist = await snapshotAllPages();
         sniperActive = true; checkCount = 0;
@@ -493,9 +531,13 @@ function startUpdateSniper() {
     loadUpdateSniperSettings();
     updateSniperActive = true;
     updatePriceMap = {};
-    // Poll every 5 seconds
-    updateSniperTimer = setInterval(runUpdateSniperCheck, 2000);
-    runUpdateSniperCheck(); // immediate first check
+    // Tight loop — fires immediately after each response
+    (async () => {
+        while (updateSniperActive) {
+            await runUpdateSniperCheck();
+            await new Promise(r => setTimeout(r, 0));
+        }
+    })();
     log('📡 Update Sniper started (price drop: ' + updateSniperSettings.priceDropPercent + '%, resale: ' + updateSniperSettings.resaleEnabled + ')', 'success');
     setUpdateSniperStatus(true);
     try { GM_setValue('updateSniperActive', true); } catch(_) {}
@@ -503,7 +545,7 @@ function startUpdateSniper() {
 
 function stopUpdateSniper() {
     updateSniperActive = false;
-    updateSniperTimer = null; // loop exits via updateSniperActive flag
+    updateSniperTimer = null;
     updatePriceMap = {};
     log('📡 Update Sniper stopped', 'warn');
     setUpdateSniperStatus(false);
@@ -565,7 +607,7 @@ function loadRedirectSniperSettings() {
 async function runRedirectSniperCheck() {
     if (!redirectSniperActive) return;
     try {
-        const r = await fetch(CATALOG_API + '&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
+        const r = await fetch(BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
         if (!r.ok) return;
         const j = await r.json();
         const items = j.data || [];
@@ -608,24 +650,31 @@ async function runRedirectSniperCheck() {
     }
 }
 
-function startRedirectSniper() {
+async function startRedirectSniper() {
     loadRedirectSniperSettings();
     redirectSniperActive  = true;
     redirectSniperSeenIds = {};
-    // Snapshot first silently
-    fetch(CATALOG_API + '&_=' + Date.now(), { credentials: 'include', cache: 'no-store' })
-        .then(r => r.json()).then(j => {
-            (j.data || []).forEach(item => {
-                redirectSniperSeenIds[String(item.id)] = {
-                    price: item.lowestPrice ?? item.price ?? 0,
-                    forSale: !!item.isForSale || item.lowestSellerData != null,
-                };
-            });
-            log('🔗 Redirect Sniper armed — ' + Object.keys(redirectSniperSeenIds).length + ' items snapshotted', 'success');
-        }).catch(_=>{});
-    redirectSniperTimer = setInterval(runRedirectSniperCheck, redirectSniperSettings.intervalMs);
+    // Snapshot first
+    try {
+        const r = await fetch(BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
+        const j = await r.json();
+        (j.data || []).forEach(item => {
+            redirectSniperSeenIds[String(item.id)] = {
+                price: item.lowestPrice ?? item.price ?? 0,
+                forSale: !!item.isForSale || item.lowestSellerData != null,
+            };
+        });
+        log('🔗 Redirect Sniper armed — ' + Object.keys(redirectSniperSeenIds).length + ' items snapshotted', 'success');
+    } catch(_) {}
     setRedirectSniperStatus(true);
     try { GM_setValue('redirectSniperActive', true); } catch(_) {}
+    // Tight loop — no artificial delay
+    (async () => {
+        while (redirectSniperActive) {
+            await runRedirectSniperCheck();
+            await new Promise(r => setTimeout(r, 0));
+        }
+    })();
 }
 
 function stopRedirectSniper() {
