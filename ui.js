@@ -1399,7 +1399,7 @@ function buildUI() {
                                     <div class="st-snip-sep"></div>
                                     <div class="st-snip-field">
                                         <span class="st-snip-label">Poll Interval (ms)</span>
-                                        <input id="st-redirect-interval" class="st-snip-input" type="number" min="500" max="10000" value="2000" style="width:100px;">
+                                        <input id="st-redirect-interval" class="st-snip-input" type="number" min="500" max="10000" value="1000" style="width:100px;">
                                     </div>
                                 </div>
                             </div>
