@@ -1057,40 +1057,36 @@ function injectStyles() {
         .st-btn-secondary:hover { background:var(--c-bg2);color:var(--c-text1);border-color:var(--c-border); }
 
         /* Sniper 2-col */
-        #st-sniper-layout { display:grid;grid-template-columns:1fr 400px;gap:26px;align-items:start; }
-        #st-sniper-status {
-            display:flex;align-items:center;gap:13px;
-            padding:14px 18px;background:var(--c-bg0);
-            border:1px solid var(--c-border2);border-radius:12px;
-            margin-bottom:22px;transition:background 0.3s,border-color 0.3s;
-        }
-        .st-dot { width:9px;height:9px;border-radius:50%;flex-shrink:0;transition:background 0.3s,box-shadow 0.3s; }
+        #st-sniper-layout { display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:start; }
+        .st-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:background 0.3s,box-shadow 0.3s; }
         .st-dot-idle    { background:var(--c-border); }
-        .st-dot-active  { background:var(--c-success);box-shadow:0 0 8px var(--c-success);animation:st-pulse-g 1.8s infinite; }
-        .st-dot-hot     { background:var(--c-accent);box-shadow:0 0 8px var(--c-accent);animation:st-pulse-r 1.2s infinite; }
-        .st-dot-loading { background:var(--c-warn);box-shadow:0 0 8px var(--c-warn); }
-        .st-dot-text    { font-size:12px;color:var(--c-text2); }
+        .st-dot-active  { background:var(--c-success);box-shadow:0 0 10px var(--c-success);animation:st-pulse-g 1.8s infinite; }
+        .st-dot-hot     { background:var(--c-accent);box-shadow:0 0 10px var(--c-accent);animation:st-pulse-r 1.2s infinite; }
+        .st-dot-loading { background:var(--c-warn);box-shadow:0 0 10px var(--c-warn); }
+        .st-dot-text    { font-size:13px;color:var(--c-text2); }
 
-        .st-stats-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:20px; }
+        .st-stats-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin-bottom:22px; }
         .st-stat {
-            background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;
-            padding:17px 20px;transition:border-color 0.15s;
+            background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:14px;
+            padding:20px 22px;transition:border-color 0.15s,transform 0.12s,box-shadow 0.15s;position:relative;overflow:hidden;
         }
-        .st-stat:hover { border-color:var(--c-border); }
-        .st-stat-label { color:var(--c-text4);font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px; }
-        .st-stat-val   { color:var(--c-text0);font-size:30px;font-weight:700;font-family:'Fira Code',monospace !important;line-height:1; }
+        .st-stat::before { content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--c-accent-glow) 0%,transparent 60%);opacity:0;transition:opacity 0.15s; }
+        .st-stat:hover { border-color:var(--c-accent);transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,0.3); }
+        .st-stat:hover::before { opacity:1; }
+        .st-stat-label { color:var(--c-text4);font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:10px; }
+        .st-stat-val   { color:var(--c-text0);font-size:34px;font-weight:700;font-family:'Fira Code',monospace !important;line-height:1; }
 
         .st-rtt-wrap { margin-bottom:0; }
-        .st-rtt-labels { display:flex;justify-content:space-between;margin-bottom:7px; }
+        .st-rtt-labels { display:flex;justify-content:space-between;margin-bottom:8px; }
         .st-rtt-labels span { color:var(--c-text4);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.9px; }
-        .st-rtt-track { height:6px;background:var(--c-bg0);border-radius:4px;overflow:hidden;border:1px solid var(--c-border2); }
-        #st-rtt-fill  { height:100%;border-radius:4px;background:linear-gradient(90deg,var(--c-success),var(--c-warn),var(--c-err));transition:width 0.4s ease; }
+        .st-rtt-track { height:8px;background:var(--c-bg2);border-radius:99px;overflow:hidden;border:1px solid var(--c-border2); }
+        #st-rtt-fill  { height:100%;border-radius:99px;background:linear-gradient(90deg,var(--c-success),var(--c-warn),var(--c-err));transition:width 0.4s ease; }
 
-        .st-log-panel { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:16px;display:flex;flex-direction:column;min-height:320px; }
-        .st-log-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
-        .st-log-hdr-lbl { color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px; }
-        #st-log-clear { background:none;border:none;color:var(--c-text5);font-size:10px;cursor:pointer;padding:3px 8px;border-radius:5px;transition:color 0.12s; }
-        #st-log-clear:hover { color:var(--c-text2); }
+        .st-log-panel { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:14px;padding:20px;display:flex;flex-direction:column;min-height:360px; }
+        .st-log-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--c-border2); }
+        .st-log-hdr-lbl { color:var(--c-text3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px; }
+        #st-log-clear { background:var(--c-bg2);border:1px solid var(--c-border2);color:var(--c-text4);font-size:10px;cursor:pointer;padding:4px 10px;border-radius:6px;transition:all 0.12s; }
+        #st-log-clear:hover { background:var(--c-bg3);color:var(--c-text1);border-color:var(--c-border); }
         #st-log { flex:1;overflow-y:auto;min-height:0; }
 
         .st-cat-toolbar { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
@@ -1268,17 +1264,20 @@ function buildUI() {
 
                     <!-- SNIPER -->
                     <div id="st-msec-content-sniper">
-                        <div class="st-sec-header">
-                            <div>
-                                <div class="st-sec-title">Auto-Buy Sniper</div>
-                                <div class="st-sec-sub">Polls the catalog API — auto-buys the moment a new item appears for the selected account(s)</div>
-                            </div>
-                            <button id="st-sniper-btn" class="st-btn-primary">🎯 Start Sniper</button>
+                        <div style="margin-bottom:20px;">
+                            <div class="st-sec-title">Sniper</div>
+                            <div class="st-sec-sub">Auto-buy new items the moment they appear, or watch for price drops and resales</div>
                         </div>
                         <!-- AUTO-BUY SNIPER HEADER + STATUS -->
-                        <div style="display:flex;align-items:center;gap:13px;padding:14px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;margin-bottom:14px;transition:background 0.3s,border-color 0.3s;">
-                            <div class="st-dot st-dot-idle" id="st-sniper-dot2"></div>
-                            <span style="flex:1;font-size:12px;color:var(--c-text2);">Auto-Buy — snipes new catalog items the moment they appear</span>
+                        <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;margin-bottom:14px;transition:all 0.3s;">
+                            <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 14px var(--c-accent-glow);">🎯</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:14px;font-weight:700;color:var(--c-text0);margin-bottom:4px;">Auto-Buy Sniper</div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div class="st-dot st-dot-idle" id="st-sniper-dot2"></div>
+                                    <span style="font-size:11px;color:var(--c-text3);">Idle — press Start to begin sniping</span>
+                                </div>
+                            </div>
                             <button id="st-sniper-btn" class="st-btn-primary">🎯 Start Sniper</button>
                         </div>
 
@@ -1328,9 +1327,15 @@ function buildUI() {
                         </details>
 
                         <!-- UPDATE SNIPER HEADER + STATUS -->
-                        <div style="display:flex;align-items:center;gap:13px;padding:14px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;margin-bottom:14px;transition:background 0.3s,border-color 0.3s;">
-                            <div id="st-update-dot" class="st-dot st-dot-idle"></div>
-                            <span id="st-update-txt" style="flex:1;font-size:12px;color:var(--c-text2);">Update Sniper — watches for price drops & items back on sale</span>
+                        <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;margin-bottom:14px;transition:all 0.3s;">
+                            <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#0891b2,#0e7490);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 14px rgba(8,145,178,0.3);">📡</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:14px;font-weight:700;color:var(--c-text0);margin-bottom:4px;">Update Sniper</div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div id="st-update-dot" class="st-dot st-dot-idle"></div>
+                                    <span id="st-update-txt" style="font-size:11px;color:var(--c-text3);">Idle — watching for price drops & resales</span>
+                                </div>
+                            </div>
                             <button id="st-update-sniper-btn" class="st-btn-primary">📡 Start Update Sniper</button>
                         </div>
 
@@ -1363,7 +1368,7 @@ function buildUI() {
 
                         <div id="st-sniper-layout">
                             <div>
-                                <div class="st-stats-grid">
+                                <div class="st-stats-grid" style="grid-template-columns:repeat(4,1fr);">
                                     <div class="st-stat"><div class="st-stat-label">Checks</div><div id="st-checks" class="st-stat-val">0</div></div>
                                     <div class="st-stat"><div class="st-stat-label">Speed</div><div id="st-cps" class="st-stat-val">—</div></div>
                                     <div class="st-stat"><div class="st-stat-label">Avg RTT</div><div id="st-rtt" class="st-stat-val">—</div></div>
