@@ -1619,25 +1619,26 @@ function buildUI() {
                 <div class="st-settings-wrap">
 
                     <div class="st-set-section">
-                        <div class="st-set-title">Themes</div>
-                        <div class="st-set-sub">Pick your visual style. Themes marked <strong style="color:var(--c-accent);">✦ LIVE</strong> have real-time canvas-rendered backgrounds.</div>
-                        <div id="st-theme-grid"></div>
-                    </div>
-
-                    <div class="st-set-section">
-                        <div style="display:flex;justify-content:flex-end;">
-                            <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;padding:24px 28px;display:flex;align-items:center;gap:22px;width:360px;">
-                                <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 4px 18px var(--c-accent-glow);">🛒</div>
+                        <!-- Themes header + about card side by side -->
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px;">
+                            <div>
+                                <div class="st-set-title">Themes</div>
+                                <div class="st-set-sub" style="margin-bottom:0;">Pick your visual style. Themes marked <strong style="color:var(--c-accent);">✦ LIVE</strong> have real-time canvas-rendered backgrounds.</div>
+                            </div>
+                            <!-- About card top-right -->
+                            <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0;width:300px;">
+                                <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:0 2px 12px var(--c-accent-glow);">🛒</div>
                                 <div style="flex:1;min-width:0;">
-                                    <div style="color:var(--c-text0);font-size:16px;font-weight:700;margin-bottom:3px;">Strrev Tools</div>
-                                    <div style="color:var(--c-text3);font-size:10px;line-height:1.6;margin-bottom:8px;">Sniper · Catalog · Trader · More</div>
+                                    <div style="color:var(--c-text0);font-size:13px;font-weight:700;margin-bottom:2px;">Strrev Tools</div>
+                                    <div style="color:var(--c-text4);font-size:9px;margin-bottom:6px;">Sniper · Catalog · Trader · More</div>
                                     <div style="display:flex;align-items:center;justify-content:space-between;">
-                                        <div style="color:var(--c-text4);font-size:10px;">by <span style="color:var(--c-accent);font-weight:700;">vinny</span></div>
-                                        <div style="font-size:11px;padding:3px 12px;border-radius:20px;font-weight:700;background:var(--c-accent-glow);border:1px solid var(--c-border);color:var(--c-accent);font-family:'Fira Code',monospace;">v2.4</div>
+                                        <div style="color:var(--c-text4);font-size:9px;">by <span style="color:var(--c-accent);font-weight:700;">vinny</span></div>
+                                        <div style="font-size:10px;padding:2px 10px;border-radius:20px;font-weight:700;background:var(--c-accent-glow);border:1px solid var(--c-border);color:var(--c-accent);font-family:'Fira Code',monospace;">v3.0</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <div id="st-theme-grid"></div>
                     </div>
 
                 </div>
