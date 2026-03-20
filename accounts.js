@@ -198,23 +198,33 @@ async function fetchAcctPreview(i) {
                 preview.created     = uj.created     || null;
             }
         } catch(_) {}
-        // ── Membership ───────────────────────────────────────────────────────
-        try {
-            const mr = await acctFetch(i, BASE + '/apisite/premiumfeatures/v1/users/' + acct.id + '/subscriptions');
-            if (mr.ok) {
-                const mj = await mr.json();
-                // Try common field names across platforms
-                preview.membership = mj.membershipType || mj.membership || mj.type
-                    || mj.subscriptionProductModel?.name || mj.data?.membershipType || null;
-            }
-        } catch(_) {}
-        if (!preview.membership) {
+        // ── Membership — try every plausible endpoint ──────────────────────
+        const membershipEndpoints = [
+            '/api/user/membership',
+            '/api/users/' + acct.id + '/membership',
+            '/api/membership',
+            '/api/me',
+            '/api/user',
+            '/api/users/authenticated',
+            '/apisite/users/v1/users/authenticated',
+            '/apisite/premiumfeatures/v1/users/' + acct.id + '/subscriptions',
+        ];
+        for (const ep of membershipEndpoints) {
             try {
-                const mr2 = await acctFetch(i, BASE + '/api/users/' + acct.id + '/membership');
-                if (mr2.ok) {
-                    const mj2 = await mr2.json();
-                    preview.membership = mj2.membershipType || mj2.membership || mj2.type || null;
+                const mr = await acctFetch(i, BASE + ep);
+                if (!mr.ok) continue;
+                const mj = await mr.json();
+                // Extract from any field name we can think of
+                const raw = mj.membershipType || mj.membership || mj.MembershipType
+                    || mj.type || mj.buildersClubMembershipType
+                    || mj.subscriptionProductModel?.name
+                    || mj.data?.membershipType || mj.user?.membershipType || null;
+                if (raw) {
+                    preview.membership = raw;
+                    break;
                 }
+                // Log raw keys so we can debug
+                log('🔍 ' + ep + ' keys: ' + Object.keys(mj).join(', '), 'info');
             } catch(_) {}
         }
     }
