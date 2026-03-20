@@ -380,18 +380,30 @@ async function lookupUserProfile() {
         ]);
 
         const profile    = profileR.ok    ? await profileR.json()    : {};
-        const lbData     = leaderboardR.ok ? await leaderboardR.json() : null;
+        // Leaderboard returns HTML — scrape it
+        let lbData = null;
+        if (leaderboardR.ok) {
+            const html = await leaderboardR.text();
+            const rows = [...html.matchAll(/collectibles\?userId=(\d+)[^>]*>([^<]+)<\/a[\s\S]*?lb-val-rap[^>]*>(R\$\s*[\d,]+)[\s\S]*?lb-val-value[^>]*>(R\$\s*[\d,]+)/g)];
+            lbData = rows.map((m, i) => ({
+                id:    m[1],
+                name:  m[2].trim(),
+                rap:   parseInt(m[3].replace(/[R$,\s]/g, '')),
+                value: parseInt(m[4].replace(/[R$,\s]/g, '')),
+                rank:  i + 1,
+            }));
+        }
         const inventory  = inventoryR.ok  ? await inventoryR.json()  : {};
         const friends    = friendsR.ok    ? await friendsR.json()    : {};
         const thumb      = thumbR.ok      ? await thumbR.json()       : {};
         const online     = onlineR.ok     ? await onlineR.json()      : {};
 
         // Find this user in the leaderboard by ID or name
-        const lbUsers   = lbData?.users || lbData?.data || (Array.isArray(lbData) ? lbData : []);
-        const lbEntry   = lbUsers.find(u => String(u.id || u.userId) === String(uid) || (u.name || u.username) === (profile.name || target.name));
-        const rap        = lbEntry ? (lbEntry.rap ?? lbEntry.totalRap ?? lbEntry.value ?? null) : null;
-        const value      = lbEntry ? (lbEntry.value ?? lbEntry.totalValue ?? null) : null;
-        const lbRank     = lbEntry ? (lbEntry.rank ?? lbUsers.indexOf(lbEntry) + 1) : null;
+        const lbUsers  = Array.isArray(lbData) ? lbData : [];
+        const lbEntry  = lbUsers.find(u => String(u.id) === String(uid) || u.name === (profile.name || target.name));
+        const rap      = lbEntry?.rap   ?? null;
+        const value    = lbEntry?.value ?? null;
+        const lbRank   = lbEntry?.rank  ?? null;
 
         const avatar     = thumb.data?.[0]?.imageUrl || null;
         const presence   = online.userPresences?.[0] || online.data?.[0] || {};
