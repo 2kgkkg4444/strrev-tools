@@ -1496,35 +1496,7 @@ function buildUI() {
                                     <div id="st-daily-results"></div>
                                 </div>
 
-                                <!-- Security Tests -->
-                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
-                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🔬 Buy Price Manipulation</div>
-                                    <div style="font-size:11px;color:var(--c-text3);margin-bottom:10px;line-height:1.5;">Tests if the server validates the expectedPrice in the buy payload. Find a limited for sale and paste its details.</div>
-                                    <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                        <div style="flex:1;">
-                                            <div class="st-field-label">Asset ID</div>
-                                            <input id="st-sec-buy-asset" class="st-set-input" type="text" placeholder="e.g. 15668357544">
-                                        </div>
-                                        <div style="flex:1;">
-                                            <div class="st-field-label">Seller ID</div>
-                                            <input id="st-sec-buy-seller" class="st-set-input" type="text" placeholder="e.g. 157">
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                        <div style="flex:1;">
-                                            <div class="st-field-label">Real Price (R$)</div>
-                                            <input id="st-sec-buy-real" class="st-set-input" type="number" placeholder="actual price">
-                                        </div>
-                                        <div style="flex:1;">
-                                            <div class="st-field-label">Fake Price (R$)</div>
-                                            <input id="st-sec-buy-fake" class="st-set-input" type="number" placeholder="e.g. 1" value="1">
-                                        </div>
-                                    </div>
-                                    <button id="st-sec-buy-test" class="st-btn-primary" style="width:100%;padding:10px;font-size:12px;margin-bottom:8px;">🧪 Test Price Manipulation</button>
-                                    <div id="st-sec-buy-status" style="display:none;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
-                                </div>
-
-                            <!-- Promo code -->
+                                <!-- Promo code -->
                                 <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
                                     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🎟️ Promo Code</div>
                                     <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -1813,7 +1785,6 @@ function buildUI() {
     document.getElementById('st-daily-btn').addEventListener('click', () => claimDailyChest(false));
     document.getElementById('st-daily-toggle').addEventListener('click', toggleDailyAuto);
     document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
-    document.getElementById('st-sec-buy-test')?.addEventListener('click', testBuyPriceManipulation);
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-obc-btn').addEventListener('click', upgradeToOBC);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
