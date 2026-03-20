@@ -1310,6 +1310,33 @@ function buildUI() {
                             </div>
                         </div>
 
+                        <!-- UPDATE SNIPER -->
+                        <div class="st-snip-settings" style="margin-bottom:18px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">📡 Update Sniper</div>
+                                <button id="st-update-sniper-btn" class="st-btn-primary" style="padding:10px 22px;font-size:13px;">📡 Start Update Sniper</button>
+                            </div>
+                            <div id="st-update-sniper-status" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;margin-bottom:14px;">
+                                <div id="st-update-dot" class="st-dot st-dot-idle"></div>
+                                <span id="st-update-txt" style="font-size:11px;color:var(--c-text3);">Idle — start to watch for updates</span>
+                            </div>
+                            <div class="st-snip-settings-row">
+                                <div class="st-toggle-row">
+                                    <span class="st-snip-label">Price Drop</span>
+                                    <div id="st-upd-pricedrop" class="st-toggle-track" title="Alert & buy when a limited's price drops"><div class="st-toggle-thumb"></div></div>
+                                </div>
+                                <div class="st-snip-field">
+                                    <span class="st-snip-label">Drop % Threshold</span>
+                                    <input id="st-upd-droppct" class="st-snip-input" type="number" min="1" max="99" value="10" placeholder="10" title="Trigger when price drops by this % or more" style="width:90px;">
+                                </div>
+                                <div class="st-snip-sep"></div>
+                                <div class="st-toggle-row">
+                                    <span class="st-snip-label">Resale / On Sale</span>
+                                    <div id="st-upd-resale" class="st-toggle-track" title="Alert & buy when an off-sale item comes back on sale"><div class="st-toggle-thumb"></div></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div id="st-sniper-layout">
                             <div>
                                 <div class="st-stats-grid">
@@ -1641,6 +1668,23 @@ function buildUI() {
     });
 
     document.getElementById('st-sniper-btn').addEventListener('click', toggleSniper);
+    document.getElementById('st-update-sniper-btn')?.addEventListener('click', toggleUpdateSniper);
+    document.getElementById('st-upd-pricedrop')?.addEventListener('click', () => {
+        document.getElementById('st-upd-pricedrop').classList.toggle('on');
+        updateSniperSettings.priceDropEnabled = document.getElementById('st-upd-pricedrop').classList.contains('on');
+        saveUpdateSniperSettings();
+    });
+    document.getElementById('st-upd-resale')?.addEventListener('click', () => {
+        document.getElementById('st-upd-resale').classList.toggle('on');
+        updateSniperSettings.resaleEnabled = document.getElementById('st-upd-resale').classList.contains('on');
+        saveUpdateSniperSettings();
+    });
+    document.getElementById('st-upd-droppct')?.addEventListener('change', () => {
+        const v = Math.max(1, Math.min(99, parseInt(document.getElementById('st-upd-droppct').value) || 10));
+        document.getElementById('st-upd-droppct').value = v;
+        updateSniperSettings.priceDropPercent = v;
+        saveUpdateSniperSettings();
+    });
     document.getElementById('st-log-clear').addEventListener('click', () => { const l=document.getElementById('st-log');if(l)l.innerHTML=''; });
 
     document.getElementById('st-cat-search')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderCatalogList(); });
@@ -1722,6 +1766,9 @@ function init() {
     buildUI();
     loadSniperSettings();
     resumeAutoAccepts();
+    loadUpdateSniperSettings();
+    const wasUpdateActive = (() => { try { return GM_getValue('updateSniperActive', false); } catch(_) { return false; } })();
+    if (wasUpdateActive) { log('📡 Update Sniper resuming...', 'info'); startUpdateSniper(); }
 
     // Restore selected account BEFORE rebuildAcctSelector so the dropdown
     // is built with the correct value already set in selectedAcctIdx
