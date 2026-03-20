@@ -198,33 +198,42 @@ async function fetchAcctPreview(i) {
                 preview.created     = uj.created     || null;
             }
         } catch(_) {}
-        // ── Membership — try every plausible endpoint ──────────────────────
-        const membershipEndpoints = [
-            '/api/user/membership',
-            '/api/users/' + acct.id + '/membership',
-            '/api/membership',
-            '/api/me',
-            '/api/user',
-            '/api/users/authenticated',
-            '/apisite/users/v1/users/authenticated',
-            '/apisite/premiumfeatures/v1/users/' + acct.id + '/subscriptions',
-        ];
-        for (const ep of membershipEndpoints) {
+        // ── Membership — try authenticated endpoint first (most reliable) ────
+        try {
+            const ar = await acctFetch(i, BASE + '/apisite/users/v1/users/authenticated');
+            if (ar.ok) {
+                const aj = await ar.json();
+                log('🔍 auth keys: ' + Object.keys(aj).join(', '), 'info');
+                preview.membership = aj.membershipType || aj.membership || aj.MembershipType
+                    || aj.buildersClubMembershipType || aj.bcType || null;
+            }
+        } catch(_) {}
+
+        // Try /api/me and /api/user which may have more fields
+        if (!preview.membership) {
+            for (const ep of ['/api/me', '/api/user', '/api/users/authenticated']) {
+                try {
+                    const mr = await acctFetch(i, BASE + ep);
+                    if (!mr.ok) continue;
+                    const mj = await mr.json();
+                    log('🔍 ' + ep + ' keys: ' + Object.keys(mj).join(', '), 'info');
+                    const raw = mj.membershipType || mj.membership || mj.MembershipType
+                        || mj.buildersClubMembershipType || mj.bcType
+                        || mj.type || mj.data?.membershipType || null;
+                    if (raw) { preview.membership = raw; break; }
+                } catch(_) {}
+            }
+        }
+
+        // Try scraping from user profile page HTML as last resort
+        if (!preview.membership && acct.id) {
             try {
-                const mr = await acctFetch(i, BASE + ep);
-                if (!mr.ok) continue;
-                const mj = await mr.json();
-                // Extract from any field name we can think of
-                const raw = mj.membershipType || mj.membership || mj.MembershipType
-                    || mj.type || mj.buildersClubMembershipType
-                    || mj.subscriptionProductModel?.name
-                    || mj.data?.membershipType || mj.user?.membershipType || null;
-                if (raw) {
-                    preview.membership = raw;
-                    break;
+                const pr = await acctFetch(i, BASE + '/users/' + acct.id + '/profile');
+                if (pr.ok) {
+                    const html = await pr.text();
+                    const m = html.match(/OutrageousBuildersClub|TurboBuildersClub|BuildersClub/);
+                    if (m) preview.membership = m[0];
                 }
-                // Log raw keys so we can debug
-                log('🔍 ' + ep + ' keys: ' + Object.keys(mj).join(', '), 'info');
             } catch(_) {}
         }
     }
