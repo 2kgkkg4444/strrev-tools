@@ -126,11 +126,71 @@ function buildCatalogCard(item) {
     const li = document.createElement('li');
     li.className = 'st-cat-card';
     li.dataset.name = (item.name || '').toLowerCase();
-    li.style.cssText = 'opacity:0;transform:translateY(8px);';
+    li.style.cssText = 'opacity:0;transform:translateY(8px);position:relative;';
     requestAnimationFrame(() => {
         li.style.transition = 'opacity 0.18s ease, transform 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.14s, background 0.14s, box-shadow 0.14s';
         li.style.opacity = '1';
         li.style.transform = 'translateY(0)';
+    });
+
+    // ── Hover tooltip ──────────────────────────────────────────────────────
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = [
+        'position:absolute;bottom:calc(100% + 8px);left:0;right:0;',
+        'background:var(--c-bg0);border:1px solid var(--c-border);border-radius:12px;',
+        'padding:12px 14px;z-index:9999;pointer-events:none;',
+        'opacity:0;transform:translateY(4px);',
+        'transition:opacity 0.14s,transform 0.14s;',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.5);',
+    ].join('');
+
+    const rapVal   = item.rap > 0 ? 'R$' + item.rap.toLocaleString() : '—';
+    const saleCount = item.saleCount != null ? item.saleCount.toLocaleString() : '—';
+    const serialCount = item.serialCount != null ? item.serialCount.toLocaleString() : '—';
+    const lowestPrice = item.lowestPrice != null ? 'R$' + item.lowestPrice.toLocaleString() : '—';
+    const origPrice = item.price != null ? (item.priceTickets ? 'T$' + item.priceTickets : 'R$' + item.price) : '—';
+
+    // Value change: compare lowestPrice vs rap
+    let changeStr = '—', changeColor = 'var(--c-text4)';
+    if (item.rap > 0 && item.lowestPrice > 0) {
+        const diff = item.lowestPrice - item.rap;
+        const pct  = ((diff / item.rap) * 100).toFixed(1);
+        changeStr  = (diff >= 0 ? '+' : '') + 'R$' + diff.toLocaleString() + ' (' + pct + '%)';
+        changeColor = diff >= 0 ? '#22c55e' : '#ef4444';
+    }
+
+    const rows = [
+        ['RAP',          rapVal,     '#f97316'],
+        ['Lowest Price', lowestPrice,'#a855f7'],
+        ['Orig Price',   origPrice,  'var(--c-text2)'],
+        ['Change',       changeStr,  changeColor],
+        ['Sold',         saleCount,  'var(--c-text2)'],
+        ['Serial Count', serialCount,'var(--c-text2)'],
+        ['Created',      item.createdAt ? new Date(item.createdAt).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}) : '—', 'var(--c-text4)'],
+    ];
+
+    tooltip.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--c-text0);margin-bottom:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (item.name || 'Item') + '</div>' +
+        rows.map(([label, val, color]) =>
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">' +
+            '<span style="font-size:9px;color:var(--c-text4);text-transform:uppercase;letter-spacing:0.8px;">' + label + '</span>' +
+            '<span style="font-size:10px;font-weight:700;font-family:'Fira Code',monospace;color:' + color + ';">' + val + '</span>' +
+            '</div>'
+        ).join('') +
+        (item.description ? '<div style="font-size:9px;color:var(--c-text4);margin-top:8px;border-top:1px solid var(--c-border2);padding-top:7px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + item.description + '</div>' : '');
+
+    li.appendChild(tooltip);
+
+    let hoverTimer;
+    li.addEventListener('mouseenter', () => {
+        hoverTimer = setTimeout(() => {
+            tooltip.style.opacity = '1';
+            tooltip.style.transform = 'translateY(0)';
+        }, 200);
+    });
+    li.addEventListener('mouseleave', () => {
+        clearTimeout(hoverTimer);
+        tooltip.style.opacity = '0';
+        tooltip.style.transform = 'translateY(4px)';
     });
 
     // Icon box
