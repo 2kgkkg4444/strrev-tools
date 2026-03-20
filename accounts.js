@@ -89,6 +89,20 @@ function fetchCsrfForCookie(cookie) {
 async function acctFetch(acctIdx, url, opts = {}) {
     const acct = accounts[acctIdx];
     if (!acct) throw new Error('No account at index '+acctIdx);
+
+    // Session-backed account (auto-added, no raw cookie) — use browser session
+    if (acct.sessionBacked || !acct.cookie) {
+        const method = (opts.method||'GET').toUpperCase();
+        const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
+        if (needsCsrf && !acct.csrf) { await fetchSessionCsrf(); acct.csrf = sessionCsrf; saveAccounts(); }
+        const headers = {
+            'Accept': 'application/json',
+            ...(needsCsrf ? { 'x-csrf-token': acct.csrf||sessionCsrf||'', 'Content-Type':'application/json' } : {}),
+            ...(opts.headers||{}),
+        };
+        return fetch(url, { credentials:'include', ...opts, headers });
+    }
+
     const method = (opts.method||'GET').toUpperCase();
     const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
 
