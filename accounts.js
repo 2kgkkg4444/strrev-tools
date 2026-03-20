@@ -216,6 +216,7 @@ async function fetchAcctPreview(i) {
 
 function renderAcctCard(a, i, preview, cardEl) {
     const card = document.createElement('div');
+    card.dataset.acctIdx = i;
     card.style.cssText = 'background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:16px;margin-bottom:10px;transition:border-color 0.15s;';
     card.onmouseenter = () => card.style.borderColor = 'var(--c-border)';
     card.onmouseleave = () => card.style.borderColor = 'var(--c-border2)';
@@ -383,21 +384,22 @@ function rebuildSettingsAcctList() {
         });
     });
 
-    // Auto-refresh previews every 60s while the accounts tab is visible
+    // Auto-refresh previews every 30s
     if (_acctAutoRefreshTimer) clearInterval(_acctAutoRefreshTimer);
-    _acctAutoRefreshTimer = setInterval(() => {
+    const doRefresh = () => {
         const listEl = document.getElementById('st-settings-acct-list');
         if (!listEl) { clearInterval(_acctAutoRefreshTimer); return; }
         accounts.forEach((a, i) => {
             fetchAcctPreview(i).then(preview => {
-                const cards = listEl.children;
-                if (cards[i]) {
+                const card = listEl.querySelector('[data-acct-idx="' + i + '"]');
+                if (card) {
                     const newCard = renderAcctCard(accounts[i], i, preview);
-                    cards[i].replaceWith(newCard);
+                    card.replaceWith(newCard);
                 }
             });
         });
-    }, 60000);
+    };
+    _acctAutoRefreshTimer = setInterval(doRefresh, 30000);
 }
 
 async function addAccountFlow() {
