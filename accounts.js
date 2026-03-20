@@ -416,36 +416,6 @@ function rebuildSettingsAcctList() {
     _acctAutoRefreshTimer = setInterval(doRefresh, 30000);
 }
 
-
-// ─── Auto-add current session account ────────────────────────────────────
-async function autoAddSessionAccount() {
-    try {
-        // Get profile via session (no cookie needed — already logged in)
-        const r = await sessFetch(BASE + '/apisite/users/v1/users/authenticated');
-        if (!r.ok) return;
-        const j = await r.json();
-        const name = j.name || j.displayName;
-        const id   = j.id;
-        if (!name || !id) return;
-
-        // Already saved?
-        if (accounts.find(a => String(a.id) === String(id) || a.username === name)) return;
-
-        // Get cookie from document
-        const cookieMatch = document.cookie.match(/\.ROBLOSECURITY=([^;]+)/);
-        const cookie = cookieMatch ? cookieMatch[1] : '';
-        if (!cookie) return;
-
-        // Fetch CSRF
-        const csrf = await fetchCsrfForCookie(cookie);
-
-        accounts.push({ username: name, id, cookie, csrf });
-        saveAccounts();
-        rebuildAcctSelector();
-        log('✅ Auto-added session account: ' + name, 'success');
-    } catch(_) {}
-}
-
 async function addAccountFlow() {
     const rawCookie = document.getElementById('st-add-cookie')?.value?.trim();
     const rawCsrf   = document.getElementById('st-add-csrf')?.value?.trim();
