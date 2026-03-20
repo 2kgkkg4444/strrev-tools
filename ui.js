@@ -1367,17 +1367,17 @@ function buildUI() {
                         </details>
 
                         <div id="st-sniper-layout">
-                            <div>
-                                <div class="st-stats-grid" style="grid-template-columns:repeat(4,1fr);">
+                            <div style="display:flex;flex-direction:column;gap:14px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;padding:20px;">
+                                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:13px;">
                                     <div class="st-stat"><div class="st-stat-label">Checks</div><div id="st-checks" class="st-stat-val">0</div></div>
                                     <div class="st-stat"><div class="st-stat-label">Speed</div><div id="st-cps" class="st-stat-val">—</div></div>
                                     <div class="st-stat"><div class="st-stat-label">Avg RTT</div><div id="st-rtt" class="st-stat-val">—</div></div>
                                     <div class="st-stat"><div class="st-stat-label">Workers</div><div id="st-conc" class="st-stat-val">—</div></div>
                                 </div>
-                                <div class="st-rtt-wrap">
-                                    <div class="st-rtt-labels">
-                                        <span>Network Health</span>
-                                        <span style="font-family:'Fira Code',monospace!important;">0ms → 500ms</span>
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:14px;padding:18px 20px;">
+                                    <div class="st-rtt-labels" style="margin-bottom:10px;">
+                                        <span style="color:var(--c-text4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.9px;">Network Health</span>
+                                        <span style="font-family:'Fira Code',monospace;font-size:10px;color:var(--c-text4);">0ms → 500ms</span>
                                     </div>
                                     <div class="st-rtt-track"><div id="st-rtt-fill" style="width:0%;"></div></div>
                                 </div>
@@ -1514,6 +1514,18 @@ function buildUI() {
 
                     <!-- PEOPLE -->
                     <div id="st-msec-content-people" style="display:none;">
+
+                        <!-- USER LOOKUP -->
+                        <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;padding:22px;margin-bottom:20px;">
+                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🔍 User Lookup</div>
+                            <div style="display:flex;gap:8px;margin-bottom:6px;">
+                                <input id="st-lookup-input" class="st-input" type="text" placeholder="Username or User ID…" style="flex:1;">
+                                <button id="st-lookup-btn" class="st-btn-primary" style="padding:11px 22px;">🔍 Lookup</button>
+                            </div>
+                            <div id="st-lookup-status" style="font-size:11px;color:var(--c-text4);min-height:16px;margin-bottom:8px;"></div>
+                            <div id="st-lookup-result"></div>
+                        </div>
+
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
 
                             <!-- Left: Friends + Message -->
@@ -1613,19 +1625,17 @@ function buildUI() {
                     </div>
 
                     <div class="st-set-section">
-                        <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;padding:26px;display:flex;align-items:center;justify-content:space-between;gap:24px;">
-                            <div style="display:flex;align-items:center;gap:18px;">
+                        <div style="display:flex;justify-content:flex-end;">
+                            <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;padding:24px 28px;display:flex;align-items:center;gap:22px;width:360px;">
                                 <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 4px 18px var(--c-accent-glow);">🛒</div>
-                                <div>
-                                    <div style="color:var(--c-text0);font-size:17px;font-weight:700;margin-bottom:5px;">Strrev Tools</div>
-                                    <div style="color:var(--c-text3);font-size:11px;line-height:1.7;">Multi-account catalog buyer, silent sniper, trader & more</div>
-                                    <div style="color:var(--c-text4);font-size:10px;margin-top:5px;">Press <span style="background:var(--c-bg3);padding:2px 8px;border-radius:5px;font-family:'Fira Code',monospace;font-size:10px;color:var(--c-text2);">Tab</span> anywhere to open / close</div>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="color:var(--c-text0);font-size:16px;font-weight:700;margin-bottom:3px;">Strrev Tools</div>
+                                    <div style="color:var(--c-text3);font-size:10px;line-height:1.6;margin-bottom:8px;">Sniper · Catalog · Trader · More</div>
+                                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                                        <div style="color:var(--c-text4);font-size:10px;">by <span style="color:var(--c-accent);font-weight:700;">vinny</span></div>
+                                        <div style="font-size:11px;padding:3px 12px;border-radius:20px;font-weight:700;background:var(--c-accent-glow);border:1px solid var(--c-border);color:var(--c-accent);font-family:'Fira Code',monospace;">v2.4</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style="text-align:right;flex-shrink:0;">
-                                <div style="color:var(--c-text4);font-size:10px;margin-bottom:4px;">made by</div>
-                                <div style="color:var(--c-accent);font-size:19px;font-weight:700;letter-spacing:0.3px;">vinny</div>
-                                <div style="margin-top:10px;display:inline-block;font-size:11px;padding:5px 14px;border-radius:8px;font-weight:700;background:rgba(var(--c-accent),0.1);background:var(--c-accent-glow);border:1px solid var(--c-border);color:var(--c-accent);font-family:'Fira Code',monospace;">v2.4</div>
                             </div>
                         </div>
                     </div>
@@ -1743,6 +1753,10 @@ function buildUI() {
     document.getElementById('st-trade-input').addEventListener('keydown', e => { if(e.key==='Enter') loadTradeTarget(); });
     document.getElementById('st-send-btn').addEventListener('click', sendTradeOffer);
 
+    document.getElementById('st-lookup-btn')?.addEventListener('click', lookupUser_profile);
+    document.getElementById('st-lookup-input')?.addEventListener('keydown', e => { if(e.key==='Enter') lookupUser_profile(); });
+    document.getElementById('st-lookup-btn')?.addEventListener('click', lookupUserProfile);
+    document.getElementById('st-lookup-input')?.addEventListener('keydown', e => { if(e.key==='Enter') lookupUserProfile(); });
     document.getElementById('st-friend-btn').addEventListener('click', sendFriendRequests);
     document.getElementById('st-friend-input').addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequests(); });
     document.getElementById('st-msg-btn').addEventListener('click', sendMessages);
