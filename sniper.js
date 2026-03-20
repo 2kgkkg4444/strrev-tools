@@ -46,7 +46,6 @@ function syncSniperSettingsUI() {
     g('st-snip-max-robux', sniperSettings.maxPriceRobux);
     g('st-snip-max-tix',   sniperSettings.maxPriceTix);
     t('st-snip-limiteds',  sniperSettings.limitedsOnly);
-    t('st-snip-limitedu',  sniperSettings.limitedUsOnly);
     t('st-snip-robux-only',sniperSettings.robuxOnly);
     t('st-snip-tix-only',  sniperSettings.tixOnly);
 }
@@ -61,8 +60,7 @@ function itemPassesFilters(item) {
     const price      = item.lowestPrice ?? item.price ?? 0;
     const priceTix   = item.priceTickets ?? 0;
 
-    if (sniperSettings.limitedsOnly  && !isLimited)  { log('⏭ Skipped (not limited): '      + (item.name||item.id), 'info'); return false; }
-    if (sniperSettings.limitedUsOnly && !isLimitedU) { log('⏭ Skipped (not LimitedU): '     + (item.name||item.id), 'info'); return false; }
+    if (sniperSettings.limitedsOnly  && !isLimited)  { log('⏭ Skipped (not limited): ' + (item.name||item.id), 'info'); return false; }
     if (sniperSettings.robuxOnly     && !isRobux)    { log('⏭ Skipped (not Robux item): '   + (item.name||item.id), 'info'); return false; }
     if (sniperSettings.tixOnly       && !isTix)      { log('⏭ Skipped (not Tix item): '     + (item.name||item.id), 'info'); return false; }
 
