@@ -15,6 +15,7 @@ const ASSET_TYPE_NAMES = {
 
 // ─── Fetch one page from API ──────────────────────────────────────────────
 async function fetchCatalogPage(page, category, sortType, keyword) {
+    // Step 1: get IDs from search endpoint
     let url = BASE + '/apisite/catalog/v1/search/items'
         + '?category=' + encodeURIComponent(category)
         + '&limit=' + CATALOG_PAGE_SIZE
@@ -25,7 +26,20 @@ async function fetchCatalogPage(page, category, sortType, keyword) {
     const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
-    return j.data || [];
+    const searchData = j.data || [];
+    if (!searchData.length) return [];
+
+    // Step 2: fetch full details using the IDs
+    const items = searchData.map(x => ({ itemType: 'Asset', id: x.id || x }));
+    const dr = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+    });
+    if (!dr.ok) throw new Error('Details HTTP ' + dr.status);
+    const dj = await dr.json();
+    return dj.data || [];
 }
 
 // ─── Catalog API snapshot (sniper) ───────────────────────────────────────
