@@ -1397,10 +1397,7 @@ function buildUI() {
                                         <div id="st-redirect-updated" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
                                     </div>
                                     <div class="st-snip-sep"></div>
-                                    <div class="st-snip-field">
-                                        <span class="st-snip-label">Poll Interval (ms)</span>
-                                        <input id="st-redirect-interval" class="st-snip-input" type="number" min="500" max="10000" value="1000" style="width:100px;">
-                                    </div>
+                                    <div style="font-size:10px;color:var(--c-text4);align-self:center;">Fires instantly after each response — maximum speed</div>
                                 </div>
                             </div>
                         </details>
