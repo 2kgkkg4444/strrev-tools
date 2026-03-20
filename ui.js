@@ -1646,8 +1646,18 @@ function buildUI() {
     document.getElementById('st-cat-search')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderCatalogList(); });
     document.getElementById('st-cat-category')?.addEventListener('change', e => { catalogCategory = e.target.value; renderCatalogList(); });
     document.getElementById('st-cat-sort')?.addEventListener('change', e => { catalogSort = e.target.value; renderCatalogList(); });
-    document.getElementById('st-cat-prev')?.addEventListener('click', () => { if (catalogPage > 1) { catalogPage--; loadCatalogPage(false); } });
-    document.getElementById('st-cat-next')?.addEventListener('click', () => { catalogPage++; loadCatalogPage(false); });
+    document.getElementById('st-cat-prev')?.addEventListener('click', () => {
+        if (catalogPageNum <= 1) return;
+        catalogCursor = catalogPrevCursor;
+        catalogPageNum--;
+        loadCatalogPage();
+    });
+    document.getElementById('st-cat-next')?.addEventListener('click', () => {
+        if (!catalogNextCursor) return;
+        catalogCursor = catalogNextCursor;
+        catalogPageNum++;
+        loadCatalogPage();
+    });
     document.getElementById('st-cat-refresh').addEventListener('click', () => {
         const icon = document.getElementById('st-refresh-icon');
         if (icon) { icon.style.transition='transform 0.4s';icon.style.transform='rotate(360deg)';setTimeout(()=>{icon.style.transform='';},450); }
