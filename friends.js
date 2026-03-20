@@ -341,7 +341,7 @@ async function lookupUserProfile() {
         const joinedYear  = profile.created ? new Date(profile.created).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric' }) : '—';
         const rapStr   = rap   != null ? 'R$' + Number(rap).toLocaleString()   : '—';
         const valueStr = value != null ? 'R$' + Number(value).toLocaleString() : '—';
-        const rankStr  = lbRank != null ? '#' + lbRank : 'N/A';
+        // lbRank handled inline in stats
 
         el.innerHTML = '';
 
@@ -354,7 +354,7 @@ async function lookupUserProfile() {
             </div>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-                    <span style="font-size:16px;font-weight:700;color:var(--c-text0);">${profile.name || target.name}</span>
+                    <span style="font-size:16px;font-weight:700;color:var(--c-text0);text-decoration:none;">${profile.name || target.name}</span>
                     ${profile.displayName && profile.displayName !== profile.name ? `<span style="font-size:11px;color:var(--c-text4);">(${profile.displayName})</span>` : ''}
                     <span style="font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;background:${mc.bg};border:1px solid ${mc.border};color:${mc.text};">${mc.label}</span>
                 </div>
@@ -367,11 +367,11 @@ async function lookupUserProfile() {
         const stats = document.createElement('div');
         stats.style.cssText = 'display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;';
         [
-            { label:'RAP',     value: rapStr,                                                    color:'#f97316' },
-            { label:'Value',   value: valueStr,                                                  color:'#a855f7' },
-            { label:'LB Rank', value: rankStr,                                                   color:'#eab308' },
-            { label:'Friends', value: friendCount > 0 ? String(friendCount) : '—',             color:'#60a5fa' },
-            { label:'Online Now', value: onlineFriends > 0 ? String(onlineFriends) : '0',          color:'#22c55e' },
+            { label:'RAP',        value: rapStr,                                              color:'#f97316' },
+            { label:'Value',      value: valueStr,                                            color:'#a855f7' },
+            { label:'LB Rank',    value: lbRank != null ? '#' + lbRank : 'Unranked',          color: lbRank != null ? '#eab308' : 'var(--c-text4)' },
+            { label:'Friends',    value: friendCount > 0 ? String(friendCount) : '0',         color:'#60a5fa' },
+            { label:'Online Now', value: onlineFriends > 0 ? '🟢 ' + onlineFriends : '—',    color:'#22c55e' },
         ].forEach(({ label, value, color }) => {
             const s = document.createElement('div');
             s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;padding:12px 14px;';
