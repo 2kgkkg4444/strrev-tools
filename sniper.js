@@ -351,13 +351,19 @@ function updateSniperBtn(active) {
 }
 
 function setSniperStatus(msg, type) {
-    const el = document.getElementById('st-sniper-status'); if (!el) return;
-    const dot  = el.querySelector('.st-dot');
-    const text = el.querySelector('.st-dot-text');
-    if (text) text.textContent = msg;
-    if (dot)  dot.className   = 'st-dot st-dot-'+type;
-    const bgs = { active:'rgba(34,197,94,0.05)', hot:'rgba(233,69,96,0.08)', idle:'#060c18', loading:'#060c18' };
-    el.style.background = bgs[type] || '#060c18';
+    // Update the inline status row dot + button glow
+    const dot  = document.getElementById('st-sniper-dot2');
+    if (dot) dot.className = 'st-dot st-dot-' + type;
+    // Also try old element for compatibility
+    const el = document.getElementById('st-sniper-status');
+    if (el) {
+        const d = el.querySelector('.st-dot');
+        const t = el.querySelector('.st-dot-text');
+        if (t) t.textContent = msg;
+        if (d) d.className = 'st-dot st-dot-' + type;
+        const bgs = { active:'rgba(34,197,94,0.05)', hot:'rgba(233,69,96,0.08)', idle:'#060c18', loading:'#060c18' };
+        el.style.background = bgs[type] || '#060c18';
+    }
 }
 
 // ─── Update Sniper (price drop + resale) ─────────────────────────────────
