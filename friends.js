@@ -365,10 +365,10 @@ async function lookupUserProfile() {
         const uid = target.id;
         if (status) status.textContent = 'Fetching profile data…';
 
-        // Fetch all data in parallel
-        const [profileR, currencyR, inventoryR, friendsR, thumbR, onlineR] = await Promise.all([
+        // Fetch all data in parallel — leaderboard for RAP/value, no currency
+        const [profileR, leaderboardR, inventoryR, friendsR, thumbR, onlineR, memberR] = await Promise.all([
             sessFetch(BASE + '/apisite/users/v1/users/' + uid),
-            sessFetch(BASE + '/apisite/economy/v1/users/' + uid + '/currency'),
+            sessFetch(BASE + '/internal/leaderboard?sort=rap'),
             sessFetch(BASE + '/apisite/inventory/v1/users/' + uid + '/assets/collectibles?limit=10'),
             sessFetch(BASE + '/apisite/friends/v1/users/' + uid + '/friends?limit=5'),
             sessFetch(BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + uid + '&size=150x150&format=Png&isCircular=false'),
@@ -376,22 +376,30 @@ async function lookupUserProfile() {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userIds: [parseInt(uid)] }),
             }),
+            sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
         ]);
 
-        const profile   = profileR.ok   ? await profileR.json()   : {};
-        const currency  = currencyR.ok  ? await currencyR.json()  : {};
-        const inventory = inventoryR.ok ? await inventoryR.json() : {};
-        const friends   = friendsR.ok   ? await friendsR.json()   : {};
-        const thumb     = thumbR.ok     ? await thumbR.json()      : {};
-        const online    = onlineR.ok    ? await onlineR.json()     : {};
+        const profile    = profileR.ok    ? await profileR.json()    : {};
+        const lbData     = leaderboardR.ok ? await leaderboardR.json() : null;
+        const inventory  = inventoryR.ok  ? await inventoryR.json()  : {};
+        const friends    = friendsR.ok    ? await friendsR.json()    : {};
+        const thumb      = thumbR.ok      ? await thumbR.json()       : {};
+        const online     = onlineR.ok     ? await onlineR.json()      : {};
 
-        const avatar    = thumb.data?.[0]?.imageUrl || null;
-        const presence  = online.userPresences?.[0] || online.data?.[0] || {};
+        // Find this user in the leaderboard by ID or name
+        const lbUsers   = lbData?.users || lbData?.data || (Array.isArray(lbData) ? lbData : []);
+        const lbEntry   = lbUsers.find(u => String(u.id || u.userId) === String(uid) || (u.name || u.username) === (profile.name || target.name));
+        const rap        = lbEntry ? (lbEntry.rap ?? lbEntry.totalRap ?? lbEntry.value ?? null) : null;
+        const value      = lbEntry ? (lbEntry.value ?? lbEntry.totalValue ?? null) : null;
+        const lbRank     = lbEntry ? (lbEntry.rank ?? lbUsers.indexOf(lbEntry) + 1) : null;
+
+        const avatar     = thumb.data?.[0]?.imageUrl || null;
+        const presence   = online.userPresences?.[0] || online.data?.[0] || {};
         const lastOnline = presence.lastOnline || presence.lastSeen || null;
-        const isOnline  = presence.userPresenceType === 1 || presence.online === true;
-        const items     = inventory.data || [];
+        const isOnline   = presence.userPresenceType === 1 || presence.online === true;
+        const items      = inventory.data || [];
         const friendList = friends.data || [];
-        const memberR = await sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership');
+
         const tierMap = { 0:'None', 1:'BuildersClub', 2:'TurboBuildersClub', 3:'OutrageousBuildersClub' };
         const mColors = {
             OutrageousBuildersClub: { bg:'rgba(251,191,36,0.12)', border:'rgba(251,191,36,0.3)', text:'#fbbf24', label:'👑 OBC' },
@@ -408,11 +416,12 @@ async function lookupUserProfile() {
         const el = document.getElementById('st-lookup-result');
         if (!el) return;
 
-        const joinedYear = profile.created ? new Date(profile.created).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric' }) : '—';
-        const robux   = currency.robux   != null ? currency.robux.toLocaleString()   : '—';
-        const tickets = currency.tickets != null ? currency.tickets.toLocaleString() : '—';
+        const joinedYear  = profile.created ? new Date(profile.created).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric' }) : '—';
         const onlineColor = isOnline ? '#22c55e' : '#475569';
         const onlineLabel = isOnline ? '🟢 Online' : (lastOnline ? '⚫ Last seen ' + new Date(lastOnline).toLocaleDateString() : '⚫ Offline');
+        const rapStr      = rap   != null ? 'R$' + Number(rap).toLocaleString()   : '—';
+        const valueStr    = value != null ? 'R$' + Number(value).toLocaleString() : '—';
+        const rankStr     = lbRank != null ? '#' + lbRank : '—';
 
         el.innerHTML = '';
 
@@ -434,17 +443,18 @@ async function lookupUserProfile() {
             </div>`;
         el.appendChild(header);
 
-        // Stats row
+        // Stats row — RAP, Value, Friends
         const stats = document.createElement('div');
-        stats.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;';
+        stats.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;';
         [
-            { label:'R$ Robux', value: 'R$' + robux, color:'#f97316' },
-            { label:'T$ Tickets', value: 'T$' + tickets, color:'#eab308' },
-            { label:'Friends', value: friendList.length > 0 ? friendList.length + (friends.data?.length === 5 ? '+' : '') : '—', color:'var(--c-text1)' },
+            { label:'RAP',     value: rapStr,   color:'#f97316' },
+            { label:'Value',   value: valueStr, color:'#a855f7' },
+            { label:'LB Rank', value: rankStr,  color:'#eab308' },
+            { label:'Friends', value: friendList.length > 0 ? String(friendList.length) + (friendList.length === 5 ? '+' : '') : '—', color:'#60a5fa' },
         ].forEach(({ label, value, color }) => {
             const s = document.createElement('div');
             s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;padding:12px 14px;';
-            s.innerHTML = `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.9px;color:var(--c-text4);margin-bottom:6px;">${label}</div><div style="font-size:18px;font-weight:700;font-family:'Fira Code',monospace;color:${color};">${value}</div>`;
+            s.innerHTML = `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.9px;color:var(--c-text4);margin-bottom:6px;">${label}</div><div style="font-size:16px;font-weight:700;font-family:'Fira Code',monospace;color:${color};">${value}</div>`;
             stats.appendChild(s);
         });
         el.appendChild(stats);
