@@ -1,3 +1,4 @@
+// friends.js v33 — RAP/Value lookup
 // ─── Friends ──────────────────────────────────────────────────────────────
 
 async function lookupFriendTarget(input) {
