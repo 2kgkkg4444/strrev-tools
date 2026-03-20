@@ -1107,7 +1107,7 @@ function injectStyles() {
         .st-trade-hint { padding:9px 12px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:9px;font-size:10px;color:var(--c-text4);text-align:center;margin-bottom:13px; }
         #st-trade-summary { display:none;padding:11px 16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:10px;margin-bottom:13px;text-align:center;font-size:12px; }
 
-        .st-settings-wrap { max-width:100%;margin:0; }
+        .st-settings-wrap { width:100%; }
         .st-set-section   { margin-bottom:38px; }
         .st-set-title     { color:var(--c-text0);font-size:19px;font-weight:700;margin-bottom:5px; }
         .st-set-sub       { color:var(--c-text3);font-size:11px;margin-bottom:22px;line-height:1.6; }
@@ -1271,26 +1271,25 @@ function buildUI() {
                         <!-- AUTO-BUY SNIPER HEADER + STATUS -->
                         <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;margin-bottom:14px;transition:all 0.3s;">
                             <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 14px var(--c-accent-glow);">🎯</div>
-                            <div style="flex:1;min-width:0;">
+                            <div style="flex:1;min-width:0;overflow:hidden;">
                                 <div style="font-size:14px;font-weight:700;color:var(--c-text0);margin-bottom:4px;">Auto-Buy Sniper</div>
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    <div class="st-dot st-dot-idle" id="st-sniper-dot2"></div>
-                                    <span style="font-size:11px;color:var(--c-text3);">Idle — press Start to begin sniping</span>
+                                    <div class="st-dot st-dot-idle" id="st-sniper-dot2" style="flex-shrink:0;"></div>
+                                    <span style="font-size:11px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Idle — press Start to begin sniping</span>
                                 </div>
                             </div>
                             <button id="st-sniper-btn" class="st-btn-primary">🎯 Start Sniper</button>
                         </div>
 
-                        <!-- AUTO-BUY FILTER SETTINGS DROPDOWN -->
-                        <details class="st-snip-settings" style="margin-bottom:14px;">
+                        <!-- COMBINED SNIPER FILTERS DROPDOWN -->
+                        <details class="st-snip-settings" style="margin-bottom:18px;">
                             <summary class="st-snip-summary">
-                                <div style="display:flex;align-items:center;gap:10px;">
-                                    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">⚙️ Auto-Buy Filters</span>
-                                </div>
+                                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">⚙️ Sniper Filters</span>
                                 <span class="st-snip-chevron">▼</span>
                             </summary>
                             <div class="st-snip-settings-body">
-                                <div class="st-snip-settings-row">
+                                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:10px;">New Items</div>
+                                <div class="st-snip-settings-row" style="margin-bottom:18px;">
                                     <div class="st-snip-field">
                                         <span class="st-snip-label">Min Price R$</span>
                                         <input id="st-snip-min-robux" class="st-snip-input" type="number" min="0" placeholder="no limit">
@@ -1323,31 +1322,8 @@ function buildUI() {
                                         <div id="st-snip-tix-only" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
                                     </div>
                                 </div>
-                            </div>
-                        </details>
-
-                        <!-- UPDATE SNIPER HEADER + STATUS -->
-                        <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;margin-bottom:14px;transition:all 0.3s;">
-                            <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#0891b2,#0e7490);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 14px rgba(8,145,178,0.3);">📡</div>
-                            <div style="flex:1;min-width:0;">
-                                <div style="font-size:14px;font-weight:700;color:var(--c-text0);margin-bottom:4px;">Update Sniper</div>
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <div id="st-update-dot" class="st-dot st-dot-idle"></div>
-                                    <span id="st-update-txt" style="font-size:11px;color:var(--c-text3);">Idle — watching for price drops & resales</span>
-                                </div>
-                            </div>
-                            <button id="st-update-sniper-btn" class="st-btn-primary">📡 Start Update Sniper</button>
-                        </div>
-
-                        <!-- UPDATE SNIPER FILTER SETTINGS DROPDOWN -->
-                        <details class="st-snip-settings" style="margin-bottom:18px;">
-                            <summary class="st-snip-summary">
-                                <div style="display:flex;align-items:center;gap:10px;">
-                                    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">⚙️ Update Sniper Filters</span>
-                                </div>
-                                <span class="st-snip-chevron">▼</span>
-                            </summary>
-                            <div class="st-snip-settings-body">
+                                <div style="height:1px;background:var(--c-border2);margin-bottom:14px;"></div>
+                                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:10px;">Watch Existing Items</div>
                                 <div class="st-snip-settings-row">
                                     <div class="st-toggle-row">
                                         <span class="st-snip-label">Price Drop</span>
@@ -1369,11 +1345,11 @@ function buildUI() {
                         <!-- REDIRECT SNIPER HEADER -->
                         <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;margin-bottom:14px;transition:all 0.3s;">
                             <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#059669,#047857);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 14px rgba(5,150,105,0.3);">🔗</div>
-                            <div style="flex:1;min-width:0;">
+                            <div style="flex:1;min-width:0;overflow:hidden;">
                                 <div style="font-size:14px;font-weight:700;color:var(--c-text0);margin-bottom:4px;">Redirect Sniper</div>
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    <div id="st-redirect-dot" class="st-dot st-dot-idle"></div>
-                                    <span id="st-redirect-txt" style="font-size:11px;color:var(--c-text3);">Idle — opens item page when something new appears</span>
+                                    <div id="st-redirect-dot" class="st-dot st-dot-idle" style="flex-shrink:0;"></div>
+                                    <span id="st-redirect-txt" style="font-size:11px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Idle — opens item page when something new appears</span>
                                 </div>
                             </div>
                             <button id="st-redirect-sniper-btn" class="st-btn-primary">🔗 Start Redirect Sniper</button>
