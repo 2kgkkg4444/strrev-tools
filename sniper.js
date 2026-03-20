@@ -353,7 +353,12 @@ function updateSniperBtn(active) {
 function setSniperStatus(msg, type) {
     // Update the inline status row dot + button glow
     const dot  = document.getElementById('st-sniper-dot2');
-    if (dot) dot.className = 'st-dot st-dot-' + type;
+    if (dot) {
+        dot.className = 'st-dot st-dot-' + type;
+        // Update the inline status text next to the dot
+        const inlineTxt = dot.parentElement?.querySelector('span');
+        if (inlineTxt) inlineTxt.textContent = msg;
+    }
     // Also try old element for compatibility
     const el = document.getElementById('st-sniper-status');
     if (el) {
