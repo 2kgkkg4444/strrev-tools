@@ -36,12 +36,13 @@ async function fetchCatalogPage(cursor, category, sortType, keyword) {
     const searchData  = j.data || [];
     if (!searchData.length) return [];
 
-    // Step 2: POST IDs to details endpoint to get full item data
+    // Step 2: POST IDs to details endpoint — needs CSRF token
     const ids = searchData.map(x => ({ itemType: x.itemType || 'Asset', id: x.id }));
+    await fetchSessionCsrf();
     const dr = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
         body: JSON.stringify({ items: ids }),
     });
     if (!dr.ok) throw new Error('Details HTTP ' + dr.status);
