@@ -1496,7 +1496,40 @@ function buildUI() {
                                     <div id="st-daily-results"></div>
                                 </div>
 
-                                <!-- Promo code -->
+                                <!-- Security Tests -->
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🔬 Security Tests</div>
+
+                                    <div style="margin-bottom:14px;">
+                                        <div style="font-size:11px;color:var(--c-text3);margin-bottom:8px;line-height:1.5;">
+                                            <strong style="color:var(--c-text1);">Trade Ownership Test</strong><br>
+                                            Paste a trade ID. Tests if other accounts can accept/decline it (checks ownership validation).
+                                        </div>
+                                        <input id="st-sec-trade-id" class="st-input" type="text" placeholder="Trade ID e.g. 767" style="margin-bottom:8px;">
+                                        <div style="display:flex;gap:8px;">
+                                            <button id="st-sec-trade-accept" class="st-btn-primary" style="flex:1;padding:10px;font-size:12px;">✓ Accept Test</button>
+                                            <button id="st-sec-trade-decline" class="st-btn-secondary" style="flex:1;padding:10px;font-size:12px;">✕ Decline Test</button>
+                                        </div>
+                                        <div id="st-sec-trade-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
+                                    </div>
+
+                                    <div style="height:1px;background:var(--c-border2);margin-bottom:14px;"></div>
+
+                                    <div>
+                                        <div style="font-size:11px;color:var(--c-text3);margin-bottom:8px;line-height:1.5;">
+                                            <strong style="color:var(--c-text1);">Trade ID Enumeration</strong><br>
+                                            Scans trade IDs from 1 to N to find accessible trades across all accounts.
+                                        </div>
+                                        <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                            <input id="st-sec-enum-start" class="st-input" type="number" placeholder="Start ID" value="1" style="width:80px;">
+                                            <input id="st-sec-enum-end" class="st-input" type="number" placeholder="End ID" value="100" style="width:80px;">
+                                            <button id="st-sec-enum-btn" class="st-btn-primary" style="flex:1;padding:10px;font-size:12px;">🔍 Enumerate</button>
+                                        </div>
+                                        <div id="st-sec-enum-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;max-height:120px;overflow-y:auto;"></div>
+                                    </div>
+                                </div>
+
+                            <!-- Promo code -->
                                 <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
                                     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🎟️ Promo Code</div>
                                     <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -1785,6 +1818,9 @@ function buildUI() {
     document.getElementById('st-daily-btn').addEventListener('click', () => claimDailyChest(false));
     document.getElementById('st-daily-toggle').addEventListener('click', toggleDailyAuto);
     document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
+    document.getElementById('st-sec-trade-accept')?.addEventListener('click', () => testTradeOwnership('accept'));
+    document.getElementById('st-sec-trade-decline')?.addEventListener('click', () => testTradeOwnership('decline'));
+    document.getElementById('st-sec-enum-btn')?.addEventListener('click', enumerateTradeIds);
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-obc-btn').addEventListener('click', upgradeToOBC);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
