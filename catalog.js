@@ -1,6 +1,10 @@
 // ─── Catalog State ────────────────────────────────────────────────────────
 let catalogItems    = [];
-let catalogPage     = 1;
+let catalogCursor   = '';      // empty = first page
+let catalogNextCursor = '';
+let catalogPrevCursor = '';
+let catalogTotal    = 0;
+let catalogPageNum  = 1;
 let catalogLoading  = false;
 let catalogCategory = 'Featured';
 let catalogSort     = '0';
@@ -14,28 +18,31 @@ const ASSET_TYPE_NAMES = {
 };
 
 // ─── Fetch one page from API ──────────────────────────────────────────────
-async function fetchCatalogPage(page, category, sortType, keyword) {
-    // Step 1: get IDs from search endpoint
+async function fetchCatalogPage(cursor, category, sortType, keyword) {
+    // Step 1: search returns only IDs + pagination cursors
     let url = BASE + '/apisite/catalog/v1/search/items'
         + '?category=' + encodeURIComponent(category)
         + '&limit=' + CATALOG_PAGE_SIZE
         + '&sortType=' + sortType
-        + '&page=' + page
         + '&_=' + Date.now();
+    if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
     if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
     const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
-    const searchData = j.data || [];
+    catalogNextCursor = j.nextPageCursor || '';
+    catalogPrevCursor = j.previousPageCursor || '';
+    catalogTotal      = j._total || 0;
+    const searchData  = j.data || [];
     if (!searchData.length) return [];
 
-    // Step 2: fetch full details using the IDs
-    const items = searchData.map(x => ({ itemType: 'Asset', id: x.id || x }));
+    // Step 2: POST IDs to details endpoint to get full item data
+    const ids = searchData.map(x => ({ itemType: x.itemType || 'Asset', id: x.id }));
     const dr = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items: ids }),
     });
     if (!dr.ok) throw new Error('Details HTTP ' + dr.status);
     const dj = await dr.json();
@@ -262,12 +269,13 @@ async function buyForSessionRaw(assetId, payload) {
 
 // ─── Render catalog list ──────────────────────────────────────────────────
 function renderCatalogList() {
-    catalogPage   = 1;
-    catalogSearch = document.getElementById('st-cat-search')?.value?.trim() || '';
-    loadCatalogPage(true);
+    catalogCursor  = '';
+    catalogPageNum = 1;
+    catalogSearch  = document.getElementById('st-cat-search')?.value?.trim() || '';
+    loadCatalogPage();
 }
 
-async function loadCatalogPage(reset) {
+async function loadCatalogPage() {
     if (catalogLoading) return;
     catalogLoading = true;
 
@@ -278,7 +286,7 @@ async function loadCatalogPage(reset) {
     const pageDisp = document.getElementById('st-cat-page');
     if (!listEl) { catalogLoading = false; return; }
 
-    // Show skeletons
+    // Skeletons
     listEl.innerHTML = Array.from({length: 5}, (_, i) => `
         <li class="st-cat-card" style="opacity:${1-i*0.15};">
             <div class="st-skel" style="width:38px;height:38px;border-radius:9px;flex-shrink:0;"></div>
@@ -289,12 +297,12 @@ async function loadCatalogPage(reset) {
             <div class="st-skel" style="width:60px;height:22px;border-radius:6px;"></div>
             <div class="st-skel" style="width:70px;height:36px;border-radius:9px;"></div>
         </li>`).join('');
-    if (countEl) countEl.innerHTML = '<span style="color:var(--c-text3);font-size:11px;">Loading page ' + catalogPage + '…</span>';
+    if (countEl) countEl.innerHTML = '<span style="color:var(--c-text3);font-size:11px;">Loading…</span>';
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
 
     try {
-        const items = await fetchCatalogPage(catalogPage, catalogCategory, catalogSort, catalogSearch);
+        const items = await fetchCatalogPage(catalogCursor, catalogCategory, catalogSort, catalogSearch);
         catalogItems = items;
         listEl.innerHTML = '';
 
@@ -302,13 +310,16 @@ async function loadCatalogPage(reset) {
             listEl.innerHTML = '<li style="padding:24px;text-align:center;color:var(--c-text3);font-size:12px;list-style:none;">No items found</li>';
             if (countEl) countEl.innerHTML = '<span style="color:var(--c-text3);font-size:11px;">No items</span>';
         } else {
-            if (countEl) countEl.innerHTML = `<span style="color:var(--c-accent);font-weight:700;">${items.length}</span><span style="color:var(--c-text3);font-size:11px;"> items</span>`;
+            const totalStr = catalogTotal > 0 ? ' of ' + catalogTotal.toLocaleString() : '';
+            if (countEl) countEl.innerHTML =
+                `<span style="color:var(--c-accent);font-weight:700;">${items.length}</span>`
+                + `<span style="color:var(--c-text3);font-size:11px;"> items${totalStr}</span>`;
             items.forEach(item => listEl.appendChild(buildCatalogCard(item)));
         }
 
-        if (pageDisp) pageDisp.textContent = 'Page ' + catalogPage;
-        if (prevBtn) prevBtn.disabled = catalogPage <= 1;
-        if (nextBtn) nextBtn.disabled = items.length < CATALOG_PAGE_SIZE;
+        if (pageDisp) pageDisp.textContent = 'Page ' + catalogPageNum;
+        if (prevBtn) prevBtn.disabled = catalogPageNum <= 1;
+        if (nextBtn) nextBtn.disabled = !catalogNextCursor;
 
     } catch(e) {
         listEl.innerHTML = '<li style="padding:24px;text-align:center;color:var(--c-err);font-size:12px;list-style:none;">Failed to load: ' + e.message + '</li>';
