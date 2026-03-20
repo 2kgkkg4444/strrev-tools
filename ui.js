@@ -1291,12 +1291,8 @@ function buildUI() {
                                 </div>
                                 <div class="st-snip-sep"></div>
                                 <div class="st-toggle-row">
-                                    <span class="st-snip-label">Limiteds</span>
-                                    <div id="st-snip-limiteds" class="st-toggle-track" title="Only snipe items with Limited restriction"><div class="st-toggle-thumb"></div></div>
-                                </div>
-                                <div class="st-toggle-row">
-                                    <span class="st-snip-label">LimitedU</span>
-                                    <div id="st-snip-limitedu" class="st-toggle-track" title="Only snipe LimitedUnique items"><div class="st-toggle-thumb"></div></div>
+                                    <span class="st-snip-label">Only Limiteds</span>
+                                    <div id="st-snip-limiteds" class="st-toggle-track" title="Only snipe Limited and LimitedUnique items"><div class="st-toggle-thumb"></div></div>
                                 </div>
                                 <div class="st-snip-sep"></div>
                                 <div class="st-toggle-row">
@@ -1754,7 +1750,6 @@ function wireSniperSettings() {
     });
     // Toggles
     wireToggle('st-snip-limiteds',   'limitedsOnly');
-    wireToggle('st-snip-limitedu',   'limitedUsOnly');
     wireToggle('st-snip-robux-only', 'robuxOnly');
     wireToggle('st-snip-tix-only',   'tixOnly');
 }
