@@ -213,54 +213,60 @@ function dispatchOne(signal) {
     if (!sniperActive || signal.aborted) return;
     inFlight++;
     const t0 = performance.now();
-    fetch(CATALOG_API+'&_='+Date.now(), { credentials:'include', cache:'no-store', signal })
-        .then(r => r.json())
-        .then(async json => {
+    // Use GM_xmlhttpRequest to bypass browser's per-domain connection limit (max 6)
+    // This lets us truly saturate with MAX_INFLIGHT parallel requests
+    GM_xmlhttpRequest({
+        method: 'GET',
+        url: CATALOG_API + '&_=' + Date.now(),
+        headers: { 'Accept': 'application/json' },
+        onload: async (r) => {
             if (!sniperActive || signal.aborted) { inFlight--; return; }
             recordRtt(performance.now() - t0);
             checkCount++; cpsCount++; inFlight--;
+            let json;
+            try { json = JSON.parse(r.responseText); } catch(_) { return; }
             const d = json.data;
-            if (d) {
-                for (let i = 0; i < d.length; i++) {
-                    const item = d[i];
-                    if (!sniperBlacklist[item.id]) {
-                        // Apply user filters before committing to a snipe
-                        if (!itemPassesFilters(item)) {
-                            // Add to blacklist so we don't re-evaluate this item on next poll
-                            sniperBlacklist[item.id] = true;
-                            continue;
-                        }
-                        sniperActive = false; abortCtrl.abort();
-                        clearInterval(dispatchTimer); clearInterval(cpsTimer);
-                        dispatchTimer = null;
-                        GM_setValue('sniperActive', false);
-                        await onSniperHit({
-                            id:              item.id,
-                            assetId:         String(item.id),
-                            name:            item.name || 'Item #'+item.id,
-                            price:           item.lowestPrice ?? item.price ?? 0,
-                            currency:        item.priceTickets ? 2 : 1,
-                            sellerId:        item.creatorTargetId || null,
-                            itemRestrictions: item.itemRestrictions || [],
-                            priceTickets:    item.priceTickets ?? null,
-                        });
-                        return;
-                    }
+            if (!d) return;
+            for (let i = 0; i < d.length; i++) {
+                const item = d[i];
+                // Fast path: skip if ID is known
+                if (sniperBlacklist[item.id]) continue;
+                // Quick ID check — if it's lower than max seen, likely not new
+                if (item.id <= sniperMaxSeenId && sniperMaxSeenId > 0) {
+                    sniperBlacklist[item.id] = true;
+                    continue;
                 }
+                if (!itemPassesFilters(item)) {
+                    sniperBlacklist[item.id] = true;
+                    continue;
+                }
+                sniperActive = false; abortCtrl.abort();
+                clearInterval(dispatchTimer); clearInterval(cpsTimer);
+                dispatchTimer = null;
+                GM_setValue('sniperActive', false);
+                await onSniperHit({
+                    id:               item.id,
+                    assetId:          String(item.id),
+                    name:             item.name || 'Item #' + item.id,
+                    price:            item.lowestPrice ?? item.price ?? 0,
+                    currency:         item.priceTickets ? 2 : 1,
+                    sellerId:         item.creatorTargetId || null,
+                    itemRestrictions: item.itemRestrictions || [],
+                    priceTickets:     item.priceTickets ?? null,
+                });
+                return;
             }
-        })
-        .catch(e => {
-            inFlight--;
-            if (!sniperActive || signal.aborted || e.name === 'AbortError') return;
-            log('Fetch err: '+e.message, 'err');
-        });
+        },
+        onerror: () => { inFlight--; },
+        onabort: () => { inFlight--; },
+    });
 }
 
 function startDispatch() {
     if (typeof showSniperPill === 'function') showSniperPill();
     abortCtrl   = new AbortController();
     const signal = abortCtrl.signal;
-    concurrency = 3; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
+    concurrency = MAX_INFLIGHT; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
     dispatchTimer = setInterval(() => {
         if (!sniperActive) { clearInterval(dispatchTimer); return; }
         if (inFlight < concurrency) dispatchOne(signal);
@@ -384,11 +390,17 @@ function loadUpdateSniperSettings() {
 }
 
 async function fetchAllCatalogItems() {
-    // Fetch page 1 details for the update sniper check
-    const r = await fetch(CATALOG_API + '&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
-    if (!r.ok) return [];
-    const j = await r.json();
-    return j.data || [];
+    // Fetch 3 pages in parallel for better coverage
+    const urls = [0, 1, 2].map(p => CATALOG_API + '&_=' + Date.now() + '&page=' + p);
+    const results = await Promise.all(urls.map(url =>
+        fetch(url, { credentials: 'include', cache: 'no-store' })
+            .then(r => r.json())
+            .then(j => j.data || [])
+            .catch(() => [])
+    ));
+    // Deduplicate by id
+    const seen = {};
+    return results.flat().filter(item => seen[item.id] ? false : (seen[item.id] = true));
 }
 
 async function runUpdateSniperCheck() {
@@ -482,7 +494,7 @@ function startUpdateSniper() {
     updateSniperActive = true;
     updatePriceMap = {};
     // Poll every 5 seconds
-    updateSniperTimer = setInterval(runUpdateSniperCheck, 5000);
+    updateSniperTimer = setInterval(runUpdateSniperCheck, 2000);
     runUpdateSniperCheck(); // immediate first check
     log('📡 Update Sniper started (price drop: ' + updateSniperSettings.priceDropPercent + '%, resale: ' + updateSniperSettings.resaleEnabled + ')', 'success');
     setUpdateSniperStatus(true);
@@ -523,7 +535,7 @@ let redirectSniperSeenIds = {};   // id → { price, isForSale }
 let redirectSniperSettings = {
     redirectNew:     true,   // redirect on new items
     redirectUpdated: false,  // redirect on price changes
-    intervalMs:      2000,
+    intervalMs:      1000,
 };
 
 function saveRedirectSniperSettings() {
