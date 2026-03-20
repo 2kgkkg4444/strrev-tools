@@ -274,12 +274,13 @@ async function lookupUserProfile() {
         const uid = target.id;
         if (status) status.textContent = 'Fetching profile data…';
 
-        // Fetch all data in parallel — leaderboard for RAP/value, no currency
-        const [profileR, leaderboardR, inventoryR, friendsR, thumbR, onlineR, memberR] = await Promise.all([
+        const safeJson = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
+
+        // Fetch basic data first
+        const [profileR, leaderboardR, friendsCountR, thumbR, onlineR, memberR] = await Promise.all([
             sessFetch(BASE + '/apisite/users/v1/users/' + uid),
             sessFetch(BASE + '/internal/leaderboard?sort=rap'),
-            sessFetch(BASE + '/apisite/inventory/v1/users/' + uid + '/assets/collectibles?limit=10'),
-            sessFetch(BASE + '/apisite/friends/v1/users/' + uid + '/friends?limit=5'),
+            sessFetch(BASE + '/apisite/friends/v1/users/' + uid + '/friends/count'),
             sessFetch(BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + uid + '&size=150x150&format=Png&isCircular=false'),
             sessFetch(BASE + '/apisite/presence/v1/presence/users', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -288,42 +289,35 @@ async function lookupUserProfile() {
             sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
         ]);
 
-        const safeJson = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
+        const profile = profileR.ok ? await safeJson(profileR) : {};
+        const thumb   = thumbR.ok   ? await safeJson(thumbR)   : {};
+        const online  = onlineR.ok  ? await safeJson(onlineR)  : {};
+        const friendsCountJ = friendsCountR.ok ? await safeJson(friendsCountR) : {};
 
-        const profile    = profileR.ok    ? await safeJson(profileR)   : {};
-        // Leaderboard returns HTML — scrape it
-        let lbData = null;
+        // Leaderboard — scrape HTML
+        let lbData = [];
         if (leaderboardR.ok) {
             try {
                 const html = await leaderboardR.text();
                 const rows = [...html.matchAll(/collectibles\?userId=(\d+)[^>]*>\s*([^<]+)<\/a[\s\S]*?lb-val-rap[^>]*>R\$\s*([\d,]+)[\s\S]*?lb-val-value[^>]*>R\$\s*([\d,]+)/g)];
                 lbData = rows.map((m, i) => ({
-                    id:    m[1].trim(),
-                    name:  m[2].trim(),
-                    rap:   parseInt(m[3].replace(/,/g, '')),
-                    value: parseInt(m[4].replace(/,/g, '')),
-                    rank:  i + 1,
+                    id: m[1].trim(), name: m[2].trim(),
+                    rap: parseInt(m[3].replace(/,/g,'')),
+                    value: parseInt(m[4].replace(/,/g,'')),
+                    rank: i + 1,
                 }));
-            } catch(_) { lbData = []; }
+            } catch(_) {}
         }
-        const inventory  = inventoryR.ok  ? await safeJson(inventoryR)  : {};
-        const friends    = friendsR.ok    ? await safeJson(friendsR)    : {};
-        const thumb      = thumbR.ok      ? await safeJson(thumbR)      : {};
-        const online     = onlineR.ok     ? await safeJson(onlineR)     : {};
-
-        // Find this user in the leaderboard by ID or name
-        const lbUsers  = Array.isArray(lbData) ? lbData : [];
-        const lbEntry  = lbUsers.find(u => String(u.id) === String(uid) || u.name === (profile.name || target.name));
-        const rap      = lbEntry?.rap   ?? null;
-        const value    = lbEntry?.value ?? null;
-        const lbRank   = lbEntry?.rank  ?? null;
+        const lbEntry = lbData.find(u => String(u.id) === String(uid) || u.name === (profile.name || target.name));
+        const rap     = lbEntry?.rap   ?? null;
+        const value   = lbEntry?.value ?? null;
+        const lbRank  = lbEntry?.rank  ?? null;
 
         const avatar     = thumb.data?.[0]?.imageUrl || null;
         const presence   = online.userPresences?.[0] || online.data?.[0] || {};
         const lastOnline = presence.lastOnline || presence.lastSeen || null;
         const isOnline   = presence.userPresenceType === 1 || presence.online === true;
-        const items      = inventory.data || [];
-        const friendList = friends.data || [];
+        const friendCount = friendsCountJ.count ?? friendsCountJ.data?.count ?? null;
 
         const tierMap = { 0:'None', 1:'BuildersClub', 2:'TurboBuildersClub', 3:'OutrageousBuildersClub' };
         const mColors = {
@@ -337,24 +331,23 @@ async function lookupUserProfile() {
 
         if (status) status.textContent = '';
 
-        // ── Build result card ─────────────────────────────────────────────
         const el = document.getElementById('st-lookup-result');
         if (!el) return;
 
         const joinedYear  = profile.created ? new Date(profile.created).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric' }) : '—';
         const onlineColor = isOnline ? '#22c55e' : '#475569';
-        const onlineLabel = isOnline ? '🟢 Online' : (lastOnline ? '⚫ Last seen ' + new Date(lastOnline).toLocaleDateString() : '⚫ Offline');
-        const rapStr      = rap   != null ? 'R$' + Number(rap).toLocaleString()   : '—';
-        const valueStr    = value != null ? 'R$' + Number(value).toLocaleString() : '—';
-        const rankStr     = lbRank != null ? '#' + lbRank : '—';
+        const lastOnlineStr = isOnline ? '🟢 Online now' : lastOnline ? '⚫ Last seen ' + new Date(lastOnline).toLocaleDateString('en', {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '⚫ Offline';
+        const rapStr   = rap   != null ? 'R$' + Number(rap).toLocaleString()   : '—';
+        const valueStr = value != null ? 'R$' + Number(value).toLocaleString() : '—';
+        const rankStr  = lbRank != null ? '#' + lbRank : 'N/A';
 
         el.innerHTML = '';
 
-        // Header
+        // Header card
         const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;gap:14px;padding:16px;background:var(--c-bg2);border-radius:12px;margin-bottom:14px;';
+        header.style.cssText = 'display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:14px;margin-bottom:12px;';
         header.innerHTML = `
-            <div style="width:56px;height:56px;border-radius:12px;overflow:hidden;background:var(--c-bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;">
+            <div style="width:60px;height:60px;border-radius:12px;overflow:hidden;background:var(--c-bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px;">
                 ${avatar ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='👤'">` : '👤'}
             </div>
             <div style="flex:1;min-width:0;">
@@ -363,19 +356,19 @@ async function lookupUserProfile() {
                     ${profile.displayName && profile.displayName !== profile.name ? `<span style="font-size:11px;color:var(--c-text4);">(${profile.displayName})</span>` : ''}
                     <span style="font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;background:${mc.bg};border:1px solid ${mc.border};color:${mc.text};">${mc.label}</span>
                 </div>
-                <div style="font-size:11px;color:${onlineColor};margin-bottom:3px;">${onlineLabel}</div>
+                <div style="font-size:11px;color:${onlineColor};margin-bottom:3px;">${lastOnlineStr}</div>
                 <div style="font-size:10px;color:var(--c-text4);">ID: ${uid} · Joined ${joinedYear}</div>
             </div>`;
         el.appendChild(header);
 
-        // Stats row — RAP, Value, Friends
+        // Stats row — 4 cards
         const stats = document.createElement('div');
-        stats.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;';
+        stats.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;';
         [
-            { label:'RAP',     value: rapStr,   color:'#f97316' },
-            { label:'Value',   value: valueStr, color:'#a855f7' },
-            { label:'LB Rank', value: rankStr,  color:'#eab308' },
-            { label:'Friends', value: friendList.length > 0 ? String(friendList.length) + (friendList.length === 5 ? '+' : '') : '—', color:'#60a5fa' },
+            { label:'RAP',     value: rapStr,                                                    color:'#f97316' },
+            { label:'Value',   value: valueStr,                                                  color:'#a855f7' },
+            { label:'LB Rank', value: rankStr,                                                   color:'#eab308' },
+            { label:'Friends', value: friendCount != null ? String(friendCount) : '—',           color:'#60a5fa' },
         ].forEach(({ label, value, color }) => {
             const s = document.createElement('div');
             s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;padding:12px 14px;';
@@ -387,26 +380,44 @@ async function lookupUserProfile() {
         // Description
         if (profile.description) {
             const desc = document.createElement('div');
-            desc.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:11px;color:var(--c-text2);line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:80px;overflow-y:auto;';
+            desc.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:11px;color:var(--c-text2);line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:70px;overflow-y:auto;';
             desc.textContent = profile.description;
             el.appendChild(desc);
         }
 
-        // Collectibles
-        if (items.length) {
+        // Inventory — fetch ALL pages then display
+        if (status) status.textContent = 'Loading full inventory…';
+        const allItems = await fetchInventoryAllPages(-1, uid);
+        if (status) status.textContent = '';
+
+        if (allItems.length) {
             const invHdr = document.createElement('div');
-            invHdr.style.cssText = 'font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:8px;';
-            invHdr.textContent = '💎 Collectibles';
+            invHdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
+            invHdr.innerHTML = `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">💎 Collectibles (${allItems.length})</span>`;
             el.appendChild(invHdr);
             const invGrid = document.createElement('div');
-            invGrid.style.cssText = 'display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto;';
-            items.forEach(item => {
+            invGrid.style.cssText = 'display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;';
+            allItems.forEach(item => {
+                const isTix = item.priceTickets > 0;
+                const price = item.recentAveragePrice || item.price || 0;
+                const priceStr = price > 0 ? (isTix ? 'T$' : 'R$') + Number(price).toLocaleString() : '';
+                const rapItemStr = item.recentAveragePrice ? 'RAP: R$' + Number(item.recentAveragePrice).toLocaleString() : '';
                 const row = document.createElement('div');
-                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:8px;';
-                row.innerHTML = `<span style="font-size:11px;color:var(--c-text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${item.name || 'Item #' + item.assetId}</span><span style="font-size:10px;color:#f59e0b;font-family:'Fira Code',monospace;flex-shrink:0;margin-left:8px;">${item.recentAveragePrice ? 'RAP: R$' + item.recentAveragePrice.toLocaleString() : ''}</span>`;
+                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 11px;background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:8px;';
+                row.innerHTML = `
+                    <span style="font-size:11px;color:var(--c-text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">${item.name || 'Item #' + item.assetId}</span>
+                    <div style="display:flex;gap:8px;flex-shrink:0;margin-left:8px;">
+                        ${rapItemStr ? `<span style="font-size:10px;color:#f97316;font-family:'Fira Code',monospace;">${rapItemStr}</span>` : ''}
+                        ${priceStr   ? `<span style="font-size:10px;color:#eab308;font-family:'Fira Code',monospace;">${priceStr}</span>`   : ''}
+                    </div>`;
                 invGrid.appendChild(row);
             });
             el.appendChild(invGrid);
+        } else {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'text-align:center;padding:14px;color:var(--c-text4);font-size:11px;background:var(--c-bg2);border-radius:10px;border:1px solid var(--c-border2);';
+            empty.textContent = 'No collectibles found';
+            el.appendChild(empty);
         }
 
         log('✓ Looked up: ' + (profile.name || target.name) + ' (ID: ' + uid + ')', 'success');
