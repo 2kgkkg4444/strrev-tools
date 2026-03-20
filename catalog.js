@@ -105,7 +105,23 @@ function buildCatalogCard(item) {
               : isTix    ? 'rgba(234,179,8,0.12)'
               : isFree   ? 'rgba(34,197,94,0.12)'
               :             'rgba(249,115,22,0.12)';
-    const icon = isLimitedU ? '💎' : isLimited ? '🔒' : isTix ? '🪙' : isFree ? '🎁' : '🛒';
+    // Icon based on asset type for variety
+    const assetIcons = {
+        8:'🎩',   // Hat
+        18:'😊',  // Face
+        19:'⚔️',  // Gear
+        42:'🕶️',  // Glasses
+        43:'👔',  // Neck
+        44:'🦜',  // Shoulder
+        45:'🎗️',  // Front
+        46:'🎒',  // Back
+        47:'🪢',  // Waist
+        27:'👕',  // Torso
+        28:'🦾',  // Arm
+        29:'🦿',  // Leg
+        30:'👤',  // Head
+    };
+    const icon = isLimitedU ? '💎' : isLimited ? '🏅' : assetIcons[item.assetType] || (isTix ? '🪙' : isFree ? '🎁' : '🛍️');
 
     const li = document.createElement('li');
     li.className = 'st-cat-card';
