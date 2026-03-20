@@ -36,27 +36,40 @@ async function fetchCatalogPage(cursor, category, sortType, keyword) {
     const searchData  = j.data || [];
     if (!searchData.length) return [];
 
-    // Step 2: POST IDs to details endpoint with CSRF retry pattern
+    // Step 2: POST IDs to details endpoint
+    // Try without CSRF first (GET-like semantics on some platforms),
+    // then retry with token from the 403 response header if needed
     const ids = searchData.map(x => ({ itemType: x.itemType || 'Asset', id: x.id }));
     const detailsBody = JSON.stringify({ items: ids });
-    const doDetailsReq = async (token) => fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
+    const doDetailsReq = (token) => fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...(token ? { 'x-csrf-token': token } : {}) },
         body: detailsBody,
     });
-    let dr = await doDetailsReq(sessionCsrf);
-    if (dr.status === 403) {
-        // Grab fresh token from response header and retry
-        const fresh = dr.headers.get('x-csrf-token');
-        if (fresh) { sessionCsrf = fresh; dr = await doDetailsReq(fresh); }
-        else {
-            // Fallback: fetch token from purchases endpoint
-            await fetchSessionCsrf();
-            dr = await doDetailsReq(sessionCsrf);
+    // First try: no token
+    let dr = await doDetailsReq(null);
+    if (dr.status === 403 || dr.status === 401) {
+        // Get fresh token from the 403 header itself
+        const fromHeader = dr.headers.get('x-csrf-token');
+        if (fromHeader) {
+            sessionCsrf = fromHeader;
+            dr = await doDetailsReq(fromHeader);
+        } else {
+            // Fallback: send a dummy POST to get token, then retry
+            const probe = await fetch(BASE + '/apisite/economy/v1/purchases/products/0', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': '' },
+                body: '{}',
+            });
+            const t = probe.headers.get('x-csrf-token');
+            if (t) { sessionCsrf = t; dr = await doDetailsReq(t); }
         }
     }
-    if (!dr.ok) throw new Error('Details HTTP ' + dr.status);
+    if (!dr.ok) {
+        const errText = await dr.text().catch(()=>'');
+        throw new Error('Details HTTP ' + dr.status + (errText ? ': ' + errText.slice(0,80) : ''));
+    }
     const dj = await dr.json();
     return dj.data || [];
 }
