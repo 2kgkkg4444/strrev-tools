@@ -527,3 +527,68 @@ async function upgradeToOBC() {
         if (btn) { btn.innerHTML = '👑 Set Membership'; btn.disabled = false; }
     }
 }
+
+// ─── Daily Chest Race Condition Test ─────────────────────────────────────
+async function testDailyRace() {
+    const btn = document.getElementById('st-daily-race-btn');
+    const statusEl = document.getElementById('st-daily-race-status');
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Testing...'; btn.disabled = true; }
+    if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = 'Firing 10 simultaneous requests...'; statusEl.style.color = 'var(--c-warn)'; }
+
+    const RACE_COUNT = 10;
+    const acctIdx = selectedAcctIdx === -2 ? (accounts.length > 0 ? 0 : -1) : selectedAcctIdx;
+    const label = acctIdx === -1 ? 'Session' : (accounts[acctIdx]?.username || 'Account');
+
+    log('🧪 Race test: firing ' + RACE_COUNT + ' simultaneous daily claims as ' + label, 'info');
+
+    try {
+        if (acctIdx < 0) await fetchSessionCsrf();
+
+        const makeReq = () => acctIdx >= 0
+            ? acctFetch(acctIdx, DAILY_OPEN_URL, { method: 'POST', body: '{}' })
+            : sessFetch(DAILY_OPEN_URL, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
+                body: '{}',
+            });
+
+        const responses = await Promise.all(Array.from({ length: RACE_COUNT }, () => makeReq()));
+
+        let successCount = 0, failCount = 0, totalReward = 0, rewardType = '';
+        const results = [];
+
+        for (let i = 0; i < responses.length; i++) {
+            let d = {};
+            try { d = await responses[i].json(); } catch(_) {}
+            if (responses[i].ok && d.success) {
+                successCount++;
+                totalReward += d.amount || 0;
+                rewardType = d.currencyType || rewardType;
+                results.push('✓ #' + (i+1) + ': +' + (d.amount || '?'));
+                log('✓ Request #' + (i+1) + ' succeeded: ' + (d.currencyType||'') + ' +' + (d.amount||'?'), 'success');
+            } else {
+                failCount++;
+                const msg = d.message || d.errorMessage || 'HTTP ' + responses[i].status;
+                results.push('✕ #' + (i+1) + ': ' + msg.slice(0,30));
+                log('✕ Request #' + (i+1) + ' failed: ' + msg, 'err');
+            }
+        }
+
+        const summary = successCount > 1
+            ? '🎉 RACE WIN! ' + successCount + '/' + RACE_COUNT + ' succeeded — got ' + rewardType + ' +' + totalReward + ' total!'
+            : successCount === 1
+            ? '✓ Server protected — only 1/' + RACE_COUNT + ' succeeded'
+            : '✕ All failed — chest not ready or error';
+
+        log('🧪 Race result: ' + summary, successCount > 1 ? 'success' : 'warn');
+        if (statusEl) {
+            statusEl.textContent = summary;
+            statusEl.style.color = successCount > 1 ? 'var(--c-success)' : successCount === 1 ? 'var(--c-warn)' : 'var(--c-err)';
+        }
+    } catch(e) {
+        log('🧪 Race test error: ' + e.message, 'err');
+        if (statusEl) { statusEl.textContent = '✕ Error: ' + e.message; statusEl.style.color = 'var(--c-err)'; }
+    }
+
+    if (btn) { btn.innerHTML = '🧪 Test Daily Security'; btn.disabled = false; }
+}
