@@ -285,7 +285,7 @@ async function lookupUserProfile() {
             sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
             sessFetch(BASE + '/apisite/presence/v1/presence/users', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userIds: [parseInt(uid)] }),
+                body: JSON.stringify({ userIds: [String(uid)] }),
             }),
         ]);
 
@@ -319,8 +319,8 @@ async function lookupUserProfile() {
         const friendsList   = friendsJ.data || [];
         const friendCount   = friendsList.length;
         const onlineFriends = friendsList.filter(f => f.isOnline).length;
-        const presence      = presenceJ.userPresences?.[0] || {};
-        const isOnline      = presence.userPresenceType === 'Online';
+        const presence      = (presenceJ.userPresences || []).find(p => String(p.userId) === String(uid)) || presenceJ.userPresences?.[0] || {};
+        const isOnline      = presence.userPresenceType === 'Online' || presence.userPresenceType === 'InGame';
         const lastOnline    = presence.lastOnline || null;
 
         const tierMap = { 0:'None', 1:'BuildersClub', 2:'TurboBuildersClub', 3:'OutrageousBuildersClub' };
