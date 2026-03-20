@@ -34,6 +34,17 @@ let sniperSettings = {
     tixOnly:       false,
 };
 let sniperBlacklist = {};
+let sniperMaxSeenId = 0;  // track highest item ID seen — new items have higher IDs
+
+// Update sniper state
+let updateSniperActive  = false;
+let updateSniperTimer   = null;
+let updatePriceMap      = {};  // id → { lowestPrice, isForSale }
+let updateSniperSettings = {
+    priceDropEnabled:  false,
+    priceDropPercent:  10,    // alert when price drops by this % or more
+    resaleEnabled:     false, // alert when off-sale item comes back on sale
+};
 let checkCount      = 0;
 let domPending      = false;
 let dispatchTimer   = null;
