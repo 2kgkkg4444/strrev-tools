@@ -379,24 +379,28 @@ async function lookupUserProfile() {
             sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
         ]);
 
-        const profile    = profileR.ok    ? await profileR.json()    : {};
+        const safeJson = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
+
+        const profile    = profileR.ok    ? await safeJson(profileR)   : {};
         // Leaderboard returns HTML — scrape it
         let lbData = null;
         if (leaderboardR.ok) {
-            const html = await leaderboardR.text();
-            const rows = [...html.matchAll(/collectibles\?userId=(\d+)[^>]*>([^<]+)<\/a[\s\S]*?lb-val-rap[^>]*>(R\$\s*[\d,]+)[\s\S]*?lb-val-value[^>]*>(R\$\s*[\d,]+)/g)];
-            lbData = rows.map((m, i) => ({
-                id:    m[1],
-                name:  m[2].trim(),
-                rap:   parseInt(m[3].replace(/[R$,\s]/g, '')),
-                value: parseInt(m[4].replace(/[R$,\s]/g, '')),
-                rank:  i + 1,
-            }));
+            try {
+                const html = await leaderboardR.text();
+                const rows = [...html.matchAll(/collectibles\?userId=(\d+)[^>]*>\s*([^<]+)<\/a[\s\S]*?lb-val-rap[^>]*>R\$\s*([\d,]+)[\s\S]*?lb-val-value[^>]*>R\$\s*([\d,]+)/g)];
+                lbData = rows.map((m, i) => ({
+                    id:    m[1].trim(),
+                    name:  m[2].trim(),
+                    rap:   parseInt(m[3].replace(/,/g, '')),
+                    value: parseInt(m[4].replace(/,/g, '')),
+                    rank:  i + 1,
+                }));
+            } catch(_) { lbData = []; }
         }
-        const inventory  = inventoryR.ok  ? await inventoryR.json()  : {};
-        const friends    = friendsR.ok    ? await friendsR.json()    : {};
-        const thumb      = thumbR.ok      ? await thumbR.json()       : {};
-        const online     = onlineR.ok     ? await onlineR.json()      : {};
+        const inventory  = inventoryR.ok  ? await safeJson(inventoryR)  : {};
+        const friends    = friendsR.ok    ? await safeJson(friendsR)    : {};
+        const thumb      = thumbR.ok      ? await safeJson(thumbR)      : {};
+        const online     = onlineR.ok     ? await safeJson(onlineR)     : {};
 
         // Find this user in the leaderboard by ID or name
         const lbUsers  = Array.isArray(lbData) ? lbData : [];
