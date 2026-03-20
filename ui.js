@@ -1829,6 +1829,8 @@ function init() {
     loadAccounts();
     injectStyles();
     buildUI();
+    // Auto-detect and add the currently logged-in session account
+    setTimeout(autoAddSessionAccount, 800);
     loadSniperSettings();
     resumeAutoAccepts();
     loadUpdateSniperSettings();
