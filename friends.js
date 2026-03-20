@@ -3,13 +3,14 @@
 async function lookupFriendTarget(input) {
     input = input.trim();
     const idx = selectedAcctIdx >= 0 ? selectedAcctIdx : (accounts.length > 0 ? 0 : -1);
+    const safeJ = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
     let r;
     if (/^\d+$/.test(input)) {
         r = idx >= 0
             ? await acctFetch(idx, BASE+'/apisite/users/v1/users/'+input)
             : await sessFetch(BASE+'/apisite/users/v1/users/'+input);
         if (!r.ok) throw new Error('User ID '+input+' not found');
-        const j = await r.json(); return { id: String(j.id), name: j.name||j.displayName||'User '+input };
+        const j = await safeJ(r); return { id: String(j.id), name: j.name||j.displayName||'User '+input };
     }
     const body = JSON.stringify({ usernames:[input], excludeBannedUsers:false });
     if (idx < 0) await fetchSessionCsrf();
@@ -20,7 +21,7 @@ async function lookupFriendTarget(input) {
               headers:{'Content-Type':'application/json','x-csrf-token':sessionCsrf},
               body,
           });
-    const j = await r.json();
+    const j = await safeJ(r);
     const u = j.data?.[0]; if (!u) throw new Error('Username "'+input+'" not found');
     return { id: String(u.id), name: u.name };
 }
