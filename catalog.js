@@ -36,15 +36,26 @@ async function fetchCatalogPage(cursor, category, sortType, keyword) {
     const searchData  = j.data || [];
     if (!searchData.length) return [];
 
-    // Step 2: POST IDs to details endpoint — needs CSRF token
+    // Step 2: POST IDs to details endpoint with CSRF retry pattern
     const ids = searchData.map(x => ({ itemType: x.itemType || 'Asset', id: x.id }));
-    await fetchSessionCsrf();
-    const dr = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
+    const detailsBody = JSON.stringify({ items: ids });
+    const doDetailsReq = async (token) => fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
-        body: JSON.stringify({ items: ids }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'x-csrf-token': token } : {}) },
+        body: detailsBody,
     });
+    let dr = await doDetailsReq(sessionCsrf);
+    if (dr.status === 403) {
+        // Grab fresh token from response header and retry
+        const fresh = dr.headers.get('x-csrf-token');
+        if (fresh) { sessionCsrf = fresh; dr = await doDetailsReq(fresh); }
+        else {
+            // Fallback: fetch token from purchases endpoint
+            await fetchSessionCsrf();
+            dr = await doDetailsReq(sessionCsrf);
+        }
+    }
     if (!dr.ok) throw new Error('Details HTTP ' + dr.status);
     const dj = await dr.json();
     return dj.data || [];
