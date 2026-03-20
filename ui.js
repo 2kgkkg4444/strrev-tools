@@ -1754,8 +1754,6 @@ function buildUI() {
     document.getElementById('st-trade-input').addEventListener('keydown', e => { if(e.key==='Enter') loadTradeTarget(); });
     document.getElementById('st-send-btn').addEventListener('click', sendTradeOffer);
 
-    document.getElementById('st-lookup-btn')?.addEventListener('click', lookupUser_profile);
-    document.getElementById('st-lookup-input')?.addEventListener('keydown', e => { if(e.key==='Enter') lookupUser_profile(); });
     document.getElementById('st-lookup-btn')?.addEventListener('click', lookupUserProfile);
     document.getElementById('st-lookup-input')?.addEventListener('keydown', e => { if(e.key==='Enter') lookupUserProfile(); });
     document.getElementById('st-friend-btn').addEventListener('click', sendFriendRequests);
