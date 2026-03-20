@@ -1,11 +1,11 @@
 // ─── Constants ────────────────────────────────────────────────────────────
 const BASE         = 'https://www.strrev.com';
 const CATALOG_API  = BASE + '/apisite/catalog/v1/search/items?category=Featured&limit=28&sortType=0';
-const DISPATCH_MS  = 50;
-const MAX_INFLIGHT = 6;
-const MIN_INFLIGHT = 1;
-const RTT_WINDOW   = 20;
-const RTT_TARGET   = 200;
+const DISPATCH_MS  = 20;   // fire a new request every 20ms
+const MAX_INFLIGHT = 12;  // up to 12 parallel catalog requests
+const MIN_INFLIGHT = 2;
+const RTT_WINDOW   = 30;
+const RTT_TARGET   = 150; // tighter RTT target
 
 const AUTH_ENDPOINTS = [
     '/apisite/users/v1/users/authenticated',
