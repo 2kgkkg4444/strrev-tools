@@ -358,20 +358,23 @@ async function lookupUserProfile() {
                     ${profile.displayName && profile.displayName !== profile.name ? `<span style="font-size:11px;color:var(--c-text4);">(${profile.displayName})</span>` : ''}
                     <span style="font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;background:${mc.bg};border:1px solid ${mc.border};color:${mc.text};">${mc.label}</span>
                 </div>
-                <div style="font-size:11px;color:${isOnline ? '#22c55e' : '#475569'};margin-bottom:2px;">${isOnline ? '🟢 Online' : lastOnline ? '⚫ Last seen ' + new Date(lastOnline).toLocaleDateString('en',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '⚫ Offline'}</div>
+                <div style="font-size:11px;color:${isOnline ? '#22c55e' : '#475569'};margin-bottom:2px;display:flex;align-items:center;gap:8px;">
+                    <span>${isOnline ? '🟢 Online' : lastOnline ? '⚫ Last seen ' + new Date(lastOnline).toLocaleDateString('en',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '⚫ Offline'}</span>
+                    ${onlineFriends > 0 ? '<span style="font-size:10px;color:#22c55e;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);padding:1px 7px;border-radius:20px;">🟢 ' + onlineFriends + ' friend' + (onlineFriends > 1 ? 's' : '') + ' online</span>' : ''}
+                </div>
                 <div style="font-size:10px;color:var(--c-text4);">ID: ${uid} · Joined ${joinedYear}</div>
             </div>`;
         el.appendChild(header);
 
         // Stats row — 4 cards
         const stats = document.createElement('div');
-        stats.style.cssText = 'display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;';
+        stats.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;';
         [
             { label:'RAP',        value: rapStr,                                              color:'#f97316' },
             { label:'Value',      value: valueStr,                                            color:'#a855f7' },
             { label:'LB Rank',    value: lbRank != null ? '#' + lbRank : 'Unranked',          color: lbRank != null ? '#eab308' : 'var(--c-text4)' },
             { label:'Friends',    value: friendCount > 0 ? String(friendCount) : '0',         color:'#60a5fa' },
-            { label:'Online Now', value: onlineFriends > 0 ? '🟢 ' + onlineFriends : '—',    color:'#22c55e' },
+
         ].forEach(({ label, value, color }) => {
             const s = document.createElement('div');
             s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;padding:12px 14px;';
