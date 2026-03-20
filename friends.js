@@ -279,25 +279,29 @@ async function lookupUserProfile() {
         const safeJson = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
 
         // Fetch all data in parallel
-        const [profileR, leaderboardR, friendsR, thumbR, memberR, presenceR] = await Promise.all([
+        const [profileR, leaderboardR, friendsR, thumbR, memberR] = await Promise.all([
             sessFetch(BASE + '/apisite/users/v1/users/' + uid),
             sessFetch(BASE + '/internal/leaderboard?sort=rap'),
             sessFetch(BASE + '/apisite/friends/v1/users/' + uid + '/friends'),
             sessFetch(BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + uid + '&size=150x150&format=Png&isCircular=false'),
             sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
-            sessFetch(BASE + '/apisite/presence/v1/presence/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf || '' },
-                body: JSON.stringify({ userIds: [String(uid)] }),
-            }),
         ]);
 
         const profile    = profileR.ok   ? await safeJson(profileR)   : {};
         const thumb      = thumbR.ok     ? await safeJson(thumbR)      : {};
         const friendsJ   = friendsR.ok   ? await safeJson(friendsR)    : {};
-        const presRawText = presenceR.ok ? '' : await presenceR.text().catch(()=>'');
-        const presenceJ  = presenceR.ok  ? await safeJson(presenceR)   : {};
-        log('🔍 Presence: status=' + presenceR.status + ' ok=' + presenceR.ok + ' keys=' + Object.keys(presenceJ).join(',') + ' raw=' + presRawText.slice(0,100), 'info');
+
+        // Presence needs fresh CSRF — fetch separately
+        let presenceJ = {};
+        try {
+            await fetchSessionCsrf();
+            const pr = await fetch(BASE + '/apisite/presence/v1/presence/users', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
+                body: JSON.stringify({ userIds: [String(uid)] }),
+            });
+            if (pr.ok) { const t = await pr.text(); presenceJ = JSON.parse(t); }
+        } catch(_) {}
 
         // Leaderboard — scrape HTML, extract actual rank from DOM not array index
         let lbData = [];
