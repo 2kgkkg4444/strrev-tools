@@ -133,64 +133,63 @@ function buildCatalogCard(item) {
         li.style.transform = 'translateY(0)';
     });
 
-    // ── Hover tooltip ──────────────────────────────────────────────────────
-    const tooltip = document.createElement('div');
-    tooltip.style.cssText = [
-        'position:absolute;bottom:calc(100% + 8px);left:0;right:0;',
-        'background:var(--c-bg0);border:1px solid var(--c-border);border-radius:12px;',
-        'padding:12px 14px;z-index:9999;pointer-events:none;',
-        'opacity:0;transform:translateY(4px);',
-        'transition:opacity 0.14s,transform 0.14s;',
-        'box-shadow:0 8px 32px rgba(0,0,0,0.5);',
-    ].join('');
-
-    const rapVal   = item.rap > 0 ? 'R$' + item.rap.toLocaleString() : '—';
-    const saleCount = item.saleCount != null ? item.saleCount.toLocaleString() : '—';
+    // ── Hover tooltip (fixed position, appended to body to escape overflow clipping) ──
+    const rapVal      = item.rap > 0 ? 'R$' + item.rap.toLocaleString() : '—';
+    const saleCount   = item.saleCount != null ? item.saleCount.toLocaleString() : '—';
     const serialCount = item.serialCount != null ? item.serialCount.toLocaleString() : '—';
     const lowestPrice = item.lowestPrice != null ? 'R$' + item.lowestPrice.toLocaleString() : '—';
-    const origPrice = item.price != null ? (item.priceTickets ? 'T$' + item.priceTickets : 'R$' + item.price) : '—';
+    const origPrice   = item.priceTickets != null ? 'T$' + item.priceTickets.toLocaleString() : (item.price != null ? 'R$' + item.price.toLocaleString() : '—');
 
-    // Value change: compare lowestPrice vs rap
     let changeStr = '—', changeColor = 'var(--c-text4)';
     if (item.rap > 0 && item.lowestPrice > 0) {
         const diff = item.lowestPrice - item.rap;
         const pct  = ((diff / item.rap) * 100).toFixed(1);
-        changeStr  = (diff >= 0 ? '+' : '') + 'R$' + diff.toLocaleString() + ' (' + pct + '%)';
+        changeStr  = (diff >= 0 ? '+' : '') + 'R$' + Math.abs(diff).toLocaleString() + ' (' + (diff >= 0 ? '+' : '-') + pct + '%)';
         changeColor = diff >= 0 ? '#22c55e' : '#ef4444';
     }
 
     const rows = [
-        ['RAP',          rapVal,     '#f97316'],
-        ['Lowest Price', lowestPrice,'#a855f7'],
-        ['Orig Price',   origPrice,  'var(--c-text2)'],
-        ['Change',       changeStr,  changeColor],
-        ['Sold',         saleCount,  'var(--c-text2)'],
-        ['Serial Count', serialCount,'var(--c-text2)'],
-        ['Created',      item.createdAt ? new Date(item.createdAt).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}) : '—', 'var(--c-text4)'],
+        ['RAP',          rapVal,      '#f97316'],
+        ['Lowest Price', lowestPrice, '#a855f7'],
+        ['Orig Price',   origPrice,   'var(--c-text2)'],
+        ['Change',       changeStr,   changeColor],
+        ['Total Sold',   saleCount,   'var(--c-text2)'],
+        ['Serial Count', serialCount, 'var(--c-text2)'],
+        ['Added',        item.createdAt ? new Date(item.createdAt).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}) : '—', 'var(--c-text4)'],
     ];
 
-    tooltip.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--c-text0);margin-bottom:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (item.name || 'Item') + '</div>' +
+    const tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;z-index:2147483647;width:240px;background:#060c18;border:1px solid #1e3a5f;border-radius:13px;padding:13px 15px;pointer-events:none;opacity:0;transition:opacity 0.12s;box-shadow:0 12px 40px rgba(0,0,0,0.7);display:none;font-family:'DM Sans',system-ui,sans-serif;';
+    tip.innerHTML = '<div style="font-size:11px;font-weight:700;color:#f1f5f9;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.name || 'Item') + '</div>' +
         rows.map(([label, val, color]) =>
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">' +
-            '<span style="font-size:9px;color:var(--c-text4);text-transform:uppercase;letter-spacing:0.8px;">' + label + '</span>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<span style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">' + label + '</span>' +
             '<span style="font-size:10px;font-weight:700;font-family:'Fira Code',monospace;color:' + color + ';">' + val + '</span>' +
             '</div>'
         ).join('') +
-        (item.description ? '<div style="font-size:9px;color:var(--c-text4);margin-top:8px;border-top:1px solid var(--c-border2);padding-top:7px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + item.description + '</div>' : '');
-
-    li.appendChild(tooltip);
+        (item.description ? '<div style="font-size:9px;color:#334155;margin-top:8px;border-top:1px solid #0a1525;padding-top:7px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.description.slice(0,120) + '</div>' : '');
+    document.body.appendChild(tip);
 
     let hoverTimer;
-    li.addEventListener('mouseenter', () => {
+    li.addEventListener('mouseenter', (e) => {
         hoverTimer = setTimeout(() => {
-            tooltip.style.opacity = '1';
-            tooltip.style.transform = 'translateY(0)';
-        }, 200);
+            const rect = li.getBoundingClientRect();
+            tip.style.display = 'block';
+            // Position above the card, centered
+            let top = rect.top - tip.offsetHeight - 8;
+            let left = rect.left + (rect.width / 2) - 120;
+            if (top < 8) top = rect.bottom + 8; // flip below if no room above
+            if (left < 8) left = 8;
+            if (left + 240 > window.innerWidth - 8) left = window.innerWidth - 248;
+            tip.style.top  = top + 'px';
+            tip.style.left = left + 'px';
+            tip.style.opacity = '1';
+        }, 180);
     });
     li.addEventListener('mouseleave', () => {
         clearTimeout(hoverTimer);
-        tooltip.style.opacity = '0';
-        tooltip.style.transform = 'translateY(4px)';
+        tip.style.opacity = '0';
+        setTimeout(() => { if (tip.style.opacity === '0') tip.style.display = 'none'; }, 130);
     });
 
     // Icon box
