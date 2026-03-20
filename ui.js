@@ -1496,6 +1496,14 @@ function buildUI() {
                                     <div id="st-daily-results"></div>
                                 </div>
 
+                                <!-- Security test -->
+                                <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🧪 Security Test</div>
+                                    <div style="font-size:11px;color:var(--c-text3);margin-bottom:12px;line-height:1.6;">Fires 10 simultaneous chest claims to test for race condition vulnerabilities.</div>
+                                    <button id="st-daily-race-btn" class="st-btn-primary" style="width:100%;padding:11px;font-size:12px;">🧪 Test Daily Security</button>
+                                    <div id="st-daily-race-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;word-break:break-word;"></div>
+                                </div>
+
                                 <!-- Promo code -->
                                 <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
                                     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">🎟️ Promo Code</div>
@@ -1785,6 +1793,7 @@ function buildUI() {
     document.getElementById('st-daily-btn').addEventListener('click', () => claimDailyChest(false));
     document.getElementById('st-daily-toggle').addEventListener('click', toggleDailyAuto);
     document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
+    document.getElementById('st-daily-race-btn')?.addEventListener('click', testDailyRace);
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-obc-btn').addEventListener('click', upgradeToOBC);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
