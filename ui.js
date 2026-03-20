@@ -765,7 +765,7 @@ function switchManage(section) {
     document.getElementById('st-tab-settings')?.classList.remove('st-ctab-active');
     updateLogoForTab(section);
     if (section === 'catalog') renderCatalogList();
-    if (section === 'accounts') rebuildSettingsAcctList();
+    if (section === 'accounts') setTimeout(rebuildSettingsAcctList, 0);
 }
 
 function switchTab(tab) {
