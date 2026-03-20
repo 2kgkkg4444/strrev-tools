@@ -217,10 +217,10 @@ async function claimDailyChest(silent) {
             if (!silent && btn) { btn.innerHTML = '🎁 Claim Now'; btn.disabled = false; }
             return;
         }
-        for (let i = 0; i < accounts.length; i++) {
-            results.push(await claimDailyFrom(i));
-            acctLabels.push(accounts[i]?.username || 'Account ' + i);
-        }
+        // Claim all accounts simultaneously
+        const claimResults = await Promise.all(accounts.map((a, i) => claimDailyFrom(i)));
+        results.push(...claimResults);
+        acctLabels.push(...accounts.map((a, i) => a?.username || 'Account ' + i));
     } else if (selectedAcctIdx === -1) {
         results    = [await claimDailyFrom(-1)];
         acctLabels = ['Session'];
