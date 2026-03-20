@@ -230,7 +230,7 @@ function animHacker() {
     let alive = true;
     function frame() {
         if (!alive) return;
-        ctx.fillStyle = 'rgba(0,0,0,0.055)';
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.fillRect(0, 0, W, H);
         ctx.font = FS + 'px "Fira Code",monospace';
         for (let i = 0; i < cols; i++) {
@@ -1618,6 +1618,7 @@ function buildUI() {
     const openUI  = () => {
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
         // Always hide pill while overlay is open
         pill.classList.remove('visible');
         rebuildAcctSelector();
@@ -1627,6 +1628,7 @@ function buildUI() {
     const closeUI = () => {
         overlay.classList.remove('open');
         document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
         // Restore pill if sniper is still running
         if (sniperActive) pill.classList.add('visible');
     };
