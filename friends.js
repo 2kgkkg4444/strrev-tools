@@ -293,6 +293,7 @@ async function lookupUserProfile() {
         const thumb      = thumbR.ok     ? await safeJson(thumbR)      : {};
         const friendsJ   = friendsR.ok   ? await safeJson(friendsR)    : {};
         const presenceJ  = presenceR.ok  ? await safeJson(presenceR)   : {};
+        log('🔍 Presence raw: status=' + presenceR.status + ' data=' + JSON.stringify(presenceJ).slice(0, 200), 'info');
 
         // Leaderboard — scrape HTML, extract actual rank from DOM not array index
         let lbData = [];
