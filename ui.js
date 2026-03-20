@@ -1645,7 +1645,7 @@ function buildUI() {
                                     <div style="color:var(--c-text4);font-size:9px;margin-bottom:6px;">Sniper · Catalog · Trader · More</div>
                                     <div style="display:flex;align-items:center;justify-content:space-between;">
                                         <div style="color:var(--c-text4);font-size:9px;">by <span style="color:var(--c-accent);font-weight:700;">vinny</span></div>
-                                        <div style="font-size:10px;padding:2px 10px;border-radius:20px;font-weight:700;background:var(--c-accent-glow);border:1px solid var(--c-border);color:var(--c-accent);font-family:'Fira Code',monospace;">v3.3</div>
+                                        <div style="font-size:10px;padding:2px 10px;border-radius:20px;font-weight:700;background:var(--c-accent-glow);border:1px solid var(--c-border);color:var(--c-accent);font-family:'Fira Code',monospace;">v4.0</div>
                                     </div>
                                 </div>
                             </div>
