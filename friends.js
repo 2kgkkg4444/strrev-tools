@@ -273,6 +273,8 @@ async function lookupUserProfile() {
         const target = await lookupFriendTarget(input);
         const uid = target.id;
         if (status) status.textContent = 'Fetching profile data…';
+        // Ensure CSRF is ready for presence POST
+        await fetchSessionCsrf();
 
         const safeJson = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
 
@@ -284,7 +286,8 @@ async function lookupUserProfile() {
             sessFetch(BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + uid + '&size=150x150&format=Png&isCircular=false'),
             sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
             sessFetch(BASE + '/apisite/presence/v1/presence/users', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf || '' },
                 body: JSON.stringify({ userIds: [String(uid)] }),
             }),
         ]);
@@ -292,8 +295,9 @@ async function lookupUserProfile() {
         const profile    = profileR.ok   ? await safeJson(profileR)   : {};
         const thumb      = thumbR.ok     ? await safeJson(thumbR)      : {};
         const friendsJ   = friendsR.ok   ? await safeJson(friendsR)    : {};
+        const presRawText = presenceR.ok ? '' : await presenceR.text().catch(()=>'');
         const presenceJ  = presenceR.ok  ? await safeJson(presenceR)   : {};
-        log('🔍 Presence raw: status=' + presenceR.status + ' data=' + JSON.stringify(presenceJ).slice(0, 200), 'info');
+        log('🔍 Presence: status=' + presenceR.status + ' ok=' + presenceR.ok + ' keys=' + Object.keys(presenceJ).join(',') + ' raw=' + presRawText.slice(0,100), 'info');
 
         // Leaderboard — scrape HTML, extract actual rank from DOM not array index
         let lbData = [];
