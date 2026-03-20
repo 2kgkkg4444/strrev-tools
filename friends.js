@@ -320,7 +320,8 @@ async function lookupUserProfile() {
         const friendCount   = friendsList.length;
         const onlineFriends = friendsList.filter(f => f.isOnline).length;
         const presence      = (presenceJ.userPresences || []).find(p => String(p.userId) === String(uid)) || presenceJ.userPresences?.[0] || {};
-        const isOnline      = presence.userPresenceType === 'Online' || presence.userPresenceType === 'InGame';
+        const presType      = presence.userPresenceType || '';
+        const isOnline      = presType !== '' && presType !== 'Offline' && presType !== '0';
         const lastOnline    = presence.lastOnline || null;
 
         const tierMap = { 0:'None', 1:'BuildersClub', 2:'TurboBuildersClub', 3:'OutrageousBuildersClub' };
