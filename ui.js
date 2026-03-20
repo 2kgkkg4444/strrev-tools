@@ -1338,19 +1338,47 @@ function buildUI() {
 
                     <!-- CATALOG -->
                     <div id="st-msec-content-catalog" style="display:none;">
-                        <div class="st-sec-header" style="margin-bottom:18px;">
+                        <div class="st-sec-header" style="margin-bottom:16px;">
                             <div>
                                 <div class="st-sec-title">Catalog Browser</div>
-                                <div class="st-sec-sub">Items on this page — click Buy to purchase with the active account(s)</div>
+                                <div class="st-sec-sub">Browse the full catalog directly from the API — buy for active account(s)</div>
                             </div>
                             <button id="st-cat-refresh" class="st-btn-secondary">
                                 <span id="st-refresh-icon" style="font-size:15px;display:inline-block;transition:transform 0.4s;">↻</span> Refresh
                             </button>
                         </div>
-                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-                            <input id="st-cat-search" class="st-cat-search" type="text" placeholder="🔍  Search items…">
-                            <div id="st-cat-count" style="flex-shrink:0;"><span style="color:var(--c-text3);font-size:11px;">Loading...</span></div>
+
+                        <!-- Filters row -->
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+                            <input id="st-cat-search" class="st-cat-search" type="text" placeholder="🔍  Search items…" style="flex:1;min-width:160px;">
+                            <select id="st-cat-category" style="padding:9px 12px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:10px;color:var(--c-text1);font-size:12px;outline:none;cursor:pointer;">
+                                <option value="Featured">Featured</option>
+                                <option value="Collectibles">Collectibles</option>
+                                <option value="All">All Categories</option>
+                                <option value="Clothing">Clothing</option>
+                                <option value="BodyParts">Body Parts</option>
+                                <option value="Gear">Gear</option>
+                            </select>
+                            <select id="st-cat-sort" style="padding:9px 12px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:10px;color:var(--c-text1);font-size:12px;outline:none;cursor:pointer;">
+                                <option value="0">Relevance</option>
+                                <option value="100">Most Favorited</option>
+                                <option value="101">Best Selling</option>
+                                <option value="3">Recently Updated</option>
+                                <option value="4">Price: Low → High</option>
+                                <option value="5">Price: High → Low</option>
+                            </select>
                         </div>
+
+                        <!-- Count + pagination -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                            <div id="st-cat-count"><span style="color:var(--c-text3);font-size:11px;">Loading…</span></div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <button id="st-cat-prev" class="st-btn-secondary" style="padding:7px 14px;font-size:12px;" disabled>◄</button>
+                                <span id="st-cat-page" style="font-size:11px;color:var(--c-text2);font-family:'Fira Code',monospace;min-width:52px;text-align:center;">Page 1</span>
+                                <button id="st-cat-next" class="st-btn-secondary" style="padding:7px 14px;font-size:12px;" disabled>►</button>
+                            </div>
+                        </div>
+
                         <ul id="st-cat-list" style="padding:0;margin:0;display:flex;flex-direction:column;gap:7px;"></ul>
                     </div>
 
@@ -1615,16 +1643,11 @@ function buildUI() {
     document.getElementById('st-sniper-btn').addEventListener('click', toggleSniper);
     document.getElementById('st-log-clear').addEventListener('click', () => { const l=document.getElementById('st-log');if(l)l.innerHTML=''; });
 
-    document.getElementById('st-cat-search')?.addEventListener('input', () => {
-        const q = document.getElementById('st-cat-search')?.value?.toLowerCase() || '';
-        document.querySelectorAll('#st-cat-list .st-cat-card').forEach(card => {
-            const name = card.dataset.name || '';
-            card.style.display = name.includes(q) ? '' : 'none';
-        });
-        const visible = [...document.querySelectorAll('#st-cat-list .st-cat-card')].filter(c=>c.style.display!=='none').length;
-        const countEl = document.getElementById('st-cat-count');
-        if (countEl && q) countEl.innerHTML = `<span style="color:var(--c-accent);font-weight:700;">${visible}</span><span style="color:var(--c-text3);font-size:11px;"> matching</span>`;
-    });
+    document.getElementById('st-cat-search')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderCatalogList(); });
+    document.getElementById('st-cat-category')?.addEventListener('change', e => { catalogCategory = e.target.value; renderCatalogList(); });
+    document.getElementById('st-cat-sort')?.addEventListener('change', e => { catalogSort = e.target.value; renderCatalogList(); });
+    document.getElementById('st-cat-prev')?.addEventListener('click', () => { if (catalogPage > 1) { catalogPage--; loadCatalogPage(false); } });
+    document.getElementById('st-cat-next')?.addEventListener('click', () => { catalogPage++; loadCatalogPage(false); });
     document.getElementById('st-cat-refresh').addEventListener('click', () => {
         const icon = document.getElementById('st-refresh-icon');
         if (icon) { icon.style.transition='transform 0.4s';icon.style.transform='rotate(360deg)';setTimeout(()=>{icon.style.transform='';},450); }
