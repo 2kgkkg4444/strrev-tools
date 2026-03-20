@@ -1613,19 +1613,19 @@ function buildUI() {
                     </div>
 
                     <div class="st-set-section">
-                        <div class="st-card" style="display:flex;align-items:center;justify-content:space-between;">
-                            <div>
-                                <div style="color:var(--c-text1);font-size:14px;font-weight:600;margin-bottom:5px;">Strrev Tools v10.0</div>
-                                <div style="color:var(--c-text3);font-size:11px;line-height:1.8;">Multi-account catalog buyer, silent sniper, trader & more</div>
-                                <div style="color:var(--c-text4);font-size:10px;margin-top:4px;">
-                                    Press <kbd style="background:var(--c-bg2);border:1px solid var(--c-border);border-radius:4px;padding:1px 7px;font-family:'Fira Code',monospace!important;font-size:10px;">Tab</kbd>
-                                    anywhere to open / close
+                        <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;padding:26px;display:flex;align-items:center;justify-content:space-between;gap:24px;">
+                            <div style="display:flex;align-items:center;gap:18px;">
+                                <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--c-accent),var(--c-accent2));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 4px 18px var(--c-accent-glow);">🛒</div>
+                                <div>
+                                    <div style="color:var(--c-text0);font-size:17px;font-weight:700;margin-bottom:5px;">Strrev Tools</div>
+                                    <div style="color:var(--c-text3);font-size:11px;line-height:1.7;">Multi-account catalog buyer, silent sniper, trader & more</div>
+                                    <div style="color:var(--c-text4);font-size:10px;margin-top:5px;">Press <span style="background:var(--c-bg3);padding:2px 8px;border-radius:5px;font-family:'Fira Code',monospace;font-size:10px;color:var(--c-text2);">Tab</span> anywhere to open / close</div>
                                 </div>
                             </div>
-                            <div style="text-align:right;flex-shrink:0;margin-left:24px;">
-                                <div style="color:var(--c-text3);font-size:10px;">made by</div>
-                                <div style="color:var(--c-accent);font-size:17px;font-weight:700;letter-spacing:0.3px;">vinny</div>
-                                <div style="margin-top:8px;font-size:9px;padding:3px 10px;border-radius:20px;font-weight:700;background:rgba(233,69,96,0.1);border:1px solid rgba(233,69,96,0.2);color:var(--c-accent);font-family:'Fira Code',monospace!important;">v10.0</div>
+                            <div style="text-align:right;flex-shrink:0;">
+                                <div style="color:var(--c-text4);font-size:10px;margin-bottom:4px;">made by</div>
+                                <div style="color:var(--c-accent);font-size:19px;font-weight:700;letter-spacing:0.3px;">vinny</div>
+                                <div style="margin-top:10px;display:inline-block;font-size:11px;padding:5px 14px;border-radius:8px;font-weight:700;background:rgba(var(--c-accent),0.1);background:var(--c-accent-glow);border:1px solid var(--c-border);color:var(--c-accent);font-family:'Fira Code',monospace;">v2.4</div>
                             </div>
                         </div>
                     </div>
