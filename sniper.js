@@ -503,7 +503,7 @@ function startUpdateSniper() {
 
 function stopUpdateSniper() {
     updateSniperActive = false;
-    if (updateSniperTimer) { clearInterval(updateSniperTimer); updateSniperTimer = null; }
+    updateSniperTimer = null; // loop exits via updateSniperActive flag
     updatePriceMap = {};
     log('📡 Update Sniper stopped', 'warn');
     setUpdateSniperStatus(false);
