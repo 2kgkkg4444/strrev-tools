@@ -159,12 +159,13 @@ function buildCatalogCard(item) {
     ];
 
     const tip = document.createElement('div');
-    tip.style.cssText = 'position:fixed;z-index:2147483647;width:240px;background:#060c18;border:1px solid #1e3a5f;border-radius:13px;padding:13px 15px;pointer-events:none;opacity:0;transition:opacity 0.12s;box-shadow:0 12px 40px rgba(0,0,0,0.7);display:none;font-family:'DM Sans',system-ui,sans-serif;';
+    tip.style.cssText = 'position:fixed;z-index:2147483647;width:240px;background:#060c18;border:1px solid #1e3a5f;border-radius:13px;padding:13px 15px;pointer-events:none;opacity:0;transition:opacity 0.12s;box-shadow:0 12px 40px rgba(0,0,0,0.7);display:none;';
+    tip.style.fontFamily = 'DM Sans, system-ui, sans-serif';
     tip.innerHTML = '<div style="font-size:11px;font-weight:700;color:#f1f5f9;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.name || 'Item') + '</div>' +
         rows.map(([label, val, color]) =>
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
             '<span style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">' + label + '</span>' +
-            '<span style="font-size:10px;font-weight:700;font-family:'Fira Code',monospace;color:' + color + ';">' + val + '</span>' +
+            '<span style="font-size:10px;font-weight:700;font-family:monospace;color:' + color + ';">' + val + '</span>' +
             '</div>'
         ).join('') +
         (item.description ? '<div style="font-size:9px;color:#334155;margin-top:8px;border-top:1px solid #0a1525;padding-top:7px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.description.slice(0,120) + '</div>' : '');
