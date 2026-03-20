@@ -1138,7 +1138,19 @@ function injectStyles() {
         .st-skel { background:linear-gradient(90deg,var(--c-bg2) 25%,var(--c-bg3) 50%,var(--c-bg2) 75%);background-size:200% 100%;animation:st-shimmer 1.4s infinite; }
 
         /* Sniper settings */
-        .st-snip-settings { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:22px 24px;margin-bottom:18px; }
+        .st-snip-settings { background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:0;margin-bottom:18px;overflow:hidden; }
+        .st-snip-summary {
+            display:flex;align-items:center;justify-content:space-between;
+            padding:16px 22px;cursor:pointer;user-select:none;list-style:none;
+            transition:background 0.14s;
+        }
+        .st-snip-summary:hover { background:var(--c-bg2); }
+        .st-snip-summary::-webkit-details-marker { display:none; }
+        .st-snip-summary::marker { display:none; }
+        .st-snip-chevron { font-size:11px;color:var(--c-text4);transition:transform 0.2s;flex-shrink:0; }
+        details.st-snip-settings[open] .st-snip-chevron { transform:rotate(180deg); }
+        .st-snip-settings-body { padding:0 22px 20px; }
+        .st-snip-settings-row { display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap; }
         .st-snip-settings-row { display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap; }
         .st-snip-field { display:flex;flex-direction:column;gap:7px; }
         .st-snip-label { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4); }
@@ -1263,75 +1275,91 @@ function buildUI() {
                             </div>
                             <button id="st-sniper-btn" class="st-btn-primary">🎯 Start Sniper</button>
                         </div>
-                        <div id="st-sniper-status">
-                            <div class="st-dot st-dot-idle"></div>
-                            <span class="st-dot-text">Idle — press Start to begin sniping</span>
+                        <!-- AUTO-BUY SNIPER HEADER + STATUS -->
+                        <div style="display:flex;align-items:center;gap:13px;padding:14px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;margin-bottom:14px;transition:background 0.3s,border-color 0.3s;">
+                            <div class="st-dot st-dot-idle" id="st-sniper-dot2"></div>
+                            <span style="flex:1;font-size:12px;color:var(--c-text2);">Auto-Buy — snipes new catalog items the moment they appear</span>
+                            <button id="st-sniper-btn" class="st-btn-primary">🎯 Start Sniper</button>
                         </div>
 
-                        <!-- SNIPER SETTINGS -->
-                        <div class="st-snip-settings">
-                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:14px;">⚙️ Filter Settings</div>
-                            <div class="st-snip-settings-row">
-                                <div class="st-snip-field">
-                                    <span class="st-snip-label">Min Price R$</span>
-                                    <input id="st-snip-min-robux" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Only snipe Robux items at or above this price.">
+                        <!-- AUTO-BUY FILTER SETTINGS DROPDOWN -->
+                        <details class="st-snip-settings" style="margin-bottom:14px;">
+                            <summary class="st-snip-summary">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">⚙️ Auto-Buy Filters</span>
                                 </div>
-                                <div class="st-snip-field">
-                                    <span class="st-snip-label">Max Price R$</span>
-                                    <input id="st-snip-max-robux" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Snipe items at or below this Robux price. Set 0 for free only.">
-                                </div>
-                                <div class="st-snip-sep"></div>
-                                <div class="st-snip-field">
-                                    <span class="st-snip-label">Min Price T$</span>
-                                    <input id="st-snip-min-tix" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Only snipe Tix items at or above this price.">
-                                </div>
-                                <div class="st-snip-field">
-                                    <span class="st-snip-label">Max Price T$</span>
-                                    <input id="st-snip-max-tix" class="st-snip-input" type="number" min="0" placeholder="no limit" title="Snipe tix items at or below this price. Set 0 for free only.">
-                                </div>
-                                <div class="st-snip-sep"></div>
-                                <div class="st-toggle-row">
-                                    <span class="st-snip-label">Only Limiteds</span>
-                                    <div id="st-snip-limiteds" class="st-toggle-track" title="Only snipe Limited and LimitedUnique items"><div class="st-toggle-thumb"></div></div>
-                                </div>
-                                <div class="st-snip-sep"></div>
-                                <div class="st-toggle-row">
-                                    <span class="st-snip-label">R$ Only</span>
-                                    <div id="st-snip-robux-only" class="st-toggle-track" title="Only snipe Robux-priced items"><div class="st-toggle-thumb"></div></div>
-                                </div>
-                                <div class="st-toggle-row">
-                                    <span class="st-snip-label">T$ Only</span>
-                                    <div id="st-snip-tix-only" class="st-toggle-track" title="Only snipe Tix-priced items"><div class="st-toggle-thumb"></div></div>
+                                <span class="st-snip-chevron">▼</span>
+                            </summary>
+                            <div class="st-snip-settings-body">
+                                <div class="st-snip-settings-row">
+                                    <div class="st-snip-field">
+                                        <span class="st-snip-label">Min Price R$</span>
+                                        <input id="st-snip-min-robux" class="st-snip-input" type="number" min="0" placeholder="no limit">
+                                    </div>
+                                    <div class="st-snip-field">
+                                        <span class="st-snip-label">Max Price R$</span>
+                                        <input id="st-snip-max-robux" class="st-snip-input" type="number" min="0" placeholder="no limit">
+                                    </div>
+                                    <div class="st-snip-sep"></div>
+                                    <div class="st-snip-field">
+                                        <span class="st-snip-label">Min Price T$</span>
+                                        <input id="st-snip-min-tix" class="st-snip-input" type="number" min="0" placeholder="no limit">
+                                    </div>
+                                    <div class="st-snip-field">
+                                        <span class="st-snip-label">Max Price T$</span>
+                                        <input id="st-snip-max-tix" class="st-snip-input" type="number" min="0" placeholder="no limit">
+                                    </div>
+                                    <div class="st-snip-sep"></div>
+                                    <div class="st-toggle-row">
+                                        <span class="st-snip-label">Only Limiteds</span>
+                                        <div id="st-snip-limiteds" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
+                                    </div>
+                                    <div class="st-snip-sep"></div>
+                                    <div class="st-toggle-row">
+                                        <span class="st-snip-label">R$ Only</span>
+                                        <div id="st-snip-robux-only" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
+                                    </div>
+                                    <div class="st-toggle-row">
+                                        <span class="st-snip-label">T$ Only</span>
+                                        <div id="st-snip-tix-only" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
+                                    </div>
                                 </div>
                             </div>
+                        </details>
+
+                        <!-- UPDATE SNIPER HEADER + STATUS -->
+                        <div style="display:flex;align-items:center;gap:13px;padding:14px 18px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:12px;margin-bottom:14px;transition:background 0.3s,border-color 0.3s;">
+                            <div id="st-update-dot" class="st-dot st-dot-idle"></div>
+                            <span id="st-update-txt" style="flex:1;font-size:12px;color:var(--c-text2);">Update Sniper — watches for price drops & items back on sale</span>
+                            <button id="st-update-sniper-btn" class="st-btn-primary">📡 Start Update Sniper</button>
                         </div>
 
-                        <!-- UPDATE SNIPER -->
-                        <div class="st-snip-settings" style="margin-bottom:18px;">
-                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">📡 Update Sniper</div>
-                                <button id="st-update-sniper-btn" class="st-btn-primary" style="padding:10px 22px;font-size:13px;">📡 Start Update Sniper</button>
-                            </div>
-                            <div id="st-update-sniper-status" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;margin-bottom:14px;">
-                                <div id="st-update-dot" class="st-dot st-dot-idle"></div>
-                                <span id="st-update-txt" style="font-size:11px;color:var(--c-text3);">Idle — start to watch for updates</span>
-                            </div>
-                            <div class="st-snip-settings-row">
-                                <div class="st-toggle-row">
-                                    <span class="st-snip-label">Price Drop</span>
-                                    <div id="st-upd-pricedrop" class="st-toggle-track" title="Alert & buy when a limited's price drops"><div class="st-toggle-thumb"></div></div>
+                        <!-- UPDATE SNIPER FILTER SETTINGS DROPDOWN -->
+                        <details class="st-snip-settings" style="margin-bottom:18px;">
+                            <summary class="st-snip-summary">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">⚙️ Update Sniper Filters</span>
                                 </div>
-                                <div class="st-snip-field">
-                                    <span class="st-snip-label">Drop % Threshold</span>
-                                    <input id="st-upd-droppct" class="st-snip-input" type="number" min="1" max="99" value="10" placeholder="10" title="Trigger when price drops by this % or more" style="width:90px;">
-                                </div>
-                                <div class="st-snip-sep"></div>
-                                <div class="st-toggle-row">
-                                    <span class="st-snip-label">Resale / On Sale</span>
-                                    <div id="st-upd-resale" class="st-toggle-track" title="Alert & buy when an off-sale item comes back on sale"><div class="st-toggle-thumb"></div></div>
+                                <span class="st-snip-chevron">▼</span>
+                            </summary>
+                            <div class="st-snip-settings-body">
+                                <div class="st-snip-settings-row">
+                                    <div class="st-toggle-row">
+                                        <span class="st-snip-label">Price Drop</span>
+                                        <div id="st-upd-pricedrop" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
+                                    </div>
+                                    <div class="st-snip-field">
+                                        <span class="st-snip-label">Drop % Threshold</span>
+                                        <input id="st-upd-droppct" class="st-snip-input" type="number" min="1" max="99" value="10" placeholder="10" style="width:90px;">
+                                    </div>
+                                    <div class="st-snip-sep"></div>
+                                    <div class="st-toggle-row">
+                                        <span class="st-snip-label">Resale / On Sale</span>
+                                        <div id="st-upd-resale" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </details>
 
                         <div id="st-sniper-layout">
                             <div>
