@@ -1582,7 +1582,7 @@ function buildUI() {
                     <div class="st-set-section">
                         <div class="st-card" style="display:flex;align-items:center;justify-content:space-between;">
                             <div>
-                                <div style="color:var(--c-text1);font-size:14px;font-weight:600;margin-bottom:5px;">Strrev Tools v9.0</div>
+                                <div style="color:var(--c-text1);font-size:14px;font-weight:600;margin-bottom:5px;">Strrev Tools v10.0</div>
                                 <div style="color:var(--c-text3);font-size:11px;line-height:1.8;">Multi-account catalog buyer, silent sniper, trader & more</div>
                                 <div style="color:var(--c-text4);font-size:10px;margin-top:4px;">
                                     Press <kbd style="background:var(--c-bg2);border:1px solid var(--c-border);border-radius:4px;padding:1px 7px;font-family:'Fira Code',monospace!important;font-size:10px;">Tab</kbd>
@@ -1592,7 +1592,7 @@ function buildUI() {
                             <div style="text-align:right;flex-shrink:0;margin-left:24px;">
                                 <div style="color:var(--c-text3);font-size:10px;">made by</div>
                                 <div style="color:var(--c-accent);font-size:17px;font-weight:700;letter-spacing:0.3px;">vinny</div>
-                                <div style="margin-top:8px;font-size:9px;padding:3px 10px;border-radius:20px;font-weight:700;background:rgba(233,69,96,0.1);border:1px solid rgba(233,69,96,0.2);color:var(--c-accent);font-family:'Fira Code',monospace!important;">v9.0</div>
+                                <div style="margin-top:8px;font-size:9px;padding:3px 10px;border-radius:20px;font-weight:700;background:rgba(233,69,96,0.1);border:1px solid rgba(233,69,96,0.2);color:var(--c-accent);font-family:'Fira Code',monospace!important;">v10.0</div>
                             </div>
                         </div>
                     </div>
