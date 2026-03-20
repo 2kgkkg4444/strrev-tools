@@ -990,7 +990,7 @@ function injectStyles() {
         #st-body { flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative;z-index:1; }
         #st-sidebar { display:none; }
         #st-main { flex:1;overflow-y:auto;padding:34px 42px; }
-        #st-tab-content-settings { flex:1;overflow-y:auto;padding:38px 42px;display:none; }
+        #st-tab-content-settings { flex:1;overflow-y:auto;padding:32px 40px;display:none; }
 
         .st-sec-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:26px;gap:18px; }
         .st-sec-title  { color:var(--c-text0);font-size:22px;font-weight:700;line-height:1.2; }
@@ -1107,12 +1107,12 @@ function injectStyles() {
         .st-trade-hint { padding:9px 12px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:9px;font-size:10px;color:var(--c-text4);text-align:center;margin-bottom:13px; }
         #st-trade-summary { display:none;padding:11px 16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:10px;margin-bottom:13px;text-align:center;font-size:12px; }
 
-        .st-settings-wrap { max-width:860px;margin:0 auto; }
+        .st-settings-wrap { max-width:100%;margin:0; }
         .st-set-section   { margin-bottom:38px; }
         .st-set-title     { color:var(--c-text0);font-size:19px;font-weight:700;margin-bottom:5px; }
         .st-set-sub       { color:var(--c-text3);font-size:11px;margin-bottom:22px;line-height:1.6; }
 
-        #st-theme-grid { display:grid;grid-template-columns:repeat(5,1fr);gap:13px;flex-wrap:wrap; }
+        #st-theme-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:13px; }
         .st-theme-card {
             border-radius:14px;border:2px solid var(--c-border);
             overflow:hidden;cursor:pointer;background:var(--c-bg0);
@@ -1361,6 +1361,45 @@ function buildUI() {
                                     <div class="st-toggle-row">
                                         <span class="st-snip-label">Resale / On Sale</span>
                                         <div id="st-upd-resale" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- REDIRECT SNIPER HEADER -->
+                        <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:16px;margin-bottom:14px;transition:all 0.3s;">
+                            <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#059669,#047857);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 14px rgba(5,150,105,0.3);">🔗</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:14px;font-weight:700;color:var(--c-text0);margin-bottom:4px;">Redirect Sniper</div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div id="st-redirect-dot" class="st-dot st-dot-idle"></div>
+                                    <span id="st-redirect-txt" style="font-size:11px;color:var(--c-text3);">Idle — opens item page when something new appears</span>
+                                </div>
+                            </div>
+                            <button id="st-redirect-sniper-btn" class="st-btn-primary">🔗 Start Redirect Sniper</button>
+                        </div>
+
+                        <!-- REDIRECT SNIPER FILTERS -->
+                        <details class="st-snip-settings" style="margin-bottom:18px;">
+                            <summary class="st-snip-summary">
+                                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">⚙️ Redirect Sniper Filters</span>
+                                <span class="st-snip-chevron">▼</span>
+                            </summary>
+                            <div class="st-snip-settings-body">
+                                <div class="st-snip-settings-row">
+                                    <div class="st-toggle-row">
+                                        <span class="st-snip-label">New Items</span>
+                                        <div id="st-redirect-new" class="st-toggle-track on" style="background:var(--c-accent);"><div class="st-toggle-thumb" style="transform:translateX(20px);"></div></div>
+                                    </div>
+                                    <div class="st-snip-sep"></div>
+                                    <div class="st-toggle-row">
+                                        <span class="st-snip-label">Price Updates</span>
+                                        <div id="st-redirect-updated" class="st-toggle-track"><div class="st-toggle-thumb"></div></div>
+                                    </div>
+                                    <div class="st-snip-sep"></div>
+                                    <div class="st-snip-field">
+                                        <span class="st-snip-label">Poll Interval (ms)</span>
+                                        <input id="st-redirect-interval" class="st-snip-input" type="number" min="500" max="10000" value="2000" style="width:100px;">
                                     </div>
                                 </div>
                             </div>
@@ -1711,6 +1750,16 @@ function buildUI() {
 
     document.getElementById('st-sniper-btn').addEventListener('click', toggleSniper);
     document.getElementById('st-update-sniper-btn')?.addEventListener('click', toggleUpdateSniper);
+    document.getElementById('st-redirect-sniper-btn')?.addEventListener('click', toggleRedirectSniper);
+    document.getElementById('st-redirect-new')?.addEventListener('click', () => {
+        document.getElementById('st-redirect-new').classList.toggle('on');
+        saveRedirectSniperSettings();
+    });
+    document.getElementById('st-redirect-updated')?.addEventListener('click', () => {
+        document.getElementById('st-redirect-updated').classList.toggle('on');
+        saveRedirectSniperSettings();
+    });
+    document.getElementById('st-redirect-interval')?.addEventListener('change', saveRedirectSniperSettings);
     document.getElementById('st-upd-pricedrop')?.addEventListener('click', () => {
         document.getElementById('st-upd-pricedrop').classList.toggle('on');
         updateSniperSettings.priceDropEnabled = document.getElementById('st-upd-pricedrop').classList.contains('on');
