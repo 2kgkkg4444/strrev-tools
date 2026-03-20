@@ -276,48 +276,52 @@ async function lookupUserProfile() {
 
         const safeJson = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
 
-        // Fetch basic data first
-        const [profileR, leaderboardR, friendsCountR, thumbR, onlineR, memberR] = await Promise.all([
+        // Fetch all data in parallel
+        const [profileR, leaderboardR, friendsR, thumbR, memberR, presenceR] = await Promise.all([
             sessFetch(BASE + '/apisite/users/v1/users/' + uid),
             sessFetch(BASE + '/internal/leaderboard?sort=rap'),
-            sessFetch(BASE + '/apisite/friends/v1/users/' + uid + '/friends/count'),
+            sessFetch(BASE + '/apisite/friends/v1/users/' + uid + '/friends'),
             sessFetch(BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + uid + '&size=150x150&format=Png&isCircular=false'),
+            sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
             sessFetch(BASE + '/apisite/presence/v1/presence/users', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userIds: [parseInt(uid)] }),
             }),
-            sessFetch(BASE + '/apisite/premiumfeatures/v1/users/' + uid + '/validate-membership'),
         ]);
 
-        const profile = profileR.ok ? await safeJson(profileR) : {};
-        const thumb   = thumbR.ok   ? await safeJson(thumbR)   : {};
-        const online  = onlineR.ok  ? await safeJson(onlineR)  : {};
-        const friendsCountJ = friendsCountR.ok ? await safeJson(friendsCountR) : {};
+        const profile    = profileR.ok   ? await safeJson(profileR)   : {};
+        const thumb      = thumbR.ok     ? await safeJson(thumbR)      : {};
+        const friendsJ   = friendsR.ok   ? await safeJson(friendsR)    : {};
+        const presenceJ  = presenceR.ok  ? await safeJson(presenceR)   : {};
 
-        // Leaderboard — scrape HTML
+        // Leaderboard — scrape HTML, extract actual rank from DOM not array index
         let lbData = [];
         if (leaderboardR.ok) {
             try {
                 const html = await leaderboardR.text();
-                const rows = [...html.matchAll(/collectibles\?userId=(\d+)[^>]*>\s*([^<]+)<\/a[\s\S]*?lb-val-rap[^>]*>R\$\s*([\d,]+)[\s\S]*?lb-val-value[^>]*>R\$\s*([\d,]+)/g)];
-                lbData = rows.map((m, i) => ({
-                    id: m[1].trim(), name: m[2].trim(),
-                    rap: parseInt(m[3].replace(/,/g,'')),
-                    value: parseInt(m[4].replace(/,/g,'')),
-                    rank: i + 1,
+                // Match each full row: rank cell + userId + name + RAP + value
+                const rowPat = /<tr[^>]*lb-row[^>]*>[\s\S]*?lb-rank[^>]*>\s*(?:<span[^>]*>\s*(\d+)\s*<\/span>|(\d+))\s*[\s\S]*?collectibles\?userId=(\d+)[^>]*>\s*([^<]+)<\/a[\s\S]*?lb-val-rap[^>]*>R\$\s*([\d,]+)[\s\S]*?lb-val-value[^>]*>R\$\s*([\d,]+)[\s\S]*?<\/tr>/g;
+                lbData = [...html.matchAll(rowPat)].map(m => ({
+                    rank:  parseInt(m[1] || m[2]),
+                    id:    m[3].trim(),
+                    name:  m[4].trim(),
+                    rap:   parseInt(m[5].replace(/,/g, '')),
+                    value: parseInt(m[6].replace(/,/g, '')),
                 }));
             } catch(_) {}
         }
-        const lbEntry = lbData.find(u => String(u.id) === String(uid) || u.name === (profile.name || target.name));
-        const rap     = lbEntry?.rap   ?? null;
-        const value   = lbEntry?.value ?? null;
-        const lbRank  = lbEntry?.rank  ?? null;
+        const lbEntry = lbData.find(e => String(e.id) === String(uid) || e.name === (profile.name || target.name));
+        const rap    = lbEntry?.rap   ?? null;
+        const value  = lbEntry?.value ?? null;
+        const lbRank = lbEntry?.rank  ?? null;
 
-        const avatar     = thumb.data?.[0]?.imageUrl || null;
-        const presence   = online.userPresences?.[0] || online.data?.[0] || {};
-        const lastOnline = presence.lastOnline || presence.lastSeen || null;
-        const isOnline   = presence.userPresenceType === 1 || presence.online === true;
-        const friendCount = friendsCountJ.count ?? friendsCountJ.data?.count ?? null;
+        const avatar        = thumb.data?.[0]?.imageUrl || null;
+        const friendsList   = friendsJ.data || [];
+        const friendCount   = friendsList.length;
+        const onlineFriends = friendsList.filter(f => f.isOnline).length;
+        const presence      = presenceJ.userPresences?.[0] || {};
+        const isOnline      = presence.userPresenceType === 'Online';
+        const lastOnline    = presence.lastOnline || null;
 
         const tierMap = { 0:'None', 1:'BuildersClub', 2:'TurboBuildersClub', 3:'OutrageousBuildersClub' };
         const mColors = {
@@ -335,8 +339,6 @@ async function lookupUserProfile() {
         if (!el) return;
 
         const joinedYear  = profile.created ? new Date(profile.created).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric' }) : '—';
-        const onlineColor = isOnline ? '#22c55e' : '#475569';
-        const lastOnlineStr = isOnline ? '🟢 Online now' : lastOnline ? '⚫ Last seen ' + new Date(lastOnline).toLocaleDateString('en', {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '⚫ Offline';
         const rapStr   = rap   != null ? 'R$' + Number(rap).toLocaleString()   : '—';
         const valueStr = value != null ? 'R$' + Number(value).toLocaleString() : '—';
         const rankStr  = lbRank != null ? '#' + lbRank : 'N/A';
@@ -356,19 +358,20 @@ async function lookupUserProfile() {
                     ${profile.displayName && profile.displayName !== profile.name ? `<span style="font-size:11px;color:var(--c-text4);">(${profile.displayName})</span>` : ''}
                     <span style="font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;background:${mc.bg};border:1px solid ${mc.border};color:${mc.text};">${mc.label}</span>
                 </div>
-                <div style="font-size:11px;color:${onlineColor};margin-bottom:3px;">${lastOnlineStr}</div>
+                <div style="font-size:11px;color:${isOnline ? '#22c55e' : '#475569'};margin-bottom:2px;">${isOnline ? '🟢 Online' : lastOnline ? '⚫ Last seen ' + new Date(lastOnline).toLocaleDateString('en',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '⚫ Offline'}</div>
                 <div style="font-size:10px;color:var(--c-text4);">ID: ${uid} · Joined ${joinedYear}</div>
             </div>`;
         el.appendChild(header);
 
         // Stats row — 4 cards
         const stats = document.createElement('div');
-        stats.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;';
+        stats.style.cssText = 'display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;';
         [
             { label:'RAP',     value: rapStr,                                                    color:'#f97316' },
             { label:'Value',   value: valueStr,                                                  color:'#a855f7' },
             { label:'LB Rank', value: rankStr,                                                   color:'#eab308' },
-            { label:'Friends', value: friendCount != null ? String(friendCount) : '—',           color:'#60a5fa' },
+            { label:'Friends', value: friendCount > 0 ? String(friendCount) : '—',             color:'#60a5fa' },
+            { label:'Online Now', value: onlineFriends > 0 ? String(onlineFriends) : '0',          color:'#22c55e' },
         ].forEach(({ label, value, color }) => {
             const s = document.createElement('div');
             s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:10px;padding:12px 14px;';
