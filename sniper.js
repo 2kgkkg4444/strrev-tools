@@ -516,3 +516,125 @@ function setUpdateSniperStatus(active) {
     const txt = document.getElementById('st-update-txt');
     if (txt) txt.textContent = active ? 'Watching for price drops & resales...' : 'Idle — start to watch for updates';
 }
+// ─── Redirect Sniper ──────────────────────────────────────────────────────
+let redirectSniperActive  = false;
+let redirectSniperTimer   = null;
+let redirectSniperSeenIds = {};   // id → { price, isForSale }
+let redirectSniperSettings = {
+    redirectNew:     true,   // redirect on new items
+    redirectUpdated: false,  // redirect on price changes
+    intervalMs:      2000,
+};
+
+function saveRedirectSniperSettings() {
+    redirectSniperSettings.redirectNew     = document.getElementById('st-redirect-new')?.classList.contains('on') ?? true;
+    redirectSniperSettings.redirectUpdated = document.getElementById('st-redirect-updated')?.classList.contains('on') ?? false;
+    redirectSniperSettings.intervalMs      = Math.max(500, parseInt(document.getElementById('st-redirect-interval')?.value) || 2000);
+    try { GM_setValue('st_redirect_sniper', JSON.stringify(redirectSniperSettings)); } catch(_) {}
+}
+
+function loadRedirectSniperSettings() {
+    try {
+        const s = JSON.parse(GM_getValue('st_redirect_sniper', 'null'));
+        if (s) Object.assign(redirectSniperSettings, s);
+    } catch(_) {}
+    // Sync toggle UI
+    const setOn = (id, val) => {
+        const el = document.getElementById(id); if (!el) return;
+        if (val) { el.classList.add('on'); el.style.background='var(--c-accent)'; el.querySelector('.st-toggle-thumb').style.transform='translateX(20px)'; }
+        else     { el.classList.remove('on'); el.style.background=''; el.querySelector('.st-toggle-thumb').style.transform=''; }
+    };
+    setOn('st-redirect-new',     redirectSniperSettings.redirectNew);
+    setOn('st-redirect-updated', redirectSniperSettings.redirectUpdated);
+    const iv = document.getElementById('st-redirect-interval');
+    if (iv) iv.value = redirectSniperSettings.intervalMs;
+}
+
+async function runRedirectSniperCheck() {
+    if (!redirectSniperActive) return;
+    try {
+        const r = await fetch(CATALOG_API + '&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
+        if (!r.ok) return;
+        const j = await r.json();
+        const items = j.data || [];
+        let triggered = false;
+        for (const item of items) {
+            const id = String(item.id);
+            const curPrice   = item.lowestPrice ?? item.price ?? 0;
+            const curForSale = !!item.isForSale || item.lowestSellerData != null;
+            const prev = redirectSniperSeenIds[id];
+
+            if (!prev) {
+                // Brand new item
+                if (redirectSniperSettings.redirectNew && Object.keys(redirectSniperSeenIds).length > 0) {
+                    log('🔗 New item — redirecting: ' + (item.name || 'ID ' + id), 'success');
+                    fireUpdateNotification('🔗 New Item!', item.name || 'ID ' + id);
+                    window.open(BASE + '/catalog/' + id + '/', '_blank');
+                    triggered = true;
+                }
+                redirectSniperSeenIds[id] = { price: curPrice, forSale: curForSale };
+                continue;
+            }
+
+            // Price / sale change
+            if (redirectSniperSettings.redirectUpdated && !triggered) {
+                const priceChanged = prev.price !== curPrice && curPrice > 0;
+                const saleChanged  = !prev.forSale && curForSale;
+                if (priceChanged || saleChanged) {
+                    const reason = saleChanged ? 'back on sale' : ('price: R$' + prev.price + '→R$' + curPrice);
+                    log('🔗 Update — redirecting: ' + (item.name || 'ID ' + id) + ' (' + reason + ')', 'success');
+                    fireUpdateNotification('🔗 Item Updated!', (item.name || 'ID ' + id) + ' — ' + reason);
+                    window.open(BASE + '/catalog/' + id + '/', '_blank');
+                    triggered = true;
+                }
+            }
+
+            redirectSniperSeenIds[id] = { price: curPrice, forSale: curForSale };
+        }
+    } catch(e) {
+        if (redirectSniperActive) log('Redirect sniper err: ' + e.message, 'err');
+    }
+}
+
+function startRedirectSniper() {
+    loadRedirectSniperSettings();
+    redirectSniperActive  = true;
+    redirectSniperSeenIds = {};
+    // Snapshot first silently
+    fetch(CATALOG_API + '&_=' + Date.now(), { credentials: 'include', cache: 'no-store' })
+        .then(r => r.json()).then(j => {
+            (j.data || []).forEach(item => {
+                redirectSniperSeenIds[String(item.id)] = {
+                    price: item.lowestPrice ?? item.price ?? 0,
+                    forSale: !!item.isForSale || item.lowestSellerData != null,
+                };
+            });
+            log('🔗 Redirect Sniper armed — ' + Object.keys(redirectSniperSeenIds).length + ' items snapshotted', 'success');
+        }).catch(_=>{});
+    redirectSniperTimer = setInterval(runRedirectSniperCheck, redirectSniperSettings.intervalMs);
+    setRedirectSniperStatus(true);
+    try { GM_setValue('redirectSniperActive', true); } catch(_) {}
+}
+
+function stopRedirectSniper() {
+    redirectSniperActive = false;
+    if (redirectSniperTimer) { clearInterval(redirectSniperTimer); redirectSniperTimer = null; }
+    redirectSniperSeenIds = {};
+    setRedirectSniperStatus(false);
+    log('🔗 Redirect Sniper stopped', 'warn');
+    try { GM_setValue('redirectSniperActive', false); } catch(_) {}
+}
+
+function toggleRedirectSniper() {
+    redirectSniperActive ? stopRedirectSniper() : startRedirectSniper();
+}
+
+function setRedirectSniperStatus(active) {
+    const btn = document.getElementById('st-redirect-sniper-btn'); if (!btn) return;
+    btn.textContent = active ? '⏹ Stop Redirect Sniper' : '🔗 Start Redirect Sniper';
+    btn.style.background = active ? 'linear-gradient(135deg,#059669,#047857)' : '';
+    const dot = document.getElementById('st-redirect-dot');
+    if (dot) dot.className = 'st-dot ' + (active ? 'st-dot-active' : 'st-dot-idle');
+    const txt = document.getElementById('st-redirect-txt');
+    if (txt) txt.textContent = active ? 'Watching — will open item page on match…' : 'Idle — opens item page when something new appears';
+}
