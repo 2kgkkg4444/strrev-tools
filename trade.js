@@ -384,3 +384,104 @@ async function sendTradeOffer() {
         if (btn) { btn.innerHTML='🔄 Send Trade Offer'; btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
     }
 }
+// ─── Security Tests ───────────────────────────────────────────────────────
+
+async function testTradeOwnership(action) {
+    const tradeId = document.getElementById('st-sec-trade-id')?.value?.trim();
+    const statusEl = document.getElementById('st-sec-trade-status');
+    if (!tradeId) { if(statusEl){statusEl.style.display='block';statusEl.textContent='⚠ Enter a trade ID first.';} return; }
+
+    const acceptBtn  = document.getElementById('st-sec-trade-accept');
+    const declineBtn = document.getElementById('st-sec-trade-decline');
+    if (acceptBtn)  acceptBtn.disabled = true;
+    if (declineBtn) declineBtn.disabled = true;
+    if (statusEl)   { statusEl.style.display='block'; statusEl.textContent='Testing...'; statusEl.style.color='var(--c-warn)'; }
+
+    const endpoint = BASE + '/apisite/trades/v1/trades/' + tradeId + '/' + action;
+    log('🔬 Trade ownership test: ' + action + ' trade #' + tradeId + ' from all accounts', 'info');
+
+    const results = [];
+
+    // Test session
+    try {
+        await fetchSessionCsrf();
+        const r = await sessFetch(endpoint, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
+            body: '{}',
+        });
+        const text = await r.text();
+        let msg = text;
+        try { const j = JSON.parse(text); msg = j.errors?.[0]?.message || j.message || j.errorMessage || text; } catch(_) {}
+        const result = 'Session: HTTP ' + r.status + ' — ' + msg.slice(0,80);
+        results.push(result);
+        log('🔬 ' + result, r.ok ? 'success' : 'warn');
+    } catch(e) { results.push('Session: error — ' + e.message); }
+
+    // Test all saved accounts
+    for (let i = 0; i < accounts.length; i++) {
+        try {
+            const r = await acctFetch(i, endpoint, { method: 'POST', body: '{}' });
+            const text = await r.text();
+            let msg = text;
+            try { const j = JSON.parse(text); msg = j.errors?.[0]?.message || j.message || j.errorMessage || text; } catch(_) {}
+            const result = accounts[i].username + ': HTTP ' + r.status + ' — ' + msg.slice(0,80);
+            results.push(result);
+            log('🔬 ' + result, r.ok ? 'success' : 'warn');
+        } catch(e) { results.push(accounts[i].username + ': error — ' + e.message); }
+    }
+
+    const anySuccess = results.some(r => r.includes('HTTP 2'));
+    if (statusEl) {
+        statusEl.innerHTML = results.join('<br>');
+        statusEl.style.color = anySuccess ? 'var(--c-success)' : 'var(--c-text2)';
+    }
+    if (anySuccess) log('🚨 VULNERABILITY: trade ' + action + ' succeeded from non-owner account!', 'err');
+    else log('✓ Server protected — no unauthorized ' + action + ' succeeded', 'info');
+
+    if (acceptBtn)  acceptBtn.disabled = false;
+    if (declineBtn) declineBtn.disabled = false;
+}
+
+async function enumerateTradeIds() {
+    const start  = parseInt(document.getElementById('st-sec-enum-start')?.value) || 1;
+    const end    = parseInt(document.getElementById('st-sec-enum-end')?.value) || 100;
+    const statusEl = document.getElementById('st-sec-enum-status');
+    const btn    = document.getElementById('st-sec-enum-btn');
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Scanning...'; btn.disabled = true; }
+    if (statusEl) { statusEl.style.display='block'; statusEl.textContent='Scanning trade IDs ' + start + '–' + end + '...'; }
+
+    log('🔬 Enumerating trade IDs ' + start + '–' + end, 'info');
+    const found = [];
+
+    // Scan in batches of 10
+    for (let id = start; id <= end; id += 10) {
+        const batch = [];
+        for (let j = id; j < Math.min(id+10, end+1); j++) batch.push(j);
+        await Promise.all(batch.map(async (tradeId) => {
+            try {
+                await fetchSessionCsrf();
+                const r = await sessFetch(BASE + '/apisite/trades/v1/trades/' + tradeId, { credentials: 'include' });
+                if (r.ok) {
+                    const j = await r.json();
+                    const status = j.status || j.tradeStatus || '?';
+                    const users  = [j.offers?.[0]?.user?.name, j.offers?.[1]?.user?.name].filter(Boolean).join(' ↔ ');
+                    const entry  = '#' + tradeId + ' [' + status + '] ' + users;
+                    found.push(entry);
+                    log('🔬 Found trade ' + entry, 'success');
+                } else if (r.status !== 404 && r.status !== 403) {
+                    found.push('#' + tradeId + ' HTTP ' + r.status);
+                }
+            } catch(_) {}
+        }));
+        if (statusEl) statusEl.textContent = 'Scanning... ' + Math.min(id+10, end+1) + '/' + end;
+    }
+
+    if (statusEl) {
+        statusEl.innerHTML = found.length
+            ? '<strong>' + found.length + ' trades found:</strong><br>' + found.join('<br>')
+            : 'No accessible trades found in range ' + start + '–' + end;
+    }
+    log('🔬 Enumeration done — ' + found.length + ' trades accessible', found.length ? 'success' : 'info');
+    if (btn) { btn.innerHTML = '🔍 Enumerate'; btn.disabled = false; }
+}
