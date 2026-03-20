@@ -29,7 +29,6 @@ let sniperSettings = {
     maxPriceRobux: '',   // '' = no limit; 0 = free only
     maxPriceTix:   '',   // '' = no limit; 0 = free only
     limitedsOnly:  false,
-    limitedUsOnly: false,
     robuxOnly:     false,
     tixOnly:       false,
 };
