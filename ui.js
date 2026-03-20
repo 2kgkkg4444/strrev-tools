@@ -1031,7 +1031,7 @@ function injectStyles() {
             background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;
             padding:14px 16px;display:flex;align-items:center;gap:12px;
             cursor:default;transition:border-color 0.14s,background 0.14s,transform 0.14s,box-shadow 0.14s;
-            list-style:none;
+            list-style:none;position:relative;overflow:visible;
         }
         .st-cat-card:hover { border-color:var(--c-border);background:var(--c-bg2);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.3); }
         .st-cat-card-icon {
@@ -1090,7 +1090,7 @@ function injectStyles() {
         #st-log { flex:1;overflow-y:auto;min-height:0; }
 
         .st-cat-toolbar { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
-        #st-cat-list { padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:7px; }
+        #st-cat-list { padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:7px;overflow:visible; }
 
         .st-input {
             width:100%;padding:12px 15px;background:var(--c-bg0);
@@ -1829,8 +1829,6 @@ function init() {
     loadAccounts();
     injectStyles();
     buildUI();
-    // Auto-detect and add the currently logged-in session account
-    setTimeout(autoAddSessionAccount, 800);
     loadSniperSettings();
     resumeAutoAccepts();
     loadUpdateSniperSettings();
