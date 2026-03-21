@@ -28,14 +28,24 @@ async function claimDailyFrom(acctIdx) {
     try {
         let res;
         if (acctIdx >= 0) {
+            // acctFetch auto-retries on 403 with a refreshed CSRF token
             res = await acctFetch(acctIdx, DAILY_OPEN_URL, { method: 'POST', body: '{}' });
         } else {
+            // Always fetch a fresh CSRF token right before each session POST
             await fetchSessionCsrf();
-            res = await sessFetch(DAILY_OPEN_URL, {
+            const doReq = (csrf) => sessFetch(DAILY_OPEN_URL, {
                 method: 'POST', credentials: 'include',
-                headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
                 body: '{}',
             });
+            res = await doReq(sessionCsrf);
+            // Retry once if CSRF was rejected
+            if (res.status === 403) {
+                const refreshed = res.headers?.get?.('x-csrf-token') || res.headers?.get?.('X-CSRF-Token');
+                if (refreshed) sessionCsrf = refreshed;
+                else await fetchSessionCsrf();
+                res = await doReq(sessionCsrf);
+            }
         }
         let d = {};
         try { d = await res.json(); } catch(_) {}
@@ -45,7 +55,7 @@ async function claimDailyFrom(acctIdx) {
             log('✓ Daily claimed as ' + label + ' — ' + reward, 'success');
             return { ok: true, reward };
         }
-        const msg     = d.message || d.errorMessage || d.errors?.[0]?.message || 'HTTP ' + res.status;
+        const msg     = d.message || d.errorMessage || d.errors?.[0]?.message || ('HTTP ' + res.status);
         const already = msg.toLowerCase().includes('already') || res.status === 429 || res.status === 400;
         if (already) {
             log('~ Daily already claimed (' + label + ')', 'warn');
@@ -266,16 +276,17 @@ async function claimDailyChest(silent) {
 // __RequestVerificationToken scraped from the page's hidden input.
 async function fetchVerificationToken(acctIdx) {
     try {
-        // Fetch the promo page to extract the anti-forgery token
         const r = acctIdx >= 0
             ? await acctFetch(acctIdx, BASE + '/internal/promocodes')
             : await sessFetch(BASE + '/internal/promocodes');
         const html = await r.text();
-        const match = html.match(/name="__RequestVerificationToken"\s+type="hidden"\s+value="([^"]+)"/);
-        if (match) return match[1];
-        // Also try the other attribute order
-        const match2 = html.match(/__RequestVerificationToken[^>]+value="([^"]+)"/);
-        return match2 ? match2[1] : null;
+        // Try several attribute orderings that browsers and templating engines produce
+        const token =
+            html.match(/<input[^>]+name="__RequestVerificationToken"[^>]+value="([^"]+)"/i)?.[1] ||
+            html.match(/<input[^>]+value="([^"]+)"[^>]+name="__RequestVerificationToken"/i)?.[1] ||
+            html.match(/name="__RequestVerificationToken"\s+type="hidden"\s+value="([^"]+)"/i)?.[1] ||
+            html.match(/__RequestVerificationToken[^>]+value="([^"]+)"/i)?.[1];
+        return token || null;
     } catch(_) { return null; }
 }
 
@@ -284,32 +295,42 @@ async function redeemPromoFrom(acctIdx, code) {
     try {
         const token = await fetchVerificationToken(acctIdx);
         if (!token) {
-            log('✗ Could not fetch verification token (' + label + ')', 'err');
+            log('✗ Could not fetch verification token (' + label + ') — is the page accessible?', 'err');
             return { ok: false, msg: 'No verification token' };
         }
 
         const body = new URLSearchParams();
         body.set('promocode', code.trim());
         body.set('__RequestVerificationToken', token);
+        const bodyStr = body.toString();
 
-        let res;
-        if (acctIdx >= 0) {
-            res = await acctFetch(acctIdx, BASE + '/internal/promocodes', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body:    body.toString(),
-            });
-        } else {
-            await fetchSessionCsrf();
-            res = await sessFetch(BASE + '/internal/promocodes', {
+        const doPost = async (csrf) => {
+            if (acctIdx >= 0) {
+                return acctFetch(acctIdx, BASE + '/internal/promocodes', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    bodyStr,
+                });
+            }
+            return sessFetch(BASE + '/internal/promocodes', {
                 method:      'POST',
                 credentials: 'include',
                 headers: {
-                    'Content-Type':  'application/x-www-form-urlencoded',
-                    'x-csrf-token':  sessionCsrf,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'x-csrf-token': csrf || '',
                 },
-                body: body.toString(),
+                body: bodyStr,
             });
+        };
+
+        // Always refresh CSRF before posting for session requests
+        if (acctIdx < 0) await fetchSessionCsrf();
+        let res = await doPost(sessionCsrf);
+
+        // Retry once if we get a 403 (stale CSRF or token rotation)
+        if (res.status === 403 && acctIdx < 0) {
+            await fetchSessionCsrf();
+            res = await doPost(sessionCsrf);
         }
 
         // Response may be a redirect or JSON depending on the server
@@ -324,7 +345,6 @@ async function redeemPromoFrom(acctIdx, code) {
             }
             msg = d.message || d.errorMessage || d.errors?.[0]?.message || 'HTTP ' + res.status;
         } else {
-            // HTML response — check for success/error strings in the body
             const html = await res.text();
             if (res.ok && !html.toLowerCase().includes('invalid') && !html.toLowerCase().includes('error')) {
                 log('✓ Promo redeemed (' + label + '): ' + code, 'success');
@@ -408,9 +428,12 @@ async function fetchMembershipToken(acctIdx) {
             ? await acctFetch(acctIdx, BASE + '/internal/membership')
             : await sessFetch(BASE + '/internal/membership');
         const html = await r.text();
-        const m = html.match(/name="__RequestVerificationToken"[^>]+value="([^"]+)"/)
-               || html.match(/__RequestVerificationToken[^>]+value="([^"]+)"/);
-        return m ? m[1] : null;
+        const token =
+            html.match(/<input[^>]+name="__RequestVerificationToken"[^>]+value="([^"]+)"/i)?.[1] ||
+            html.match(/<input[^>]+value="([^"]+)"[^>]+name="__RequestVerificationToken"/i)?.[1] ||
+            html.match(/name="__RequestVerificationToken"[^>]+value="([^"]+)"/i)?.[1] ||
+            html.match(/__RequestVerificationToken[^>]+value="([^"]+)"/i)?.[1];
+        return token || null;
     } catch(_) { return null; }
 }
 
@@ -419,31 +442,39 @@ async function upgradeMembershipFrom(acctIdx, membershipType) {
     try {
         const token = await fetchMembershipToken(acctIdx);
         if (!token) {
-            log('✗ Could not fetch membership token (' + label + ')', 'err');
+            log('✗ Could not fetch membership token (' + label + ') — is the page accessible?', 'err');
             return { ok: false, msg: 'No verification token' };
         }
-        const body = new URLSearchParams();
-        body.set('membershipType', membershipType);
-        body.set('__RequestVerificationToken', token);
+        const bodyParams = new URLSearchParams();
+        bodyParams.set('membershipType', membershipType);
+        bodyParams.set('__RequestVerificationToken', token);
+        const bodyStr = bodyParams.toString();
 
-        let res;
-        if (acctIdx >= 0) {
-            res = await acctFetch(acctIdx, BASE + '/internal/membership', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body:    body.toString(),
-            });
-        } else {
-            await fetchSessionCsrf();
-            res = await sessFetch(BASE + '/internal/membership', {
+        const doPost = async (csrf) => {
+            if (acctIdx >= 0) {
+                return acctFetch(acctIdx, BASE + '/internal/membership', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    bodyStr,
+                });
+            }
+            return sessFetch(BASE + '/internal/membership', {
                 method:      'POST',
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'x-csrf-token': sessionCsrf,
+                    'x-csrf-token': csrf || '',
                 },
-                body: body.toString(),
+                body: bodyStr,
             });
+        };
+
+        if (acctIdx < 0) await fetchSessionCsrf();
+        let res = await doPost(sessionCsrf);
+
+        if (res.status === 403 && acctIdx < 0) {
+            await fetchSessionCsrf();
+            res = await doPost(sessionCsrf);
         }
 
         const ct = res.headers?.get ? res.headers.get('content-type') : '';
