@@ -26,33 +26,68 @@ async function fetchDailyStatus(acctIdx) {
 async function claimDailyFrom(acctIdx) {
     const label = acctIdx === -1 ? 'Session' : (accounts[acctIdx]?.username || 'Account');
     try {
-        let res;
+        let res, d = {};
+
         if (acctIdx >= 0) {
-            // acctFetch auto-retries on 403 with a refreshed CSRF token
-            res = await acctFetch(acctIdx, DAILY_OPEN_URL, { method: 'POST', body: '{}' });
+            const acct = accounts[acctIdx];
+            // Force-refresh CSRF for this cookie right before posting.
+            // The server returns 200 + "Token Validation Failed" (not 403) when
+            // the token is stale, so acctFetch's built-in 403 retry never fires.
+            const freshCsrf = await fetchCsrfForCookie(acct.cookie);
+            if (freshCsrf) { acct.csrf = freshCsrf; saveAccounts(); }
+
+            const doAcctReq = () => gmFetch(DAILY_OPEN_URL, {
+                method:  'POST',
+                headers: {
+                    'Cookie':       '.ROBLOSECURITY=' + acct.cookie,
+                    'Content-Type': 'application/json',
+                    'x-csrf-token': acct.csrf || '',
+                    'Accept':       'application/json',
+                },
+                body: '{}',
+            });
+
+            let raw = await doAcctReq();
+            // Handle real 403 (token rejected at transport level)
+            if (raw.status === 403) {
+                const nc = raw.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
+                if (nc) { acct.csrf = nc; saveAccounts(); }
+                raw = await doAcctReq();
+            }
+            res = normResp(raw);
+            try { d = await res.json(); } catch(_) {}
+
+            // Body-level token failure (server says 200 but rejects the token)
+            const bodyMsg = (d.message || d.errorMessage || '').toLowerCase();
+            if (bodyMsg.includes('token')) {
+                const retrycsrf = await fetchCsrfForCookie(acct.cookie);
+                if (retrycsrf) { acct.csrf = retrycsrf; saveAccounts(); }
+                raw = await doAcctReq();
+                res = normResp(raw);
+                d = {};
+                try { d = await res.json(); } catch(_) {}
+            }
         } else {
-            // Always fetch a fresh CSRF token right before each session POST
+            // Session — always fetch a fresh CSRF right before posting
             await fetchSessionCsrf();
-            const doReq = (csrf) => sessFetch(DAILY_OPEN_URL, {
+            const doSessReq = (csrf) => sessFetch(DAILY_OPEN_URL, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
                 body: '{}',
             });
-            res = await doReq(sessionCsrf);
-            // Retry once if CSRF was rejected
+            res = await doSessReq(sessionCsrf);
             if (res.status === 403) {
                 const refreshed = res.headers?.get?.('x-csrf-token') || res.headers?.get?.('X-CSRF-Token');
                 if (refreshed) sessionCsrf = refreshed;
                 else await fetchSessionCsrf();
-                res = await doReq(sessionCsrf);
+                res = await doSessReq(sessionCsrf);
             }
+            try { d = await res.json(); } catch(_) {}
         }
-        let d = {};
-        try { d = await res.json(); } catch(_) {}
 
         if (res.ok && d.success) {
             const reward = (d.currencyType || '') + ' +' + (d.amount || '?');
-            log('✓ Daily claimed as ' + label + ' — ' + reward, 'success');
+            log('\u2713 Daily claimed as ' + label + ' \u2014 ' + reward, 'success');
             return { ok: true, reward };
         }
         const msg     = d.message || d.errorMessage || d.errors?.[0]?.message || ('HTTP ' + res.status);
@@ -61,10 +96,10 @@ async function claimDailyFrom(acctIdx) {
             log('~ Daily already claimed (' + label + ')', 'warn');
             return { ok: true, skipped: true, reward: 'Already claimed' };
         }
-        log('✗ Daily failed (' + label + '): ' + msg, 'err');
+        log('\u2717 Daily failed (' + label + '): ' + msg, 'err');
         return { ok: false, msg };
     } catch(e) {
-        log('✗ Daily error (' + label + '): ' + e.message, 'err');
+        log('\u2717 Daily error (' + label + '): ' + e.message, 'err');
         return { ok: false, msg: e.message };
     }
 }
