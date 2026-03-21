@@ -571,14 +571,25 @@ function setUpdateSniperStatus(active) {
     if (txt) txt.textContent = active ? 'Watching for price drops & resales...' : 'Idle — start to watch for updates';
 }
 // ─── Redirect Sniper ──────────────────────────────────────────────────────
+// Uses the same GM_xmlhttpRequest concurrency-pool engine as the main sniper:
+//   • Bypasses the browser's 6-conn-per-domain limit
+//   • fastHash diffing — skip processing identical responses in ~1µs
+//   • Promise.resolve() microtask yield — no 4ms setTimeout floor
+//   • REDIR_CONCURRENCY parallel workers firing at DISPATCH_MS cadence
+
+const REDIR_CONCURRENCY = 8;   // parallel GM XHR workers
+const REDIR_URL = BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2';
+
 let redirectSniperActive   = false;
-let redirectSniperTimer    = null;
-let redirectSniperMaxId    = 0;    // highest item ID seen — anything above this is NEW (O(1) check)
-let redirectSniperPriceMap = {};   // id → { price, forSale } — only used when redirectUpdated is on
-let redirectSniperSettings = {
-    redirectNew:     true,
-    redirectUpdated: false,
-};
+let redirectSniperMaxId    = 0;      // O(1) new-item check: id > max → new
+let redirectSniperPriceMap = {};     // id → { price, forSale } for update mode
+let redirectSniperSettings = { redirectNew: true, redirectUpdated: false };
+
+// Private dispatch state (separate from main sniper's globals)
+let _redirAbortCtrl    = null;
+let _redirDispatchTimer = null;
+let _redirInFlight     = 0;
+let _redirLastHash     = '';
 
 function saveRedirectSniperSettings() {
     redirectSniperSettings.redirectNew     = document.getElementById('st-redirect-new')?.classList.contains('on') ?? true;
@@ -600,70 +611,105 @@ function loadRedirectSniperSettings() {
     setOn('st-redirect-updated', redirectSniperSettings.redirectUpdated);
 }
 
-async function runRedirectSniperCheck() {
+// ─── Core response processor ─────────────────────────────────────────────
+function processRedirectResponse(responseText) {
     if (!redirectSniperActive) return;
-    try {
-        const r = await fetch(BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
-        if (!r.ok) return;
-        const j = await r.json();
-        const items = j.data || [];
-        if (!items.length) return;
 
-        // ── New-item detection: O(1) — just compare against max seen ID ──────
-        if (redirectSniperSettings.redirectNew) {
-            for (const item of items) {
-                if (!redirectSniperActive) return;          // stop immediately if turned off
-                if (item.id <= redirectSniperMaxId) continue; // not new
-                // Genuine new item
-                log('🔗 New item — redirecting: ' + (item.name || 'ID ' + item.id), 'success');
-                fireUpdateNotification('🔗 New Item!', item.name || 'ID ' + item.id);
-                if (redirectSniperActive) window.open(BASE + '/catalog/' + item.id + '/', '_blank');
-            }
+    // Hash diff — bail instantly if response bytes haven't changed
+    const h = fastHash(responseText);
+    if (h === _redirLastHash) return;
+    _redirLastHash = h;
+
+    let json;
+    try { json = JSON.parse(responseText); } catch(_) { return; }
+    const items = json.data;
+    if (!items || !items.length) return;
+
+    // ── New-item detection: O(1) per item ────────────────────────────────
+    if (redirectSniperSettings.redirectNew) {
+        for (let i = 0; i < items.length; i++) {
+            if (!redirectSniperActive) return;
+            const item = items[i];
+            if (item.id <= redirectSniperMaxId) continue;   // fast path: not new
+            log('🔗 New item — redirecting: ' + (item.name || 'ID ' + item.id), 'success');
+            fireUpdateNotification('🔗 New Item!', item.name || 'ID ' + item.id);
+            if (redirectSniperActive) window.open(BASE + '/catalog/' + item.id + '/', '_blank');
         }
+    }
 
-        // Update maxId after scanning all items
-        const batchMax = Math.max(...items.map(x => x.id));
-        if (batchMax > redirectSniperMaxId) redirectSniperMaxId = batchMax;
+    // Advance the high-water mark
+    let batchMax = redirectSniperMaxId;
+    for (let i = 0; i < items.length; i++) { if (items[i].id > batchMax) batchMax = items[i].id; }
+    redirectSniperMaxId = batchMax;
 
-        // ── Price / resale detection (only if enabled) ────────────────────────
-        if (redirectSniperSettings.redirectUpdated) {
-            for (const item of items) {
-                if (!redirectSniperActive) return;
-                const id       = String(item.id);
-                const curPrice = item.lowestPrice ?? item.price ?? 0;
-                const curSale  = !!item.isForSale || item.lowestSellerData != null;
-                const prev     = redirectSniperPriceMap[id];
-                if (prev) {
-                    const dropped   = prev.price !== curPrice && curPrice > 0 && curPrice < prev.price;
-                    const backOnSale = !prev.forSale && curSale;
-                    if (dropped || backOnSale) {
-                        const reason = backOnSale ? 'back on sale' : ('R$' + prev.price + '→R$' + curPrice);
-                        log('🔗 Update — redirecting: ' + (item.name || 'ID ' + id) + ' (' + reason + ')', 'success');
-                        fireUpdateNotification('🔗 Item Updated!', (item.name || 'ID ' + id) + ' — ' + reason);
-                        if (redirectSniperActive) window.open(BASE + '/catalog/' + id + '/', '_blank');
-                    }
+    // ── Price / resale detection ──────────────────────────────────────────
+    if (redirectSniperSettings.redirectUpdated) {
+        for (let i = 0; i < items.length; i++) {
+            if (!redirectSniperActive) return;
+            const item     = items[i];
+            const id       = String(item.id);
+            const curPrice = item.lowestPrice ?? item.price ?? 0;
+            const curSale  = !!item.isForSale || item.lowestSellerData != null;
+            const prev     = redirectSniperPriceMap[id];
+            if (prev) {
+                const dropped    = curPrice > 0 && curPrice < prev.price;
+                const backOnSale = !prev.forSale && curSale;
+                if (dropped || backOnSale) {
+                    const reason = backOnSale ? 'back on sale' : ('R$' + prev.price + '→R$' + curPrice);
+                    log('🔗 Update — redirecting: ' + (item.name || 'ID ' + id) + ' (' + reason + ')', 'success');
+                    fireUpdateNotification('🔗 Item Updated!', (item.name || 'ID ' + id) + ' — ' + reason);
+                    if (redirectSniperActive) window.open(BASE + '/catalog/' + id + '/', '_blank');
                 }
-                redirectSniperPriceMap[id] = { price: curPrice, forSale: curSale };
             }
+            redirectSniperPriceMap[id] = { price: curPrice, forSale: curSale };
         }
-    } catch(e) {
-        if (redirectSniperActive) log('Redirect sniper err: ' + e.message, 'err');
     }
 }
 
+// ─── Single GM XHR worker ────────────────────────────────────────────────
+function redirDispatchOne() {
+    if (!redirectSniperActive) return;
+    _redirInFlight++;
+    GM_xmlhttpRequest({
+        method:  'GET',
+        url:     REDIR_URL + '&_=' + Date.now(),
+        headers: { 'Accept': 'application/json' },
+        onload:  (r) => {
+            _redirInFlight--;
+            if (!redirectSniperActive) return;
+            processRedirectResponse(r.responseText);
+        },
+        onerror: () => { _redirInFlight--; },
+        onabort: () => { _redirInFlight--; },
+    });
+}
+
+// ─── Dispatch loop — fires workers at DISPATCH_MS cadence ────────────────
+function redirStartDispatch() {
+    _redirInFlight  = 0;
+    _redirLastHash  = '';
+    _redirDispatchTimer = setInterval(() => {
+        if (!redirectSniperActive) { clearInterval(_redirDispatchTimer); _redirDispatchTimer = null; return; }
+        while (_redirInFlight < REDIR_CONCURRENCY && redirectSniperActive) redirDispatchOne();
+    }, DISPATCH_MS);
+}
+
+// ─── Start / stop / toggle ────────────────────────────────────────────────
 async function startRedirectSniper() {
     loadRedirectSniperSettings();
     redirectSniperActive   = true;
     redirectSniperMaxId    = 0;
     redirectSniperPriceMap = {};
+    _redirLastHash         = '';
 
-    // Snapshot: just record the current highest ID so the next new item above it fires
+    setRedirectSniperStatus(true);
+
+    // Snapshot via regular fetch — sets the baseline max ID before workers fire
     try {
-        setRedirectSniperStatus(true);
-        const r = await fetch(BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
+        const r = await fetch(REDIR_URL + '&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
         const j = await r.json();
         const items = j.data || [];
-        items.forEach(item => {
+        for (const item of items) {
             if (item.id > redirectSniperMaxId) redirectSniperMaxId = item.id;
             if (redirectSniperSettings.redirectUpdated) {
                 redirectSniperPriceMap[String(item.id)] = {
@@ -671,28 +717,23 @@ async function startRedirectSniper() {
                     forSale: !!item.isForSale || item.lowestSellerData != null,
                 };
             }
-        });
-        log('🔗 Redirect Sniper armed — max ID: ' + redirectSniperMaxId + ' (' + items.length + ' items snapshotted)', 'success');
+        }
+        log('🔗 Redirect Sniper armed — max ID: ' + redirectSniperMaxId + ' · ' + REDIR_CONCURRENCY + ' workers · hash diffing ON', 'success');
     } catch(e) {
-        log('🔗 Redirect Sniper snapshot failed: ' + e.message, 'warn');
+        log('🔗 Redirect Sniper snapshot failed: ' + e.message + ' — proceeding anyway', 'warn');
     }
 
     try { GM_setValue('redirectSniperActive', true); } catch(_) {}
-
-    // Tight async loop — fires as fast as the network allows, stops the instant active = false
-    (async () => {
-        while (redirectSniperActive) {
-            await runRedirectSniperCheck();
-            await new Promise(resolve => setTimeout(resolve, 0));
-        }
-    })();
+    redirStartDispatch();
 }
 
 function stopRedirectSniper() {
-    redirectSniperActive   = false;   // loop condition — stops the while loop immediately
+    redirectSniperActive = false;
+    if (_redirDispatchTimer) { clearInterval(_redirDispatchTimer); _redirDispatchTimer = null; }
+    _redirInFlight     = 0;
+    _redirLastHash     = '';
     redirectSniperMaxId    = 0;
     redirectSniperPriceMap = {};
-    if (redirectSniperTimer) { clearInterval(redirectSniperTimer); redirectSniperTimer = null; }
     setRedirectSniperStatus(false);
     log('🔗 Redirect Sniper stopped', 'warn');
     try { GM_setValue('redirectSniperActive', false); } catch(_) {}
@@ -709,5 +750,7 @@ function setRedirectSniperStatus(active) {
     const dot = document.getElementById('st-redirect-dot');
     if (dot) dot.className = 'st-dot ' + (active ? 'st-dot-active' : 'st-dot-idle');
     const txt = document.getElementById('st-redirect-txt');
-    if (txt) txt.textContent = active ? 'Watching — will open item page on match…' : 'Idle — opens item page when something new appears';
+    if (txt) txt.textContent = active
+        ? 'Sniping — ' + REDIR_CONCURRENCY + ' workers · hash diffing · max speed'
+        : 'Idle — opens item page when something new appears';
 }
