@@ -165,6 +165,16 @@ function updateMiniAcct() {
 // ─── Account Preview Fetch ────────────────────────────────────────────────
 async function fetchAcctPreview(i) {
     const acct = accounts[i];
+    if (!acct) return {};
+
+    // FIX: Skip preview fetches for session-backed accounts (no stored cookie).
+    // These accounts would make requests via credentials:'include' (the real
+    // browser session), which can confuse the server when mixed with other
+    // account requests and cause a session logout.
+    if (acct.sessionBacked || !acct.cookie) {
+        return { robux: null, tickets: null, avatar: null };
+    }
+
     const preview = {};
 
     // ── Currency: response is { robux, tickets } ────────────────────────────
@@ -174,8 +184,6 @@ async function fetchAcctPreview(i) {
         '/api/economy/users/' + uid + '/currency',
         '/api/users/' + uid + '/currency',
         '/apisite/economy/v1/user/currency',
-        '/api/currency',
-        '/api/user/currency',
     ] : [
         '/apisite/economy/v1/user/currency',
         '/api/currency',
@@ -213,7 +221,6 @@ async function fetchAcctPreview(i) {
             }
         } catch(_) {}
         // ── Membership — /apisite/premiumfeatures/v1/users/{id}/validate-membership
-        // Returns a number: 0=None, 1=BC, 2=TBC, 3=OBC
         try {
             if (acct.id) {
                 const mr = await acctFetch(i, BASE + '/apisite/premiumfeatures/v1/users/' + acct.id + '/validate-membership');
@@ -389,31 +396,46 @@ function rebuildSettingsAcctList() {
         el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--c-text4);font-size:11px;font-style:italic;">No accounts saved yet</div>';
         return;
     }
+
+    // Clear any existing auto-refresh timer before creating a new one
+    if (_acctAutoRefreshTimer) { clearInterval(_acctAutoRefreshTimer); _acctAutoRefreshTimer = null; }
+
     accounts.forEach((a, i) => {
         const card = renderAcctCard(a, i, null);
         el.appendChild(card);
-        fetchAcctPreview(i).then(preview => {
-            const newCard = renderAcctCard(accounts[i], i, preview);
-            card.replaceWith(newCard);
-        });
-    });
 
-    // Auto-refresh previews every 30s
-    if (_acctAutoRefreshTimer) clearInterval(_acctAutoRefreshTimer);
-    const doRefresh = () => {
-        const listEl = document.getElementById('st-settings-acct-list');
-        if (!listEl) { clearInterval(_acctAutoRefreshTimer); return; }
-        accounts.forEach((a, i) => {
+        // FIX: Stagger preview fetches with a small delay per account so we
+        // don't fire a burst of simultaneous requests which can trip server
+        // rate-limits or security checks.
+        setTimeout(() => {
             fetchAcctPreview(i).then(preview => {
-                const card = listEl.querySelector('[data-acct-idx="' + i + '"]');
-                if (card) {
+                // Re-query because the card may have been replaced already
+                const existing = el.querySelector('[data-acct-idx="' + i + '"]');
+                if (existing) {
                     const newCard = renderAcctCard(accounts[i], i, preview);
-                    card.replaceWith(newCard);
+                    existing.replaceWith(newCard);
                 }
             });
+        }, i * 300); // 300ms stagger per account
+    });
+
+    // Auto-refresh previews every 60s (increased from 30s to reduce request load)
+    const doRefresh = () => {
+        const listEl = document.getElementById('st-settings-acct-list');
+        if (!listEl) { clearInterval(_acctAutoRefreshTimer); _acctAutoRefreshTimer = null; return; }
+        accounts.forEach((a, i) => {
+            setTimeout(() => {
+                fetchAcctPreview(i).then(preview => {
+                    const card = listEl.querySelector('[data-acct-idx="' + i + '"]');
+                    if (card) {
+                        const newCard = renderAcctCard(accounts[i], i, preview);
+                        card.replaceWith(newCard);
+                    }
+                });
+            }, i * 300);
         });
     };
-    _acctAutoRefreshTimer = setInterval(doRefresh, 30000);
+    _acctAutoRefreshTimer = setInterval(doRefresh, 60000);
 }
 
 async function addAccountFlow() {
