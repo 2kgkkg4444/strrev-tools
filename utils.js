@@ -65,13 +65,21 @@ let mySelected      = new Set();
 let theirSelected   = new Set();
 
 // ─── GM Fetch ─────────────────────────────────────────────────────────────
+// FIX: When we explicitly set a Cookie header for a saved account,
+// we must pass anonymous:true so Tampermonkey does NOT also append
+// the browser's own .ROBLOSECURITY cookie. Without this, the server
+// receives two conflicting .ROBLOSECURITY values and invalidates
+// the browser session — logging the user out.
 function gmFetch(url, opts = {}) {
     return new Promise((res, rej) => {
+        const hasCookieHeader = !!(opts.headers &&
+            Object.keys(opts.headers).some(k => k.toLowerCase() === 'cookie'));
         GM_xmlhttpRequest({
-            method:  opts.method  || 'GET',
+            method:    opts.method  || 'GET',
             url,
-            headers: opts.headers || {},
-            data:    opts.body    || null,
+            headers:   opts.headers || {},
+            data:      opts.body    || null,
+            anonymous: hasCookieHeader, // don't mix browser cookies with explicit account cookies
             onload:  r => res(r),
             onerror: e => rej(e),
         });
