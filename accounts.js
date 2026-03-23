@@ -94,7 +94,7 @@ async function acctFetch(acctIdx, url, opts = {}) {
     if (acct.sessionBacked || !acct.cookie) {
         const method = (opts.method||'GET').toUpperCase();
         const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
-        if (needsCsrf && !acct.csrf) { await fetchSessionCsrf(); acct.csrf = sessionCsrf; saveAccounts(); }
+        if (needsCsrf) { await fetchSessionCsrf(); acct.csrf = sessionCsrf; saveAccounts(); }
         const headers = {
             'Accept': 'application/json',
             ...(needsCsrf ? { 'x-csrf-token': acct.csrf||sessionCsrf||'', 'Content-Type':'application/json' } : {}),
@@ -106,9 +106,14 @@ async function acctFetch(acctIdx, url, opts = {}) {
     const method = (opts.method||'GET').toUpperCase();
     const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
 
-    if (needsCsrf && !acct.csrf) {
-        acct.csrf = await fetchCsrfForCookie(acct.cookie);
-        saveAccounts();
+    // Always refresh CSRF before every POST-like request.
+    // The old code only fetched when !acct.csrf — but once a token is stored
+    // (even if weeks old) it was never refreshed. The server returns HTTP 200
+    // with an error body (not 403) for stale tokens, so the 403-retry below
+    // never fired, causing every saved-account POST to silently fail.
+    if (needsCsrf) {
+        const fresh = await fetchCsrfForCookie(acct.cookie);
+        if (fresh) { acct.csrf = fresh; saveAccounts(); }
     }
 
     const buildH = () => ({
@@ -120,6 +125,7 @@ async function acctFetch(acctIdx, url, opts = {}) {
 
     let r = await gmFetch(url, { ...opts, headers: buildH() });
 
+    // Still handle genuine 403s — pull token from response header and retry
     if (r.status === 403 && needsCsrf) {
         const nc = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
         if (nc) { acct.csrf = nc; saveAccounts(); r = await gmFetch(url, { ...opts, headers: buildH() }); }
