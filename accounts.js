@@ -33,7 +33,7 @@ function startAutoAccept(i) {
     stopAutoAccept(i);
     accounts[i].autoAcceptTrades = true;
     saveAccounts();
-    pollAndAcceptTrades(i); // immediate first check
+    pollAndAcceptTrades(i);
     autoAcceptTimers[i] = setInterval(() => pollAndAcceptTrades(i), 15000);
     log('🤝 Auto-accept trades ON for ' + accounts[i].username, 'success');
 }
@@ -73,63 +73,8 @@ function tryAuthEndpoint(cookie, idx) {
     });
 }
 
-// Per-account session cache: stores rbxcsrf4 cookie + extracted CSRF value
-// The server requires rbxcsrf4 alongside .ROBLOSECURITY for all endpoints.
-// Session mode works because the browser already has rbxcsrf4 from page loads.
-// Saved accounts must GET an authenticated endpoint first to receive rbxcsrf4
-// via Set-Cookie, then include it in all subsequent requests.
-const _sessionCache = {}; // acctIdx -> { fullCookie, csrfToken, at }
-const SESSION_TTL   = 4 * 60 * 1000; // 4 minutes
-
-function fetchAccountSession(acctIdx) {
-    const acct  = accounts[acctIdx];
-    const cache = _sessionCache[acctIdx];
-    if (cache && (Date.now() - cache.at) < SESSION_TTL) return Promise.resolve(cache);
-
-    return new Promise(resolve => {
-        GM_xmlhttpRequest({
-            method:    'GET',
-            url:       BASE + '/apisite/users/v1/users/authenticated?_=' + Date.now(),
-            headers:   { 'Cookie': '.ROBLOSECURITY=' + acct.cookie, 'Accept': 'application/json' },
-            anonymous: true,
-            onload: r => {
-                // Collect every Set-Cookie the server returns
-                const setCookieLines = r.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [];
-                const extraCookies   = setCookieLines
-                    .map(h => h.replace(/^set-cookie:\s*/i, '').split(';')[0].trim())
-                    .filter(Boolean);
-
-                // Decode rbxcsrf4 JWT to extract the csrf field
-                const rbxEntry = extraCookies.find(c => c.startsWith('rbxcsrf4='));
-                let csrfToken = '';
-                if (rbxEntry) {
-                    try {
-                        const jwt     = rbxEntry.slice('rbxcsrf4='.length);
-                        const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-                        csrfToken = payload.csrf || '';
-                    } catch(_) {}
-                }
-                // Fallback: x-csrf-token response header
-                if (!csrfToken) {
-                    csrfToken = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
-                }
-
-                const fullCookie = ['.ROBLOSECURITY=' + acct.cookie, ...extraCookies].join('; ');
-                const sess = { fullCookie, csrfToken, at: Date.now() };
-                _sessionCache[acctIdx] = sess;
-                resolve(sess);
-            },
-            onerror: () => {
-                // Fallback to bare cookie — will likely fail but at least won't throw
-                const sess = { fullCookie: '.ROBLOSECURITY=' + acct.cookie, csrfToken: acct.csrf || '', at: Date.now() };
-                _sessionCache[acctIdx] = sess;
-                resolve(sess);
-            },
-        });
-    });
-}
-
-// Keep fetchCsrfForCookie for addAccountFlow + refreshAllTokens button
+// Fetch a fresh CSRF token by probing the economy endpoint.
+// This is the same approach used when accounts are first added.
 function fetchCsrfForCookie(cookie) {
     return new Promise(resolve => {
         gmFetch(BASE + '/apisite/economy/v1/purchases/products/0', {
@@ -145,13 +90,13 @@ function fetchCsrfForCookie(cookie) {
 
 async function acctFetch(acctIdx, url, opts = {}) {
     const acct = accounts[acctIdx];
-    if (!acct) throw new Error('No account at index ' + acctIdx);
+    if (!acct) throw new Error('No account at index '+acctIdx);
 
-    // Session-backed account (no raw cookie) — use browser session directly
+    // Session-backed account (auto-added, no raw cookie) — use browser session
     if (acct.sessionBacked || !acct.cookie) {
-        const method = (opts.method || 'GET').toUpperCase();
+        const method = (opts.method||'GET').toUpperCase();
         const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
-        if (needsCsrf) { await fetchSessionCsrf(); acct.csrf = sessionCsrf; saveAccounts(); }
+        if (needsCsrf && !acct.csrf) { await fetchSessionCsrf(); acct.csrf = sessionCsrf; saveAccounts(); }
         const headers = {
             'Accept': 'application/json',
             ...(needsCsrf ? { 'x-csrf-token': acct.csrf||sessionCsrf||'', 'Content-Type':'application/json' } : {}),
@@ -160,51 +105,30 @@ async function acctFetch(acctIdx, url, opts = {}) {
         return fetch(url, { credentials:'include', ...opts, headers });
     }
 
-    const method    = (opts.method || 'GET').toUpperCase();
+    const method = (opts.method||'GET').toUpperCase();
     const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
 
-    // Establish a proper session for this account — GET an authenticated endpoint
-    // so the server sends rbxcsrf4 via Set-Cookie. We include that cookie in all
-    // requests so the server treats this the same as a real browser session.
-    let sess = await fetchAccountSession(acctIdx);
+    // Always fetch a fresh CSRF token for mutating requests.
+    // The server returns HTTP 200 "Token Validation Failed" (not 403) for stale
+    // tokens so the 403-retry below never fires — always refreshing is the fix.
+    if (needsCsrf) {
+        const fresh = await fetchCsrfForCookie(acct.cookie);
+        if (fresh) { acct.csrf = fresh; saveAccounts(); }
+    }
 
-    const buildH = (s) => ({
-        'Cookie': s.fullCookie,
+    const buildH = () => ({
+        'Cookie': '.ROBLOSECURITY='+acct.cookie,
         'Accept': 'application/json',
-        ...(needsCsrf ? { 'x-csrf-token': s.csrfToken, 'Content-Type':'application/json' } : {}),
+        ...(needsCsrf ? { 'x-csrf-token': acct.csrf||'', 'Content-Type':'application/json' } : {}),
         ...(opts.headers||{}),
     });
 
-    let r = await gmFetch(url, { ...opts, headers: buildH(sess) });
+    let r = await gmFetch(url, { ...opts, headers: buildH() });
 
-    // 403 = token rejected at transport level — invalidate cache and retry once
     if (r.status === 403 && needsCsrf) {
-        delete _sessionCache[acctIdx];
-        sess = await fetchAccountSession(acctIdx);
-        r    = await gmFetch(url, { ...opts, headers: buildH(sess) });
+        const nc = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
+        if (nc) { acct.csrf = nc; saveAccounts(); r = await gmFetch(url, { ...opts, headers: buildH() }); }
     }
-
-    // Update cache with any new rbxcsrf4 the server issued in this response
-    const newSetCookies = r.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [];
-    const newRbx = newSetCookies
-        .map(h => h.replace(/^set-cookie:\s*/i,'').split(';')[0].trim())
-        .find(c => c.startsWith('rbxcsrf4='));
-    if (newRbx) {
-        try {
-            const jwt     = newRbx.slice('rbxcsrf4='.length);
-            const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-            const csrf    = payload.csrf || '';
-            if (csrf && _sessionCache[acctIdx]) {
-                const existing = _sessionCache[acctIdx].fullCookie.replace(/rbxcsrf4=[^;]+;?\s*/g,'').trim();
-                _sessionCache[acctIdx] = {
-                    fullCookie: existing + '; ' + newRbx,
-                    csrfToken:  csrf,
-                    at:         Date.now(),
-                };
-            }
-        } catch(_) {}
-    }
-
     return normResp(r);
 }
 
@@ -247,29 +171,17 @@ function updateMiniAcct() {
 async function fetchAcctPreview(i) {
     const acct = accounts[i];
     if (!acct) return {};
-
-    // FIX: Skip preview fetches for session-backed accounts (no stored cookie).
-    // These accounts would make requests via credentials:'include' (the real
-    // browser session), which can confuse the server when mixed with other
-    // account requests and cause a session logout.
     if (acct.sessionBacked || !acct.cookie) {
         return { robux: null, tickets: null, avatar: null };
     }
-
     const preview = {};
-
-    // ── Currency: response is { robux, tickets } ────────────────────────────
     const uid = acct.id;
     const currencyEndpoints = uid ? [
         '/apisite/economy/v1/users/' + uid + '/currency',
         '/api/economy/users/' + uid + '/currency',
         '/api/users/' + uid + '/currency',
         '/apisite/economy/v1/user/currency',
-    ] : [
-        '/apisite/economy/v1/user/currency',
-        '/api/currency',
-        '/api/user/currency',
-    ];
+    ] : ['/apisite/economy/v1/user/currency'];
     for (const ep of currencyEndpoints) {
         try {
             const r = await acctFetch(i, BASE + ep);
@@ -282,34 +194,21 @@ async function fetchAcctPreview(i) {
             }
         } catch(_) {}
     }
-
-    // ── Avatar ───────────────────────────────────────────────────────────────
     if (acct.id) {
         try {
             const tr = await acctFetch(i, BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + acct.id + '&size=150x150&format=Png&isCircular=false');
-            if (tr.ok) {
-                const tj = await tr.json();
-                preview.avatar = tj.data?.[0]?.imageUrl || null;
-            }
+            if (tr.ok) { const tj = await tr.json(); preview.avatar = tj.data?.[0]?.imageUrl || null; }
         } catch(_) {}
-        // ── Profile / join date ──────────────────────────────────────────────
         try {
             const ur = await acctFetch(i, BASE + '/apisite/users/v1/users/' + acct.id);
-            if (ur.ok) {
-                const uj = await ur.json();
-                preview.displayName = uj.displayName || null;
-                preview.created     = uj.created     || null;
-            }
+            if (ur.ok) { const uj = await ur.json(); preview.displayName = uj.displayName || null; preview.created = uj.created || null; }
         } catch(_) {}
-        // ── Membership — /apisite/premiumfeatures/v1/users/{id}/validate-membership
         try {
-            if (acct.id) {
-                const mr = await acctFetch(i, BASE + '/apisite/premiumfeatures/v1/users/' + acct.id + '/validate-membership');
-                if (mr.ok) {
-                    const tier = parseInt(await mr.text());
-                    const tierMap = { 0: 'None', 1: 'BuildersClub', 2: 'TurboBuildersClub', 3: 'OutrageousBuildersClub' };
-                    preview.membership = tierMap[tier] ?? null;
-                }
+            const mr = await acctFetch(i, BASE + '/apisite/premiumfeatures/v1/users/' + acct.id + '/validate-membership');
+            if (mr.ok) {
+                const tier = parseInt(await mr.text());
+                const tierMap = { 0:'None', 1:'BuildersClub', 2:'TurboBuildersClub', 3:'OutrageousBuildersClub' };
+                preview.membership = tierMap[tier] ?? null;
             }
         } catch(_) {}
     }
@@ -323,11 +222,9 @@ function renderAcctCard(a, i, preview, cardEl) {
     card.onmouseenter = () => card.style.borderColor = 'var(--c-border)';
     card.onmouseleave = () => card.style.borderColor = 'var(--c-border2)';
 
-    // Top row: avatar + name block + remove
     const top = document.createElement('div');
     top.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;';
 
-    // Avatar
     const avatarWrap = document.createElement('div');
     avatarWrap.style.cssText = 'width:48px;height:48px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--c-bg2);border:1px solid var(--c-border2);display:flex;align-items:center;justify-content:center;font-size:20px;';
     if (preview && preview.avatar) {
@@ -336,11 +233,8 @@ function renderAcctCard(a, i, preview, cardEl) {
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
         img.onerror = () => { avatarWrap.innerHTML = '👤'; };
         avatarWrap.appendChild(img);
-    } else {
-        avatarWrap.textContent = '👤';
-    }
+    } else { avatarWrap.textContent = '👤'; }
 
-    // Name + id + csrf badge
     const nameBlock = document.createElement('div');
     nameBlock.style.cssText = 'flex:1;min-width:0;';
     const nameRow = document.createElement('div');
@@ -379,11 +273,9 @@ function renderAcctCard(a, i, preview, cardEl) {
     }
     nameBlock.append(nameRow, subRow);
 
-    // Buttons row
     const btnWrap = document.createElement('div');
     btnWrap.style.cssText = 'display:flex;gap:6px;flex-shrink:0;align-items:center;';
 
-    // Auto-accept toggle
     const aaOn = !!a.autoAcceptTrades;
     const aaWrap = document.createElement('div');
     aaWrap.title = 'Auto-accept incoming trades';
@@ -438,10 +330,8 @@ function renderAcctCard(a, i, preview, cardEl) {
     btnWrap.append(aaWrap, refreshBtn, rm);
     top.append(avatarWrap, nameBlock, btnWrap);
 
-    // Stats row: robux, tix
     const stats = document.createElement('div');
     stats.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
-
     const mkStat = (label, value, color, icon) => {
         const s = document.createElement('div');
         s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:9px;padding:10px 12px;';
@@ -454,16 +344,13 @@ function renderAcctCard(a, i, preview, cardEl) {
         s.append(lbl, val);
         return s;
     };
-
     const loading = '…';
-    const robuxVal  = (preview && preview.robux   != null) ? preview.robux.toLocaleString()   : loading;
-    const tixVal    = (preview && preview.tickets  != null) ? preview.tickets.toLocaleString()  : loading;
-
+    const robuxVal = (preview && preview.robux   != null) ? preview.robux.toLocaleString()  : loading;
+    const tixVal   = (preview && preview.tickets != null) ? preview.tickets.toLocaleString() : loading;
     stats.append(
-        mkStat('Robux',   robuxVal,  '#f97316', 'R$'),
-        mkStat('Tickets', tixVal,    '#eab308',  'T$'),
+        mkStat('Robux',   robuxVal, '#f97316', 'R$'),
+        mkStat('Tickets', tixVal,   '#eab308', 'T$'),
     );
-
     card.append(top, stats);
     return card;
 }
@@ -477,30 +364,17 @@ function rebuildSettingsAcctList() {
         el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--c-text4);font-size:11px;font-style:italic;">No accounts saved yet</div>';
         return;
     }
-
-    // Clear any existing auto-refresh timer before creating a new one
     if (_acctAutoRefreshTimer) { clearInterval(_acctAutoRefreshTimer); _acctAutoRefreshTimer = null; }
-
     accounts.forEach((a, i) => {
         const card = renderAcctCard(a, i, null);
         el.appendChild(card);
-
-        // FIX: Stagger preview fetches with a small delay per account so we
-        // don't fire a burst of simultaneous requests which can trip server
-        // rate-limits or security checks.
         setTimeout(() => {
             fetchAcctPreview(i).then(preview => {
-                // Re-query because the card may have been replaced already
                 const existing = el.querySelector('[data-acct-idx="' + i + '"]');
-                if (existing) {
-                    const newCard = renderAcctCard(accounts[i], i, preview);
-                    existing.replaceWith(newCard);
-                }
+                if (existing) { const newCard = renderAcctCard(accounts[i], i, preview); existing.replaceWith(newCard); }
             });
-        }, i * 300); // 300ms stagger per account
+        }, i * 300);
     });
-
-    // Auto-refresh previews every 60s (increased from 30s to reduce request load)
     const doRefresh = () => {
         const listEl = document.getElementById('st-settings-acct-list');
         if (!listEl) { clearInterval(_acctAutoRefreshTimer); _acctAutoRefreshTimer = null; return; }
@@ -508,15 +382,47 @@ function rebuildSettingsAcctList() {
             setTimeout(() => {
                 fetchAcctPreview(i).then(preview => {
                     const card = listEl.querySelector('[data-acct-idx="' + i + '"]');
-                    if (card) {
-                        const newCard = renderAcctCard(accounts[i], i, preview);
-                        card.replaceWith(newCard);
-                    }
+                    if (card) { const newCard = renderAcctCard(accounts[i], i, preview); card.replaceWith(newCard); }
                 });
             }, i * 300);
         });
     };
     _acctAutoRefreshTimer = setInterval(doRefresh, 60000);
+}
+
+// ─── Refresh All CSRF Tokens ──────────────────────────────────────────────
+async function refreshAllTokens() {
+    const btn      = document.getElementById('st-refresh-tokens-btn');
+    const icon     = document.getElementById('st-refresh-tokens-icon');
+    const statusEl = document.getElementById('st-refresh-tokens-status');
+    if (!accounts.length) {
+        if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-warn)'; statusEl.textContent='No accounts saved.'; }
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (icon) icon.innerHTML = '<span class="st-spin" style="display:inline-block;">&#8635;</span>';
+    if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-text3)'; statusEl.textContent='Refreshing tokens for ' + accounts.length + ' account(s)...'; }
+    let ok = 0, failed = 0;
+    for (let i = 0; i < accounts.length; i++) {
+        const acct = accounts[i];
+        if (!acct.cookie) { failed++; continue; }
+        if (statusEl) statusEl.textContent = 'Refreshing ' + (i+1) + '/' + accounts.length + ' — ' + (acct.username || 'Account '+i) + '...';
+        try {
+            const fresh = await fetchCsrfForCookie(acct.cookie);
+            if (fresh) { acct.csrf = fresh; ok++; log('Token refreshed: ' + (acct.username||'Account '+i), 'success'); }
+            else        { failed++; log('Token refresh failed: ' + (acct.username||'Account '+i), 'err'); }
+        } catch(e) { failed++; log('Token refresh error (' + (acct.username||'Account '+i) + '): ' + e.message, 'err'); }
+    }
+    saveAccounts();
+    if (icon) icon.textContent = 'OK';
+    if (btn) btn.disabled = false;
+    const allOk = failed === 0;
+    if (statusEl) {
+        statusEl.style.color = allOk ? 'var(--c-success)' : failed === accounts.length ? 'var(--c-err)' : 'var(--c-warn)';
+        statusEl.textContent = ok + ' token(s) refreshed' + (failed > 0 ? ' / ' + failed + ' failed' : '');
+        setTimeout(() => { if (statusEl) statusEl.style.display='none'; }, 4000);
+    }
+    log('Token refresh complete — ' + ok + ' ok, ' + failed + ' failed', allOk ? 'success' : 'warn');
 }
 
 async function addAccountFlow() {
@@ -545,55 +451,4 @@ async function addAccountFlow() {
     if (addBtn) { addBtn.disabled=false; addBtn.innerHTML='🔍 Fetch Username & Save'; }
     log('Account saved: '+result.name, 'success');
     resumeAutoAccepts();
-}
-// --- Refresh All CSRF Tokens ---
-async function refreshAllTokens() {
-    const btn      = document.getElementById('st-refresh-tokens-btn');
-    const icon     = document.getElementById('st-refresh-tokens-icon');
-    const statusEl = document.getElementById('st-refresh-tokens-status');
-
-    if (!accounts.length) {
-        if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-warn)'; statusEl.textContent='No accounts saved.'; }
-        return;
-    }
-
-    if (btn) btn.disabled = true;
-    if (icon) icon.innerHTML = '<span class="st-spin" style="display:inline-block;">&#8635;</span>';
-    if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-text3)'; statusEl.textContent='Refreshing tokens for ' + accounts.length + ' account(s)...'; }
-
-    let ok = 0, failed = 0;
-
-    for (let i = 0; i < accounts.length; i++) {
-        const acct = accounts[i];
-        if (!acct.cookie) { failed++; continue; }
-        if (statusEl) statusEl.textContent = 'Refreshing ' + (i + 1) + '/' + accounts.length + ' — ' + (acct.username || 'Account ' + i) + '...';
-        try {
-            const fresh = await fetchCsrfForCookie(acct.cookie);
-            if (fresh) {
-                acct.csrf = fresh;
-                acct.csrfAt = Date.now();
-                ok++;
-                log('Token refreshed: ' + (acct.username || 'Account ' + i), 'success');
-            } else {
-                failed++;
-                log('Token refresh failed: ' + (acct.username || 'Account ' + i), 'err');
-            }
-        } catch(e) {
-            failed++;
-            log('Token refresh error (' + (acct.username || 'Account ' + i) + '): ' + e.message, 'err');
-        }
-    }
-
-    saveAccounts();
-
-    if (icon) icon.textContent = 'OK';
-    if (btn) btn.disabled = false;
-
-    const allOk = failed === 0;
-    if (statusEl) {
-        statusEl.style.color = allOk ? 'var(--c-success)' : failed === accounts.length ? 'var(--c-err)' : 'var(--c-warn)';
-        statusEl.textContent = ok + ' token(s) refreshed' + (failed > 0 ? ' / ' + failed + ' failed' : '');
-        setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 4000);
-    }
-    log('Token refresh complete — ' + ok + ' ok, ' + failed + ' failed', allOk ? 'success' : 'warn');
 }
