@@ -488,3 +488,54 @@ async function addAccountFlow() {
     log('Account saved: '+result.name, 'success');
     resumeAutoAccepts();
 }
+// --- Refresh All CSRF Tokens ---
+async function refreshAllTokens() {
+    const btn      = document.getElementById('st-refresh-tokens-btn');
+    const icon     = document.getElementById('st-refresh-tokens-icon');
+    const statusEl = document.getElementById('st-refresh-tokens-status');
+
+    if (!accounts.length) {
+        if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-warn)'; statusEl.textContent='No accounts saved.'; }
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (icon) icon.innerHTML = '<span class="st-spin" style="display:inline-block;">&#8635;</span>';
+    if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-text3)'; statusEl.textContent='Refreshing tokens for ' + accounts.length + ' account(s)...'; }
+
+    let ok = 0, failed = 0;
+
+    for (let i = 0; i < accounts.length; i++) {
+        const acct = accounts[i];
+        if (!acct.cookie) { failed++; continue; }
+        if (statusEl) statusEl.textContent = 'Refreshing ' + (i + 1) + '/' + accounts.length + ' — ' + (acct.username || 'Account ' + i) + '...';
+        try {
+            const fresh = await fetchCsrfForCookie(acct.cookie);
+            if (fresh) {
+                acct.csrf = fresh;
+                acct.csrfAt = Date.now();
+                ok++;
+                log('Token refreshed: ' + (acct.username || 'Account ' + i), 'success');
+            } else {
+                failed++;
+                log('Token refresh failed: ' + (acct.username || 'Account ' + i), 'err');
+            }
+        } catch(e) {
+            failed++;
+            log('Token refresh error (' + (acct.username || 'Account ' + i) + '): ' + e.message, 'err');
+        }
+    }
+
+    saveAccounts();
+
+    if (icon) icon.textContent = 'OK';
+    if (btn) btn.disabled = false;
+
+    const allOk = failed === 0;
+    if (statusEl) {
+        statusEl.style.color = allOk ? 'var(--c-success)' : failed === accounts.length ? 'var(--c-err)' : 'var(--c-warn)';
+        statusEl.textContent = ok + ' token(s) refreshed' + (failed > 0 ? ' / ' + failed + ' failed' : '');
+        setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 4000);
+    }
+    log('Token refresh complete — ' + ok + ' ok, ' + failed + ' failed', allOk ? 'success' : 'warn');
+}
