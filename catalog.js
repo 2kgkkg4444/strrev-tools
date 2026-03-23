@@ -1,32 +1,28 @@
 // ─── Catalog State ────────────────────────────────────────────────────────
-let catalogItems    = [];
-let catalogCursor   = '';      // empty = first page
+let catalogItems      = [];
+let catalogCursor     = '';
 let catalogNextCursor = '';
 let catalogPrevCursor = '';
-let catalogTotal    = 0;
-let catalogPageNum  = 1;
-let catalogLoading  = false;
-let catalogCategory = 'Featured';
-let catalogSort     = '0';
-let catalogSearch   = '';
+let catalogTotal      = 0;
+let catalogPageNum    = 1;
+let catalogLoading    = false;
+let catalogCategory   = 'Featured';
+let catalogSort       = '2'; // default to newest first
+let catalogSearch     = '';
 
 const CATALOG_PAGE_SIZE = 28;
+const ASSET_TYPE_NAMES = { 8:'Hat', 18:'Face', 19:'Gear', 42:'Glasses', 43:'Neck', 44:'Shoulder', 45:'Front', 46:'Back', 47:'Waist', 27:'Torso', 28:'Arm', 29:'Leg', 30:'Head' };
 
-const ASSET_TYPE_NAMES = {
-    8:'Hat', 18:'Face', 19:'Gear', 42:'Glasses', 43:'Neck', 44:'Shoulder',
-    45:'Front', 46:'Back', 47:'Waist', 27:'Torso', 28:'Arm', 29:'Leg', 30:'Head',
-};
-
-// ─── Fetch one page from API ──────────────────────────────────────────────
+// ─── Fetch one catalog page ───────────────────────────────────────────────
 async function fetchCatalogPage(cursor, category, sortType, keyword) {
-    // Step 1: search returns only IDs + pagination cursors
     let url = BASE + '/apisite/catalog/v1/search/items'
         + '?category=' + encodeURIComponent(category)
         + '&limit=' + CATALOG_PAGE_SIZE
         + '&sortType=' + sortType
         + '&_=' + Date.now();
-    if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+    if (cursor)  url += '&cursor='  + encodeURIComponent(cursor);
     if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
+
     const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
@@ -36,162 +32,92 @@ async function fetchCatalogPage(cursor, category, sortType, keyword) {
     const searchData  = j.data || [];
     if (!searchData.length) return [];
 
-    // Step 2: POST IDs to details endpoint
-    // Try without CSRF first (GET-like semantics on some platforms),
-    // then retry with token from the 403 response header if needed
     const ids = searchData.map(x => ({ itemType: x.itemType || 'Asset', id: x.id }));
     const detailsBody = JSON.stringify({ items: ids });
-    const doDetailsReq = (token) => fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
-        method: 'POST',
-        credentials: 'include',
+
+    const doDetails = async (token) => fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...(token ? { 'x-csrf-token': token } : {}) },
         body: detailsBody,
     });
-    // First try: no token
-    let dr = await doDetailsReq(null);
+
+    let dr = await doDetails(sessionCsrf || null);
     if (dr.status === 403 || dr.status === 401) {
-        // Get fresh token from the 403 header itself
-        const fromHeader = dr.headers.get('x-csrf-token');
-        if (fromHeader) {
-            sessionCsrf = fromHeader;
-            dr = await doDetailsReq(fromHeader);
-        } else {
-            // Fallback: send a dummy POST to get token, then retry
-            const probe = await fetch(BASE + '/apisite/economy/v1/purchases/products/0', {
-                method: 'POST', credentials: 'include',
-                headers: { 'Content-Type': 'application/json', 'x-csrf-token': '' },
-                body: '{}',
-            });
-            const t = probe.headers.get('x-csrf-token');
-            if (t) { sessionCsrf = t; dr = await doDetailsReq(t); }
-        }
+        const t = dr.headers.get('x-csrf-token') || await refreshSessionCsrf(true);
+        if (t) dr = await doDetails(t);
     }
-    if (!dr.ok) {
-        const errText = await dr.text().catch(()=>'');
-        throw new Error('Details HTTP ' + dr.status + (errText ? ': ' + errText.slice(0,80) : ''));
-    }
+    if (!dr.ok) throw new Error('Details HTTP ' + dr.status);
     const dj = await dr.json();
     return dj.data || [];
 }
 
-// ─── Catalog API snapshot (sniper) ───────────────────────────────────────
-async function fetchCatalogIDs() {
-    const r = await fetch(CATALOG_API + '&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
-    const j = await r.json();
-    const ids = {};
-    if (j.data) j.data.forEach(x => ids[x.id] = true);
-    return ids;
-}
-
-// ─── Build item card ──────────────────────────────────────────────────────
+// ─── Build catalog item card ──────────────────────────────────────────────
 function buildCatalogCard(item) {
     const isTix      = item.priceTickets != null && item.price == null;
     const isLimited  = item.itemRestrictions?.includes('Limited');
     const isLimitedU = item.itemRestrictions?.includes('LimitedUnique');
     const isAnyLtd   = isLimited || isLimitedU;
     const isForSale  = item.isForSale;
-    const isFree     = !isTix && (item.price === 0 || item.price === null) && !isAnyLtd;
+    // FIX: free items (price=0 or null) are always buyable regardless of isForSale flag
+    const isFree     = !isTix && !isAnyLtd && (item.price === 0 || item.price === null);
 
-    // Display price: limiteds show lowestPrice, regular show price/priceTickets
     const displayPrice = isAnyLtd
         ? (item.lowestPrice != null ? item.lowestPrice : null)
         : (isTix ? item.priceTickets : item.price);
 
-    const accentC = isAnyLtd ? '#f59e0b'
-                  : isTix    ? '#eab308'
-                  : isFree   ? '#22c55e'
-                  :            '#f97316';
-    const bgC = isAnyLtd ? 'rgba(245,158,11,0.12)'
-              : isTix    ? 'rgba(234,179,8,0.12)'
-              : isFree   ? 'rgba(34,197,94,0.12)'
-              :             'rgba(249,115,22,0.12)';
-    // Icon based on asset type for variety
-    const assetIcons = {
-        8:'🎩',   // Hat
-        18:'😊',  // Face
-        19:'⚔️',  // Gear
-        42:'🕶️',  // Glasses
-        43:'👔',  // Neck
-        44:'🦜',  // Shoulder
-        45:'🎗️',  // Front
-        46:'🎒',  // Back
-        47:'🪢',  // Waist
-        27:'👕',  // Torso
-        28:'🦾',  // Arm
-        29:'🦿',  // Leg
-        30:'👤',  // Head
-    };
+    const accentC = isAnyLtd ? '#f59e0b' : isTix ? '#eab308' : isFree ? '#22c55e' : '#f97316';
+    const bgC     = isAnyLtd ? 'rgba(245,158,11,0.12)' : isTix ? 'rgba(234,179,8,0.12)' : isFree ? 'rgba(34,197,94,0.12)' : 'rgba(249,115,22,0.12)';
+    const assetIcons = { 8:'🎩',18:'😊',19:'⚔️',42:'🕶️',43:'👔',44:'🦜',45:'🎗️',46:'🎒',47:'🪢',27:'👕',28:'🦾',29:'🦿',30:'👤' };
     const icon = isLimitedU ? '💎' : isLimited ? '🏅' : assetIcons[item.assetType] || (isTix ? '🪙' : isFree ? '🎁' : '🛍️');
 
     const li = document.createElement('li');
     li.className = 'st-cat-card';
     li.dataset.name = (item.name || '').toLowerCase();
-    li.style.cssText = 'opacity:0;transform:translateY(8px);position:relative;';
+    li.style.cssText = 'opacity:0;transform:translateY(8px);';
     requestAnimationFrame(() => {
-        li.style.transition = 'opacity 0.18s ease, transform 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.14s, background 0.14s, box-shadow 0.14s';
-        li.style.opacity = '1';
-        li.style.transform = 'translateY(0)';
+        li.style.transition = 'opacity 0.18s ease, transform 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.14s, background 0.14s';
+        li.style.opacity    = '1'; li.style.transform = 'translateY(0)';
     });
 
-    // ── Hover tooltip (fixed position, appended to body to escape overflow clipping) ──
-    const rapVal      = item.rap > 0 ? 'R$' + item.rap.toLocaleString() : '—';
-    const saleCount   = item.saleCount != null ? item.saleCount.toLocaleString() : '—';
-    const serialCount = item.serialCount != null ? item.serialCount.toLocaleString() : '—';
-    const lowestPrice = item.lowestPrice != null ? 'R$' + item.lowestPrice.toLocaleString() : '—';
-    const origPrice   = item.priceTickets != null ? 'T$' + item.priceTickets.toLocaleString() : (item.price != null ? 'R$' + item.price.toLocaleString() : '—');
-
+    // Tooltip
+    const rapVal = item.rap > 0 ? 'R$' + item.rap.toLocaleString() : '—';
+    const lowestP = item.lowestPrice != null ? 'R$' + item.lowestPrice.toLocaleString() : '—';
+    const origP   = item.priceTickets != null ? 'T$' + item.priceTickets.toLocaleString() : (item.price != null ? 'R$' + item.price.toLocaleString() : '—');
     let changeStr = '—', changeColor = 'var(--c-text4)';
     if (item.rap > 0 && item.lowestPrice > 0) {
-        const diff = item.lowestPrice - item.rap;
-        const pct  = ((diff / item.rap) * 100).toFixed(1);
-        changeStr  = (diff >= 0 ? '+' : '') + 'R$' + Math.abs(diff).toLocaleString() + ' (' + (diff >= 0 ? '+' : '-') + pct + '%)';
+        const diff = item.lowestPrice - item.rap, pct = ((diff / item.rap) * 100).toFixed(1);
+        changeStr = (diff >= 0 ? '+' : '') + 'R$' + Math.abs(diff).toLocaleString() + ' (' + (diff >= 0 ? '+' : '-') + pct + '%)';
         changeColor = diff >= 0 ? '#22c55e' : '#ef4444';
     }
-
     const rows = [
-        ['RAP',          rapVal,      '#f97316'],
-        ['Lowest Price', lowestPrice, '#a855f7'],
-        ['Orig Price',   origPrice,   'var(--c-text2)'],
-        ['Change',       changeStr,   changeColor],
-        ['Total Sold',   saleCount,   'var(--c-text2)'],
-        ['Serial Count', serialCount, 'var(--c-text2)'],
+        ['RAP',          rapVal,                                              '#f97316'],
+        ['Lowest Price', lowestP,                                             '#a855f7'],
+        ['Orig Price',   origP,                                               'var(--c-text2)'],
+        ['Change',       changeStr,                                           changeColor],
+        ['Total Sold',   item.saleCount   != null ? item.saleCount.toLocaleString()   : '—', 'var(--c-text2)'],
+        ['Serial Count', item.serialCount != null ? item.serialCount.toLocaleString() : '—', 'var(--c-text2)'],
         ['Added',        item.createdAt ? new Date(item.createdAt).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}) : '—', 'var(--c-text4)'],
     ];
-
     const tip = document.createElement('div');
     tip.style.cssText = 'position:fixed;z-index:2147483647;width:240px;background:#060c18;border:1px solid #1e3a5f;border-radius:13px;padding:13px 15px;pointer-events:none;opacity:0;transition:opacity 0.12s;box-shadow:0 12px 40px rgba(0,0,0,0.7);display:none;';
-    tip.style.fontFamily = 'DM Sans, system-ui, sans-serif';
-    tip.innerHTML = '<div style="font-size:11px;font-weight:700;color:#f1f5f9;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.name || 'Item') + '</div>' +
-        rows.map(([label, val, color]) =>
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-            '<span style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">' + label + '</span>' +
-            '<span style="font-size:10px;font-weight:700;font-family:monospace;color:' + color + ';">' + val + '</span>' +
-            '</div>'
-        ).join('') +
-        (item.description ? '<div style="font-size:9px;color:#334155;margin-top:8px;border-top:1px solid #0a1525;padding-top:7px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.description.slice(0,120) + '</div>' : '');
+    tip.innerHTML = `<div style="font-size:11px;font-weight:700;color:#f1f5f9;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name || 'Item'}</div>` +
+        rows.map(([l, v, c]) => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">${l}</span><span style="font-size:10px;font-weight:700;font-family:monospace;color:${c};">${v}</span></div>`).join('') +
+        (item.description ? `<div style="font-size:9px;color:#334155;margin-top:8px;border-top:1px solid #0a1525;padding-top:7px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${item.description.slice(0,120)}</div>` : '');
     document.body.appendChild(tip);
 
     let hoverTimer;
     li.addEventListener('mouseenter', (e) => {
         hoverTimer = setTimeout(() => {
-            const rect = li.getBoundingClientRect();
             tip.style.display = 'block';
-            // Position above the card, centered
-            let top = rect.top - tip.offsetHeight - 8;
-            let left = rect.left + (rect.width / 2) - 120;
-            if (top < 8) top = rect.bottom + 8; // flip below if no room above
+            const rect = li.getBoundingClientRect();
+            let top = rect.top - tip.offsetHeight - 8, left = rect.left + rect.width / 2 - 120;
+            if (top < 8) top = rect.bottom + 8;
             if (left < 8) left = 8;
             if (left + 240 > window.innerWidth - 8) left = window.innerWidth - 248;
-            tip.style.top  = top + 'px';
-            tip.style.left = left + 'px';
-            tip.style.opacity = '1';
-        }, 180);
+            tip.style.top = top + 'px'; tip.style.left = left + 'px'; tip.style.opacity = '1';
+        }, 150);
     });
-    li.addEventListener('mouseleave', () => {
-        clearTimeout(hoverTimer);
-        tip.style.opacity = '0';
-        setTimeout(() => { if (tip.style.opacity === '0') tip.style.display = 'none'; }, 130);
-    });
+    li.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); tip.style.opacity = '0'; setTimeout(() => { if (tip.style.opacity === '0') tip.style.display = 'none'; }, 130); });
 
     // Icon box
     const iconBox = document.createElement('div');
@@ -199,101 +125,58 @@ function buildCatalogCard(item) {
     iconBox.style.background = bgC;
     iconBox.textContent = icon;
 
-    // Info block
-    const info = document.createElement('div');
-    info.style.cssText = 'flex:1;min-width:0;';
-
+    // Info
+    const info = document.createElement('div'); info.style.cssText = 'flex:1;min-width:0;';
     const nameEl = document.createElement('div');
     nameEl.style.cssText = 'font-size:12px;font-weight:600;color:var(--c-text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;';
-    nameEl.textContent = item.name || 'Item #' + item.id;
-    nameEl.title = item.name || '';
+    nameEl.textContent = item.name || 'Item #' + item.id; nameEl.title = item.name || '';
+    const meta = document.createElement('div'); meta.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;';
 
-    const meta = document.createElement('div');
-    meta.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;';
-
-    // Asset type badge
-    const typeName = ASSET_TYPE_NAMES[item.assetType] || 'Item';
     const typeBadge = document.createElement('span');
     typeBadge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:4px;background:var(--c-bg2);border:1px solid var(--c-border);color:var(--c-text4);';
-    typeBadge.textContent = typeName;
+    typeBadge.textContent = ASSET_TYPE_NAMES[item.assetType] || 'Item';
     meta.appendChild(typeBadge);
 
-    // Restriction badges
-    if (isLimitedU) {
-        const b = document.createElement('span');
-        b.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#f59e0b;font-weight:700;';
-        b.textContent = 'LimitedU';
-        meta.appendChild(b);
-    } else if (isLimited) {
-        const b = document.createElement('span');
-        b.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:#d97706;font-weight:700;';
-        b.textContent = 'Limited';
-        meta.appendChild(b);
-    }
-
-    // RAP badge for limiteds
-    if (isAnyLtd && item.rap > 0) {
-        const rap = document.createElement('span');
-        rap.style.cssText = 'font-size:9px;color:var(--c-text4);font-family:"Fira Code",monospace;';
-        rap.textContent = 'RAP: ' + item.rap.toLocaleString();
-        meta.appendChild(rap);
-    }
-
-    // Lowest seller
-    if (isAnyLtd && item.lowestSellerData) {
-        const seller = document.createElement('span');
-        seller.style.cssText = 'font-size:9px;color:var(--c-text4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-        seller.textContent = '↓ ' + item.lowestSellerData.username;
-        meta.appendChild(seller);
-    }
-
-    // Not for sale indicator
-    if (!isForSale && !isAnyLtd) {
-        const offsale = document.createElement('span');
-        offsale.style.cssText = 'font-size:9px;color:var(--c-err);';
-        offsale.textContent = 'Off Sale';
-        meta.appendChild(offsale);
-    }
-
+    if (isLimitedU) { const b = document.createElement('span'); b.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#f59e0b;font-weight:700;'; b.textContent = 'LimitedU'; meta.appendChild(b); }
+    else if (isLimited) { const b = document.createElement('span'); b.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:#d97706;font-weight:700;'; b.textContent = 'Limited'; meta.appendChild(b); }
+    if (isAnyLtd && item.rap > 0) { const r = document.createElement('span'); r.style.cssText = 'font-size:9px;color:var(--c-text4);font-family:"Fira Code",monospace;'; r.textContent = 'RAP: ' + item.rap.toLocaleString(); meta.appendChild(r); }
+    if (isAnyLtd && item.lowestSellerData) { const s = document.createElement('span'); s.style.cssText = 'font-size:9px;color:var(--c-text4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'; s.textContent = '↓ ' + item.lowestSellerData.username; meta.appendChild(s); }
+    if (!isForSale && !isAnyLtd && !isFree) { const o = document.createElement('span'); o.style.cssText = 'font-size:9px;color:var(--c-err);'; o.textContent = 'Off Sale'; meta.appendChild(o); }
     info.append(nameEl, meta);
 
-    // Price badge
+    // Price
     const priceEl = document.createElement('div');
     priceEl.style.cssText = `padding:5px 10px;border-radius:7px;background:${bgC};border:1px solid ${accentC}44;font-size:12px;font-weight:700;color:${accentC};font-family:"Fira Code",monospace;white-space:nowrap;flex-shrink:0;text-align:right;`;
-    if (displayPrice == null) {
-        priceEl.textContent = '—';
-        priceEl.style.color = 'var(--c-text4)';
-    } else if (displayPrice === 0 || isFree) {
-        priceEl.textContent = 'FREE';
-    } else {
-        priceEl.textContent = (isTix ? 'T$' : 'R$') + displayPrice.toLocaleString();
-    }
+    if (displayPrice == null) { priceEl.textContent = '—'; priceEl.style.color = 'var(--c-text4)'; }
+    else if (isFree || displayPrice === 0) { priceEl.textContent = 'FREE'; }
+    else { priceEl.textContent = (isTix ? 'T$' : 'R$') + displayPrice.toLocaleString(); }
 
-    // Buy button
+    // ─── FIX: canBuy now correctly includes free items ────────────────────
+    const canBuy = isFree || isForSale || (isAnyLtd && item.lowestSellerData);
     const btn = document.createElement('button');
-    const canBuy = isForSale || (isAnyLtd && item.lowestSellerData);
-    btn.style.cssText = `padding:9px 14px;background:${canBuy ? `linear-gradient(135deg,${accentC},${accentC}bb)` : 'var(--c-bg3)'};color:${canBuy ? '#000' : 'var(--c-text4)'};border:${canBuy ? 'none' : '1px solid var(--c-border2)'};border-radius:9px;cursor:${canBuy ? 'pointer' : 'not-allowed'};font-size:11px;font-weight:700;flex-shrink:0;transition:opacity 0.12s,transform 0.1s,box-shadow 0.12s;white-space:nowrap;`;
+    btn.style.cssText = `padding:9px 14px;background:${canBuy ? `linear-gradient(135deg,${accentC},${accentC}bb)` : 'var(--c-bg3)'};color:${canBuy ? '#000' : 'var(--c-text4)'};border:${canBuy ? 'none' : '1px solid var(--c-border2)'};border-radius:9px;cursor:${canBuy ? 'pointer' : 'not-allowed'};font-size:11px;font-weight:700;flex-shrink:0;transition:opacity 0.12s,transform 0.1s;white-space:nowrap;`;
     btn.textContent = isFree ? '🎁 Claim' : canBuy ? '🛒 Buy' : '✕ N/A';
-    btn.disabled = !canBuy;
+    btn.disabled    = !canBuy;
+
     if (canBuy) {
-        btn.title = 'Buy ' + item.name;
+        btn.title = (isFree ? 'Claim ' : 'Buy ') + item.name;
         btn.onmouseenter = () => { btn.style.opacity = '0.82'; btn.style.transform = 'translateY(-1px)'; };
-        btn.onmouseleave = () => { btn.style.opacity = '1'; btn.style.transform = 'translateY(0)'; };
+        btn.onmouseleave = () => { btn.style.opacity = '1';    btn.style.transform = 'translateY(0)'; };
         btn.addEventListener('click', () => {
-            // Build the buy item object with correct fields
-            const buyItem = {
-                assetId:  String(item.id),
-                name:     item.name,
-                price:    isAnyLtd
-                    ? (item.lowestSellerData?.price ?? 0)
-                    : (isTix ? 0 : (item.price ?? 0)),
-                currency: isTix ? 2 : 1,
-                sellerId: isAnyLtd
-                    ? (item.lowestSellerData?.userId ?? item.creatorTargetId)
-                    : item.creatorTargetId,
+            const buyItemObj = {
+                assetId:    String(item.id),
+                name:       item.name,
+                // FIX: for free items use price=0 explicitly
+                price:      isAnyLtd ? (item.lowestSellerData?.price ?? 0)
+                            : isFree  ? 0
+                            : isTix   ? 0
+                            : (item.price ?? 0),
+                currency:   isTix ? 2 : 1,
+                sellerId:   isAnyLtd ? (item.lowestSellerData?.userId ?? item.creatorTargetId)
+                            : (item.creatorTargetId ?? null),
                 userAssetId: isAnyLtd ? (item.lowestSellerData?.userAssetId ?? null) : null,
             };
-            buyItemCatalog(buyItem, btn);
+            buyItemCatalog(buyItemObj, btn);
         });
     }
 
@@ -301,71 +184,38 @@ function buildCatalogCard(item) {
     return li;
 }
 
-// ─── Buy wrapper for catalog (handles userAssetId for limiteds) ───────────
+// ─── Catalog buy (uses unified buy system) ────────────────────────────────
 async function buyItemCatalog(item, btn) {
     if (btn) { btn.innerHTML = '<span class="st-spin">↻</span>'; btn.disabled = true; }
     log((item.price === 0 ? 'Claiming free: ' : 'Buying: ') + item.name, 'info');
 
-    // Build payload — include userAssetId for limiteds
-    const payload = JSON.stringify({
-        assetId:          parseInt(item.assetId),
-        expectedPrice:    item.price,
-        expectedSellerId: item.sellerId,
-        userAssetId:      item.userAssetId || null,
-        expectedCurrency: item.currency,
-    });
+    // For free items always resolve the real seller
+    if (item.price === 0 && (!item.sellerId || item.sellerId < 2)) {
+        const sid = await resolveFreeSeller(item.assetId);
+        if (sid) item = { ...item, sellerId: sid };
+    }
 
+    const payload = buildPayload(item.assetId, item.price ?? 0, item.sellerId, item.currency ?? 1, item.userAssetId);
+    const idxs    = resolveAccountIndices();
     let ok = false;
-    if (selectedAcctIdx === -2) {
-        if (!accounts.length) log('No accounts saved', 'warn');
-        else {
-            const results = await Promise.all(accounts.map((_, i) => buyForAcctRaw(i, item.assetId, payload)));
-            ok = results.some(Boolean);
-        }
-    } else if (selectedAcctIdx === -1) {
-        ok = await buyForSessionRaw(item.assetId, payload);
-    } else {
-        if (accounts[selectedAcctIdx]) ok = await buyForAcctRaw(selectedAcctIdx, item.assetId, payload);
-        else log('Account not found', 'err');
+
+    if (!idxs.length) { log('No accounts selected', 'warn'); }
+    else if (idxs[0] === -1) { ok = await buyForSessionRaw(item.assetId, payload); }
+    else {
+        const results = await Promise.all(idxs.map(i => buyForAcctRaw(i, item.assetId, payload)));
+        ok = results.some(Boolean);
     }
 
     if (btn) {
-        btn.textContent      = ok ? '✓' : '✕';
+        btn.innerHTML        = ok ? '✓' : '✕';
         btn.style.background = ok ? 'linear-gradient(135deg,#16a34a,#15803d)' : '#7f1d1d';
         btn.style.color      = '#fff';
         btn.disabled         = false;
         setTimeout(() => {
-            btn.textContent      = '🛒 Buy';
-            btn.style.background = '';
-            btn.style.color      = '#000';
-        }, 2500);
+            btn.innerHTML = item.price === 0 ? '🎁 Claim' : '🛒 Buy';
+            btn.style.background = btn.style.color = '';
+        }, 2000);
     }
-}
-
-async function buyForAcctRaw(i, assetId, payload) {
-    try {
-        const res = await acctFetch(i, BASE + '/apisite/economy/v1/purchases/products/' + assetId, { method: 'POST', body: payload });
-        let d = {}; try { d = await res.json(); } catch(_) {}
-        const ok = res.ok && (d.purchased === true || d.statusCode === 0 || (res.status === 200 && !d.statusCode));
-        if (ok) { log('✓ Bought as ' + accounts[i].username, 'success'); return true; }
-        const msg = d.errorMessage || d.message || d.errors?.[0]?.message || ('HTTP ' + res.status);
-        log('✗ ' + msg + ' — ' + accounts[i].username, 'err'); return false;
-    } catch(e) { log('✗ ' + e.message + ' — ' + accounts[i].username, 'err'); return false; }
-}
-
-async function buyForSessionRaw(assetId, payload) {
-    try {
-        await fetchSessionCsrf();
-        const res = await fetch(BASE + '/apisite/economy/v1/purchases/products/' + assetId, {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
-            body: payload,
-        });
-        const d = await res.json();
-        const ok = res.ok && (d.purchased === true || d.statusCode === 0 || (res.status === 200 && !d.statusCode));
-        if (ok) { log('✓ Bought (session)', 'success'); return true; }
-        log('✗ ' + (d.errorMessage || d.message || 'Failed') + ' (session)', 'err'); return false;
-    } catch(e) { log('✗ ' + e.message + ' (session)', 'err'); return false; }
 }
 
 // ─── Render catalog list ──────────────────────────────────────────────────
@@ -387,9 +237,8 @@ async function loadCatalogPage() {
     const pageDisp = document.getElementById('st-cat-page');
     if (!listEl) { catalogLoading = false; return; }
 
-    // Skeletons
-    listEl.innerHTML = Array.from({length: 5}, (_, i) => `
-        <li class="st-cat-card" style="opacity:${1-i*0.15};">
+    listEl.innerHTML = Array.from({ length: 6 }, (_, i) => `
+        <li class="st-cat-card" style="opacity:${1 - i * 0.12};">
             <div class="st-skel" style="width:38px;height:38px;border-radius:9px;flex-shrink:0;"></div>
             <div style="flex:1;display:flex;flex-direction:column;gap:7px;">
                 <div class="st-skel" style="height:11px;border-radius:4px;width:55%;"></div>
@@ -412,21 +261,16 @@ async function loadCatalogPage() {
             if (countEl) countEl.innerHTML = '<span style="color:var(--c-text3);font-size:11px;">No items</span>';
         } else {
             const totalStr = catalogTotal > 0 ? ' of ' + catalogTotal.toLocaleString() : '';
-            if (countEl) countEl.innerHTML =
-                `<span style="color:var(--c-accent);font-weight:700;">${items.length}</span>`
-                + `<span style="color:var(--c-text3);font-size:11px;"> items${totalStr}</span>`;
+            if (countEl) countEl.innerHTML = `<span style="color:var(--c-accent);font-weight:700;">${items.length}</span><span style="color:var(--c-text3);font-size:11px;"> items${totalStr}</span>`;
             items.forEach(item => listEl.appendChild(buildCatalogCard(item)));
         }
-
         if (pageDisp) pageDisp.textContent = 'Page ' + catalogPageNum;
-        if (prevBtn) prevBtn.disabled = catalogPageNum <= 1;
-        if (nextBtn) nextBtn.disabled = !catalogNextCursor;
-
+        if (prevBtn)  prevBtn.disabled = catalogPageNum <= 1;
+        if (nextBtn)  nextBtn.disabled = !catalogNextCursor;
     } catch(e) {
-        listEl.innerHTML = '<li style="padding:24px;text-align:center;color:var(--c-err);font-size:12px;list-style:none;">Failed to load: ' + e.message + '</li>';
+        listEl.innerHTML = `<li style="padding:24px;text-align:center;color:var(--c-err);font-size:12px;list-style:none;">Failed: ${e.message}</li>`;
         if (countEl) countEl.innerHTML = '';
         log('Catalog load failed: ' + e.message, 'err');
     }
-
     catalogLoading = false;
 }
