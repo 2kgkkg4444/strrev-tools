@@ -1,11 +1,11 @@
-// ─── Sniper ───────────────────────────────────────────────────────────────
+// ─── Sniper Stats ─────────────────────────────────────────────────────────
 function recordRtt(ms) {
     rttSamples.push(ms);
     if (rttSamples.length > RTT_WINDOW) rttSamples.shift();
     let s = 0; rttSamples.forEach(x => s += x); avgRtt = Math.round(s / rttSamples.length);
-    if (rttSamples.length % 10 === 0) {
-        if (avgRtt < RTT_TARGET && concurrency < MAX_INFLIGHT) concurrency++;
-        else if (avgRtt > RTT_TARGET && concurrency > MIN_INFLIGHT) concurrency--;
+    if (rttSamples.length % 8 === 0) {
+        if (avgRtt < RTT_TARGET && concurrency < MAX_INFLIGHT)   concurrency++;
+        else if (avgRtt > RTT_TARGET + 30 && concurrency > MIN_INFLIGHT) concurrency--;
     }
     schedDomUpdate();
 }
@@ -14,284 +14,199 @@ function schedDomUpdate() {
     if (domPending) return; domPending = true;
     requestAnimationFrame(() => {
         domPending = false;
-        const s = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+        const s = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
         s('st-checks', checkCount.toLocaleString());
-        s('st-cps',    checksPerSec+'/s');
-        s('st-rtt',    avgRtt ? avgRtt+'ms' : '—');
-        s('st-conc',   'x'+concurrency);
+        s('st-cps',    checksPerSec + '/s');
+        s('st-rtt',    avgRtt ? avgRtt + 'ms' : '—');
+        s('st-conc',   'x' + concurrency);
         const fill = document.getElementById('st-rtt-fill');
-        if (fill) fill.style.width = Math.min(100, (avgRtt/500)*100)+'%';
+        if (fill) fill.style.width = Math.min(100, (avgRtt / 400) * 100) + '%';
         if (typeof updateSniperPill === 'function') updateSniperPill(checkCount, checksPerSec);
     });
 }
 
-// ─── Sniper Settings ─────────────────────────────────────────────────────
-function saveSniperSettings() {
-    try { GM_setValue('st_sniper_settings', JSON.stringify(sniperSettings)); } catch(_) {}
-}
-
-function loadSniperSettings() {
-    try {
-        const saved = JSON.parse(GM_getValue('st_sniper_settings', 'null'));
-        if (saved && typeof saved === 'object') Object.assign(sniperSettings, saved);
-    } catch(_) {}
-    syncSniperSettingsUI();
-}
-
+// ─── Sniper Settings ──────────────────────────────────────────────────────
+function saveSniperSettings()   { try { GM_setValue('st_sniper_settings', JSON.stringify(sniperSettings)); } catch(_) {} }
+function loadSniperSettings()   { try { const s = JSON.parse(GM_getValue('st_sniper_settings', 'null')); if (s) Object.assign(sniperSettings, s); } catch(_) {} syncSniperSettingsUI(); }
 function syncSniperSettingsUI() {
     const g = (id, val) => { const e = document.getElementById(id); if (e) e.value = val; };
-    const t = (id, val) => { const e = document.getElementById(id); if (e) setToggle(id, val); };
     g('st-snip-min-robux', sniperSettings.minPriceRobux);
     g('st-snip-min-tix',   sniperSettings.minPriceTix);
     g('st-snip-max-robux', sniperSettings.maxPriceRobux);
     g('st-snip-max-tix',   sniperSettings.maxPriceTix);
-    t('st-snip-limiteds',  sniperSettings.limitedsOnly);
-    t('st-snip-robux-only',sniperSettings.robuxOnly);
-    t('st-snip-tix-only',  sniperSettings.tixOnly);
+    if (sniperSettings.limitedsOnly)  setToggle('st-snip-limiteds',    true);
+    if (sniperSettings.robuxOnly)     setToggle('st-snip-robux-only',  true);
+    if (sniperSettings.tixOnly)       setToggle('st-snip-tix-only',    true);
 }
 
-// Returns true if item should be sniped based on current settings
 function itemPassesFilters(item) {
     const restrictions = item.itemRestrictions || [];
     const isLimited  = restrictions.includes('Limited') || restrictions.includes('LimitedUnique');
-    const isLimitedU = restrictions.includes('LimitedUnique');
     const isTix      = item.priceTickets != null && item.priceTickets > 0;
     const isRobux    = !isTix;
     const price      = item.lowestPrice ?? item.price ?? 0;
     const priceTix   = item.priceTickets ?? 0;
-
-    if (sniperSettings.limitedsOnly  && !isLimited)  { log('⏭ Skipped (not limited): ' + (item.name||item.id), 'info'); return false; }
-    if (sniperSettings.robuxOnly     && !isRobux)    { log('⏭ Skipped (not Robux item): '   + (item.name||item.id), 'info'); return false; }
-    if (sniperSettings.tixOnly       && !isTix)      { log('⏭ Skipped (not Tix item): '     + (item.name||item.id), 'info'); return false; }
-
-    if (sniperSettings.minPriceRobux !== '' && isRobux) {
-        const min = parseInt(sniperSettings.minPriceRobux);
-        if (!isNaN(min) && price < min) { log('⏭ Skipped (R$' + price + ' < min R$' + min + '): ' + (item.name||item.id), 'info'); return false; }
-    }
-    if (sniperSettings.minPriceTix !== '' && isTix) {
-        const min = parseInt(sniperSettings.minPriceTix);
-        if (!isNaN(min) && priceTix < min) { log('⏭ Skipped (T$' + priceTix + ' < min T$' + min + '): ' + (item.name||item.id), 'info'); return false; }
-    }
-    if (sniperSettings.maxPriceRobux !== '' && isRobux) {
-        const max = parseInt(sniperSettings.maxPriceRobux);
-        if (!isNaN(max) && price > max) { log('⏭ Skipped (R$' + price + ' > max R$' + max + '): ' + (item.name||item.id), 'info'); return false; }
-    }
-    if (sniperSettings.maxPriceTix !== '' && isTix) {
-        const max = parseInt(sniperSettings.maxPriceTix);
-        if (!isNaN(max) && priceTix > max) { log('⏭ Skipped (T$' + priceTix + ' > max T$' + max + '): ' + (item.name||item.id), 'info'); return false; }
-    }
-
+    if (sniperSettings.limitedsOnly && !isLimited) return false;
+    if (sniperSettings.robuxOnly    && !isRobux)   return false;
+    if (sniperSettings.tixOnly      && !isTix)     return false;
+    if (sniperSettings.minPriceRobux !== '' && isRobux) { const min = parseInt(sniperSettings.minPriceRobux); if (!isNaN(min) && price < min) return false; }
+    if (sniperSettings.minPriceTix   !== '' && isTix)   { const min = parseInt(sniperSettings.minPriceTix);   if (!isNaN(min) && priceTix < min) return false; }
+    if (sniperSettings.maxPriceRobux !== '' && isRobux) { const max = parseInt(sniperSettings.maxPriceRobux); if (!isNaN(max) && price > max) return false; }
+    if (sniperSettings.maxPriceTix   !== '' && isTix)   { const max = parseInt(sniperSettings.maxPriceTix);   if (!isNaN(max) && priceTix > max) return false; }
     return true;
 }
 
-// ─── Resolve full item details before buying ──────────────────────────────
+// ─── Resolve full item details for buy ────────────────────────────────────
 async function resolveItemDetailsForBuy(rawItem) {
     try {
         const r = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
-            method: 'POST',
-            credentials: 'include',
+            method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: [{ itemType: 'Asset', id: parseInt(rawItem.id) }] }),
         });
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        const j = await r.json();
-        const d = j.data?.[0];
+        const j = await r.json(), d = j.data?.[0];
         if (!d) throw new Error('No data');
         return {
-            id:       rawItem.id,
-            assetId:  String(d.id || rawItem.id),
-            name:     d.name || rawItem.name,
-            price:    d.lowestPrice ?? d.price ?? rawItem.price ?? 0,
-            currency: 1,
-            sellerId: d.creatorTargetId || d.sellerId || null,
+            id: rawItem.id, assetId: String(d.id || rawItem.id), name: d.name || rawItem.name,
+            price: d.lowestPrice ?? d.price ?? rawItem.price ?? 0, currency: 1,
+            sellerId: d.lowestSellerData?.userId || d.creatorTargetId || d.sellerId || null,
+            userAssetId: d.lowestSellerData?.userAssetId || null,
         };
-    } catch(e) {
-        log('⚠ Could not resolve item details: ' + e.message + ' — using raw data', 'warn');
-        return rawItem;
-    }
+    } catch(e) { log('⚠ Item details failed: ' + e.message, 'warn'); return rawItem; }
 }
 
-// ─── Browser notification ─────────────────────────────────────────────────
+// ─── Notifications & Sound ────────────────────────────────────────────────
 function fireSnipeNotification(item) {
     try {
-        const doNotif = () => {
-            new Notification('🎯 Item Sniped!', {
-                body: item.name + (item.price > 0 ? '  ·  R$' + item.price : '  ·  FREE'),
-                icon: 'https://www.strrev.com/favicon.ico',
-                badge: 'https://www.strrev.com/favicon.ico',
-                requireInteraction: false,
-                silent: true,
-            });
-        };
-        if (Notification.permission === 'granted') {
-            doNotif();
-        } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(p => { if (p === 'granted') doNotif(); });
-        }
+        const body = item.name + (item.price > 0 ? '  ·  R$' + item.price : '  ·  FREE');
+        const doN  = () => new Notification('🎯 Item Sniped!', { body, icon: BASE + '/favicon.ico', silent: true });
+        if (Notification.permission === 'granted') doN();
+        else if (Notification.permission !== 'denied') Notification.requestPermission().then(p => { if (p === 'granted') doN(); });
     } catch(_) {}
 }
 
-// ─── Alert sound ──────────────────────────────────────────────────────────
 function fireSnipeSound() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Rising triumphant chord sting
-        const notes = [
-            { freq: 523.25, start: 0,    dur: 0.18, vol: 0.30 },  // C5
-            { freq: 659.25, start: 0.05, dur: 0.18, vol: 0.28 },  // E5
-            { freq: 783.99, start: 0.10, dur: 0.22, vol: 0.28 },  // G5
-            { freq: 1046.5, start: 0.15, dur: 0.38, vol: 0.35 },  // C6 — top note
-        ];
-        notes.forEach(({ freq, start, dur, vol }) => {
-            const osc = ctx.createOscillator();
-            const g   = ctx.createGain();
-            osc.connect(g); g.connect(ctx.destination);
-            osc.type = 'triangle';
-            osc.frequency.value = freq;
-            g.gain.setValueAtTime(0, ctx.currentTime + start);
-            g.gain.linearRampToValueAtTime(vol, ctx.currentTime + start + 0.012);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-            osc.start(ctx.currentTime + start);
-            osc.stop(ctx.currentTime + start + dur + 0.05);
+        [{ freq:523, s:0, d:0.18, v:0.30 }, { freq:659, s:0.05, d:0.18, v:0.28 }, { freq:784, s:0.10, d:0.22, v:0.28 }, { freq:1047, s:0.15, d:0.38, v:0.35 }].forEach(({ freq, s, d, v }) => {
+            const osc = ctx.createOscillator(), g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination); osc.type = 'triangle'; osc.frequency.value = freq;
+            g.gain.setValueAtTime(0, ctx.currentTime + s); g.gain.linearRampToValueAtTime(v, ctx.currentTime + s + 0.012);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + s + d);
+            osc.start(ctx.currentTime + s); osc.stop(ctx.currentTime + s + d + 0.05);
         });
     } catch(_) {}
 }
 
+function fireUpdateSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [{ freq:880, s:0, d:0.12 }, { freq:660, s:0.13, d:0.18 }].forEach(({ freq, s, d }) => {
+            const osc = ctx.createOscillator(), g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination); osc.type = 'sine'; osc.frequency.value = freq;
+            g.gain.setValueAtTime(0, ctx.currentTime + s); g.gain.linearRampToValueAtTime(0.28, ctx.currentTime + s + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + s + d);
+            osc.start(ctx.currentTime + s); osc.stop(ctx.currentTime + s + d + 0.05);
+        });
+    } catch(_) {}
+}
+
+// ─── Snipe Hit Handler ────────────────────────────────────────────────────
 async function onSniperHit(rawItem) {
     log('🎯 SNIPED: ' + (rawItem.name || 'ID ' + rawItem.id), 'success');
-    setSniperStatus('🎯 Item sniped! Resolving details...', 'hot');
+    setSniperStatus('🎯 Sniped! Resolving & buying…', 'hot');
     updateSniperBtn(false);
 
-    // Resolve full item details (price, real sellerId) before attempting buy
     const item = await resolveItemDetailsForBuy(rawItem);
-    if (!item.sellerId) {
-        log('⚠ Could not resolve sellerId for ' + item.name + ' — buy may fail', 'warn');
-    }
+    if (!item.sellerId) log('⚠ No sellerId for ' + item.name, 'warn');
 
-    log('💰 Price: ' + (item.price === 0 ? 'FREE' : 'R$' + item.price) + ' | Seller: ' + (item.sellerId || '?'), 'info');
-    setSniperStatus('🎯 Item sniped! Buying...', 'hot');
+    log(`💰 Price: ${item.price === 0 ? 'FREE' : 'R$' + item.price} | Seller: ${item.sellerId || '?'}`, 'info');
+    setSniperStatus('🎯 Buying...', 'hot');
 
-    // Sound + notification
     fireSnipeSound();
     fireSnipeNotification(item);
 
-    // Flash title
     const orig = document.title; let n = 0;
     const iv = setInterval(() => {
         document.title = n++ % 2 === 0 ? '🚨 ' + item.name + ' SNIPED!' : orig;
         if (n >= 12) { clearInterval(iv); document.title = orig; }
     }, 380);
 
-    // Auto-buy
+    const idxs    = resolveAccountIndices();
     let bought = false;
-    if (selectedAcctIdx === -2) {
-        if (accounts.length) {
-            const results = await Promise.all(accounts.map((_, i) => buyForAcct(i, item)));
-            bought = results.some(Boolean);
-        } else {
-            log('No accounts saved — buying as session fallback', 'warn');
-            bought = await buyForSession(item);
-        }
-    } else if (selectedAcctIdx === -1) {
+    if (!idxs.length || idxs[0] === -1) {
         bought = await buyForSession(item);
-    } else if (accounts[selectedAcctIdx]) {
-        bought = await buyForAcct(selectedAcctIdx, item);
-    }
-
-    if (bought) {
-        log('✅ Buy successful for ' + item.name, 'success');
-        setSniperStatus('✅ Bought! Rearming in 3s...', 'loading');
     } else {
-        log('❌ Buy attempt failed for ' + item.name, 'err');
-        setSniperStatus('❌ Buy failed — check log. Rearming in 3s...', 'loading');
+        const res = await Promise.all(idxs.map(i => buyForAcct(i, item)));
+        bought = res.some(Boolean);
     }
 
-    setTimeout(() => { if (!sniperActive) startSniper(); }, 3000);
+    log(bought ? '✅ Buy successful: ' + item.name : '❌ Buy failed: ' + item.name, bought ? 'success' : 'err');
+    setSniperStatus(bought ? '✅ Bought! Rearming in 2s…' : '❌ Buy failed — rearming in 2s…', 'loading');
+    setTimeout(() => { if (!sniperActive) startSniper(); }, 2000);
 }
 
-// ─── Pre-warmed CSRF + sellerId cache ─────────────────────────────────────
-let _cachedCsrf   = '';
-let _lastRespHash = '';   // response diffing — skip processing if unchanged
-
+// ─── CSRF Pre-warm ────────────────────────────────────────────────────────
 async function prewarmBuyCache() {
-    // Fetch and cache CSRF token at startup so buy fires instantly on hit
     try {
         const r = await fetch(BASE + '/apisite/economy/v1/purchases/products/0', {
             method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'x-csrf-token': '' },
-            body: '{}',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': '' }, body: '{}',
         });
         const t = r.headers.get('x-csrf-token');
-        if (t) { _cachedCsrf = t; sessionCsrf = t; log('🔥 CSRF pre-warmed', 'info'); }
+        if (t) { sessionCsrf = t; log('🔥 CSRF pre-warmed', 'info'); }
     } catch(_) {}
 }
 
-// Fast 32-bit hash of a string — much faster than JSON.stringify comparison
-function fastHash(str) {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = (h * 0x01000193) >>> 0;
-    }
-    return h.toString(16);
-}
+// ─── Auto-Buy Sniper Dispatch ─────────────────────────────────────────────
+// Uses GM_xmlhttpRequest to bypass 6-connections-per-domain browser limit
+let _lastRespHash = '';
 
 function dispatchOne(signal) {
     if (!sniperActive || signal.aborted) return;
     inFlight++;
     const t0 = performance.now();
-    // GM_xmlhttpRequest bypasses browser's 6-connection-per-domain limit
-    // sortType=2 = newest first so new items hit data[0] immediately
     GM_xmlhttpRequest({
-        method:  'GET',
-        url:     BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(),
+        method: 'GET',
+        url: BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(),
         headers: { 'Accept': 'application/json' },
+        timeout: 8000,
         onload: async (r) => {
             if (!sniperActive || signal.aborted) { inFlight--; return; }
             recordRtt(performance.now() - t0);
             checkCount++; cpsCount++; inFlight--;
+            apiScannerRecord('GET', '/apisite/catalog/v1/search/items', r.status, Math.round(performance.now() - t0));
 
-            // Response diffing — if identical to last response, skip all processing
             const hash = fastHash(r.responseText);
             if (hash === _lastRespHash) return;
             _lastRespHash = hash;
 
-            let json;
-            try { json = JSON.parse(r.responseText); } catch(_) { return; }
-            const d = json.data;
-            if (!d) return;
+            let json; try { json = JSON.parse(r.responseText); } catch(_) { return; }
+            const d = json.data; if (!d) return;
 
             for (let i = 0; i < d.length; i++) {
                 const item = d[i];
-                // O(1) fast path: ID ≤ max seen = definitely not new
                 if (item.id <= sniperMaxSeenId && sniperMaxSeenId > 0) continue;
-                // Check blacklist
                 if (sniperBlacklist[item.id]) continue;
-                // Passes filters?
-                if (!itemPassesFilters(item)) {
-                    sniperBlacklist[item.id] = true;
-                    continue;
-                }
-                // HIT — stop everything immediately
-                sniperActive = false;
-                abortCtrl.abort();
+                if (!itemPassesFilters(item)) { sniperBlacklist[item.id] = true; continue; }
+
+                // HIT — immediately kill all workers
+                sniperActive = false; abortCtrl.abort();
                 clearInterval(dispatchTimer); clearInterval(cpsTimer);
-                dispatchTimer = null;
+                dispatchTimer = cpsTimer = null;
                 GM_setValue('sniperActive', false);
                 await onSniperHit({
-                    id:               item.id,
-                    assetId:          String(item.id),
-                    name:             item.name || 'Item #' + item.id,
-                    price:            item.lowestPrice ?? item.price ?? 0,
-                    currency:         item.priceTickets ? 2 : 1,
-                    sellerId:         item.creatorTargetId || null,
-                    itemRestrictions: item.itemRestrictions || [],
-                    priceTickets:     item.priceTickets ?? null,
+                    id: item.id, assetId: String(item.id), name: item.name || 'Item #' + item.id,
+                    price: item.lowestPrice ?? item.price ?? 0, currency: item.priceTickets ? 2 : 1,
+                    sellerId: item.creatorTargetId || null, itemRestrictions: item.itemRestrictions || [],
+                    priceTickets: item.priceTickets ?? null,
                 });
                 return;
             }
         },
         onerror: () => { inFlight--; },
+        ontimeout: () => { inFlight--; },
         onabort: () => { inFlight--; },
     });
 }
@@ -300,39 +215,31 @@ function startDispatch() {
     if (typeof showSniperPill === 'function') showSniperPill();
     abortCtrl = new AbortController();
     const signal = abortCtrl.signal;
-    concurrency = MAX_INFLIGHT; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
-    _lastRespHash = '';
+    concurrency = MAX_INFLIGHT; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0; _lastRespHash = '';
+
     dispatchTimer = setInterval(() => {
         if (!sniperActive) { clearInterval(dispatchTimer); return; }
-        // Fire as many as we can up to concurrency — no artificial wait
         while (inFlight < concurrency && sniperActive) dispatchOne(signal);
     }, DISPATCH_MS);
+
     cpsTimer = setInterval(() => { checksPerSec = cpsCount; cpsCount = 0; schedDomUpdate(); }, 1000);
 }
 
 async function snapshotAllPages() {
-    // Fetch multiple pages to find the true highest item ID across the catalog
-    // This means we won't miss items that appear on any page, not just page 1
-    const ids = {};
-    let maxId = 0;
-    let cursor = '';
-    let pages = 0;
-    const MAX_SNAPSHOT_PAGES = 8; // snapshot up to 8 pages = 224 items
-    setSniperStatus('Snapshotting ' + MAX_SNAPSHOT_PAGES + ' pages...', 'loading');
+    const ids = {}; let maxId = 0, cursor = '', pages = 0;
+    const MAX_PAGES = 10;
+    setSniperStatus('Snapshotting ' + MAX_PAGES + ' pages…', 'loading');
     do {
         let url = BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now();
         if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
         const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
         if (!r.ok) break;
         const j = await r.json();
-        (j.data || []).forEach(x => {
-            ids[x.id] = true;
-            if (x.id > maxId) maxId = x.id;
-        });
+        (j.data || []).forEach(x => { ids[x.id] = true; if (x.id > maxId) maxId = x.id; });
         cursor = j.nextPageCursor || '';
         pages++;
-        if (pages < MAX_SNAPSHOT_PAGES) setSniperStatus('Snapshotting page ' + (pages+1) + '/' + MAX_SNAPSHOT_PAGES + '...', 'loading');
-    } while (cursor && pages < MAX_SNAPSHOT_PAGES);
+        setSniperStatus('Snapshotting page ' + pages + '/' + MAX_PAGES + '…', 'loading');
+    } while (cursor && pages < MAX_PAGES);
     sniperMaxSeenId = maxId;
     return ids;
 }
@@ -340,24 +247,23 @@ async function snapshotAllPages() {
 async function startSniper() {
     loadSniperSettings();
     const btn = document.getElementById('st-sniper-btn');
-    if (btn) { btn.innerHTML='<span class="st-spin">↻</span> Snapshotting...'; btn.disabled=true; }
-    setSniperStatus('Fetching catalog snapshot...', 'loading');
-    // Pre-warm CSRF token in parallel with snapshot
-    prewarmBuyCache();
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Snapshotting…'; btn.disabled = true; }
+    setSniperStatus('Fetching catalog snapshot…', 'loading');
+    prewarmBuyCache(); // parallel with snapshot
     try {
         sniperBlacklist = await snapshotAllPages();
         sniperActive = true; checkCount = 0;
         GM_setValue('sniperActive', true);
         GM_setValue('sniperBlacklist', JSON.stringify(sniperBlacklist));
-        log('Sniper armed — ' + Object.keys(sniperBlacklist).length + ' items indexed, max ID: ' + sniperMaxSeenId, 'success');
+        log('Sniper armed — ' + Object.keys(sniperBlacklist).length + ' items, maxID: ' + sniperMaxSeenId, 'success');
         updateSniperBtn(true);
-        setSniperStatus('Sniping for new items...', 'active');
+        setSniperStatus('Sniping for new items…', 'active');
         if (btn) btn.disabled = false;
         if (typeof showSniperPill === 'function') showSniperPill();
         startDispatch();
     } catch(e) {
-        log('Snapshot failed: '+e.message, 'err');
-        setSniperStatus('Snapshot failed — try again', 'idle');
+        log('Snapshot failed: ' + e.message, 'err');
+        setSniperStatus('Snapshot failed — retry', 'idle');
         sniperActive = false; updateSniperBtn(false);
         if (btn) btn.disabled = false;
     }
@@ -377,66 +283,34 @@ function stopSniper() {
     schedDomUpdate();
 }
 
-function toggleSniper() { if (sniperActive) stopSniper(); else startSniper(); }
+function toggleSniper() { sniperActive ? stopSniper() : startSniper(); }
 
 function updateSniperBtn(active) {
     const btn = document.getElementById('st-sniper-btn'); if (!btn) return;
-    if (active) {
-        btn.innerHTML        = '⏹ Stop Sniper';
-        btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-        btn.style.boxShadow  = '0 0 20px rgba(34,197,94,0.25)';
-        btn.classList.add('st-sniper-active');
-    } else {
-        btn.innerHTML        = '🎯 Start Sniper';
-        btn.style.background = 'linear-gradient(135deg,#e94560,#b91c4a)';
-        btn.style.boxShadow  = '0 0 20px rgba(233,69,96,0.2)';
-        btn.classList.remove('st-sniper-active');
-    }
+    btn.innerHTML        = active ? '⏹ Stop Sniper' : '🎯 Start Sniper';
+    btn.style.background = active ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#e94560,#b91c4a)';
+    btn.style.boxShadow  = active ? '0 0 20px rgba(34,197,94,0.25)' : '0 0 20px rgba(233,69,96,0.2)';
 }
 
 function setSniperStatus(msg, type) {
-    // Update the inline status row dot + button glow
-    const dot  = document.getElementById('st-sniper-dot2');
+    const dot = document.getElementById('st-sniper-dot2');
     if (dot) {
         dot.className = 'st-dot st-dot-' + type;
-        // Update the inline status text next to the dot
-        const inlineTxt = dot.parentElement?.querySelector('span');
-        if (inlineTxt) inlineTxt.textContent = msg;
-    }
-    // Also try old element for compatibility
-    const el = document.getElementById('st-sniper-status');
-    if (el) {
-        const d = el.querySelector('.st-dot');
-        const t = el.querySelector('.st-dot-text');
-        if (t) t.textContent = msg;
-        if (d) d.className = 'st-dot st-dot-' + type;
-        const bgs = { active:'rgba(34,197,94,0.05)', hot:'rgba(233,69,96,0.08)', idle:'#060c18', loading:'#060c18' };
-        el.style.background = bgs[type] || '#060c18';
+        const txt = dot.parentElement?.querySelector('span');
+        if (txt) txt.textContent = msg;
     }
 }
 
-// ─── Update Sniper (price drop + resale) ─────────────────────────────────
-function saveUpdateSniperSettings() {
-    try { GM_setValue('st_update_sniper', JSON.stringify(updateSniperSettings)); } catch(_) {}
-}
-
-function loadUpdateSniperSettings() {
-    try {
-        const s = JSON.parse(GM_getValue('st_update_sniper', 'null'));
-        if (s) Object.assign(updateSniperSettings, s);
-    } catch(_) {}
-}
+// ─── Update Sniper (price drop + resale) — also uses GM_xmlhttpRequest ───
+function saveUpdateSniperSettings() { try { GM_setValue('st_update_sniper', JSON.stringify(updateSniperSettings)); } catch(_) {} }
+function loadUpdateSniperSettings() { try { const s = JSON.parse(GM_getValue('st_update_sniper', 'null')); if (s) Object.assign(updateSniperSettings, s); } catch(_) {} }
 
 async function fetchAllCatalogItems() {
-    // Fetch 3 pages in parallel for better coverage
-    const urls = [0, 1, 2].map(p => CATALOG_API + '&_=' + Date.now() + '&page=' + p);
-    const results = await Promise.all(urls.map(url =>
-        fetch(url, { credentials: 'include', cache: 'no-store' })
-            .then(r => r.json())
-            .then(j => j.data || [])
-            .catch(() => [])
+    // Fetch pages 0,1,2 in parallel for 3x coverage
+    const results = await Promise.all([0, 1, 2].map(p =>
+        fetch(BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now() + (p ? '&page=' + p : ''), { credentials: 'include', cache: 'no-store' })
+            .then(r => r.json()).then(j => j.data || []).catch(() => [])
     ));
-    // Deduplicate by id
     const seen = {};
     return results.flat().filter(item => seen[item.id] ? false : (seen[item.id] = true));
 }
@@ -446,256 +320,189 @@ async function runUpdateSniperCheck() {
     try {
         const items = await fetchAllCatalogItems();
         for (const item of items) {
-            const id = item.id;
-            const prev = updatePriceMap[id];
+            const id = item.id, prev = updatePriceMap[id];
             const curPrice   = item.lowestPrice ?? item.price ?? 0;
             const curForSale = item.isForSale || (item.lowestSellerData != null);
+            if (!prev) { updatePriceMap[id] = { price: curPrice, forSale: curForSale, name: item.name }; continue; }
 
-            if (!prev) {
-                // First time seeing this item — record it
-                updatePriceMap[id] = { price: curPrice, forSale: curForSale, name: item.name };
-                continue;
-            }
-
-            // Price drop check
             if (updateSniperSettings.priceDropEnabled && prev.price > 0 && curPrice > 0) {
                 const dropPct = ((prev.price - curPrice) / prev.price) * 100;
                 if (dropPct >= updateSniperSettings.priceDropPercent) {
-                    const name = item.name || 'Item #' + id;
-                    log('📉 Price drop: ' + name + '  R$' + prev.price + ' → R$' + curPrice + ' (' + dropPct.toFixed(1) + '% drop)', 'success');
-                    fireUpdateNotification('📉 Price Drop!', name + '  R$' + prev.price + ' → R$' + curPrice);
+                    log(`📉 Price drop: ${item.name}  R$${prev.price}→R$${curPrice} (${dropPct.toFixed(1)}% drop)`, 'success');
+                    fireUpdateNotification('📉 Price Drop!', `${item.name}  R$${prev.price}→R$${curPrice}`);
                     fireUpdateSound();
-                    // Auto-buy if price is within sniper filter range
-                    if (itemPassesFilters(item)) {
-                        await onSniperHit({
-                            id, assetId: String(id), name,
-                            price: curPrice, currency: 1,
-                            sellerId: item.lowestSellerData?.userId || item.creatorTargetId || null,
-                            itemRestrictions: item.itemRestrictions || [],
-                        });
-                    }
+                    if (itemPassesFilters(item)) await onSniperHit({ id, assetId: String(id), name: item.name, price: curPrice, currency: 1, sellerId: item.lowestSellerData?.userId || item.creatorTargetId || null, itemRestrictions: item.itemRestrictions || [] });
                 }
             }
-
-            // Resale / back-on-sale check
             if (updateSniperSettings.resaleEnabled && !prev.forSale && curForSale) {
-                const name = item.name || 'Item #' + id;
-                log('🔓 Back on sale: ' + name + (curPrice ? '  R$' + curPrice : ''), 'success');
-                fireUpdateNotification('🔓 Back On Sale!', name + (curPrice ? '  R$' + curPrice : ''));
+                log(`🔓 Back on sale: ${item.name}${curPrice ? '  R$' + curPrice : ''}`, 'success');
+                fireUpdateNotification('🔓 Back On Sale!', item.name + (curPrice ? '  R$' + curPrice : ''));
                 fireUpdateSound();
-                if (itemPassesFilters(item)) {
-                    await onSniperHit({
-                        id, assetId: String(id), name,
-                        price: curPrice, currency: 1,
-                        sellerId: item.lowestSellerData?.userId || item.creatorTargetId || null,
-                        itemRestrictions: item.itemRestrictions || [],
-                    });
-                }
+                if (itemPassesFilters(item)) await onSniperHit({ id, assetId: String(id), name: item.name, price: curPrice, currency: 1, sellerId: item.lowestSellerData?.userId || item.creatorTargetId || null, itemRestrictions: item.itemRestrictions || [] });
             }
-
-            // Update stored values
             updatePriceMap[id] = { price: curPrice, forSale: curForSale, name: item.name };
         }
-    } catch(e) {
-        log('Update sniper check error: ' + e.message, 'err');
-    }
+    } catch(e) { if (updateSniperActive) log('Update sniper error: ' + e.message, 'err'); }
 }
 
 function fireUpdateNotification(title, body) {
     try {
-        const doNotif = () => new Notification(title, {
-            body, icon: 'https://www.strrev.com/favicon.ico', silent: true,
-        });
-        if (Notification.permission === 'granted') doNotif();
-        else if (Notification.permission !== 'denied') Notification.requestPermission().then(p => { if (p === 'granted') doNotif(); });
-    } catch(_) {}
-}
-
-function fireUpdateSound() {
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Two quick descending notes for price drop, ascending for resale
-        [{ freq:880, start:0, dur:0.12 }, { freq:660, start:0.13, dur:0.18 }].forEach(({ freq, start, dur }) => {
-            const osc = ctx.createOscillator(), g = ctx.createGain();
-            osc.connect(g); g.connect(ctx.destination);
-            osc.type = 'sine'; osc.frequency.value = freq;
-            g.gain.setValueAtTime(0, ctx.currentTime + start);
-            g.gain.linearRampToValueAtTime(0.28, ctx.currentTime + start + 0.01);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-            osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + start + dur + 0.05);
-        });
+        const doN = () => new Notification(title, { body, icon: BASE + '/favicon.ico', silent: true });
+        if (Notification.permission === 'granted') doN();
+        else if (Notification.permission !== 'denied') Notification.requestPermission().then(p => { if (p === 'granted') doN(); });
     } catch(_) {}
 }
 
 function startUpdateSniper() {
     loadUpdateSniperSettings();
-    updateSniperActive = true;
-    updatePriceMap = {};
-    // Tight loop — fires immediately after each response
-    (async () => {
-        while (updateSniperActive) {
-            await runUpdateSniperCheck();
-            await new Promise(r => setTimeout(r, 0));
-        }
-    })();
-    log('📡 Update Sniper started (price drop: ' + updateSniperSettings.priceDropPercent + '%, resale: ' + updateSniperSettings.resaleEnabled + ')', 'success');
+    updateSniperActive = true; updatePriceMap = {};
+    (async () => { while (updateSniperActive) { await runUpdateSniperCheck(); await sleep(0); } })();
+    log('📡 Update Sniper started', 'success');
     setUpdateSniperStatus(true);
     try { GM_setValue('updateSniperActive', true); } catch(_) {}
 }
-
-function stopUpdateSniper() {
-    updateSniperActive = false;
-    updateSniperTimer = null;
-    updatePriceMap = {};
-    log('📡 Update Sniper stopped', 'warn');
-    setUpdateSniperStatus(false);
+function stopUpdateSniper()  {
+    updateSniperActive = false; updatePriceMap = {};
+    setUpdateSniperStatus(false); log('📡 Update Sniper stopped', 'warn');
     try { GM_setValue('updateSniperActive', false); } catch(_) {}
 }
-
-function toggleUpdateSniper() {
-    if (updateSniperActive) stopUpdateSniper(); else startUpdateSniper();
-}
-
+function toggleUpdateSniper() { updateSniperActive ? stopUpdateSniper() : startUpdateSniper(); }
 function setUpdateSniperStatus(active) {
     const btn = document.getElementById('st-update-sniper-btn'); if (!btn) return;
-    if (active) {
-        btn.textContent = '⏹ Stop Update Sniper';
-        btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-    } else {
-        btn.textContent = '📡 Start Update Sniper';
-        btn.style.background = '';
-    }
-    const dot = document.getElementById('st-update-dot');
-    if (dot) dot.className = 'st-dot ' + (active ? 'st-dot-active' : 'st-dot-idle');
-    const txt = document.getElementById('st-update-txt');
-    if (txt) txt.textContent = active ? 'Watching for price drops & resales...' : 'Idle — start to watch for updates';
+    btn.textContent = active ? '⏹ Stop Update Sniper' : '📡 Start Update Sniper';
+    btn.style.background = active ? 'linear-gradient(135deg,#16a34a,#15803d)' : '';
+    const dot = document.getElementById('st-update-dot'); if (dot) dot.className = 'st-dot ' + (active ? 'st-dot-active' : 'st-dot-idle');
+    const txt = document.getElementById('st-update-txt'); if (txt) txt.textContent = active ? 'Watching for price drops & resales…' : 'Idle';
 }
-// ─── Redirect Sniper ──────────────────────────────────────────────────────
-let redirectSniperActive  = false;
-let redirectSniperTimer   = null;
-let redirectSniperSeenIds = {};   // id → { price, isForSale }
-let redirectSniperSettings = {
-    redirectNew:     true,   // redirect on new items
-    redirectUpdated: false,  // redirect on price changes
-    intervalMs:      1000,
-};
+
+// ─── Redirect Sniper — NOW uses GM_xmlhttpRequest (same engine as auto-buy) ──
+// This makes it bypass browser connection limits and run at full speed
+
+let redirectInFlight = 0, redirectAbort = null, redirectDispatch = null;
+let _redirectLastHash = '';
 
 function saveRedirectSniperSettings() {
     redirectSniperSettings.redirectNew     = document.getElementById('st-redirect-new')?.classList.contains('on') ?? true;
     redirectSniperSettings.redirectUpdated = document.getElementById('st-redirect-updated')?.classList.contains('on') ?? false;
-    redirectSniperSettings.intervalMs      = Math.max(500, parseInt(document.getElementById('st-redirect-interval')?.value) || 2000);
     try { GM_setValue('st_redirect_sniper', JSON.stringify(redirectSniperSettings)); } catch(_) {}
 }
-
 function loadRedirectSniperSettings() {
-    try {
-        const s = JSON.parse(GM_getValue('st_redirect_sniper', 'null'));
-        if (s) Object.assign(redirectSniperSettings, s);
-    } catch(_) {}
-    // Sync toggle UI
+    try { const s = JSON.parse(GM_getValue('st_redirect_sniper', 'null')); if (s) Object.assign(redirectSniperSettings, s); } catch(_) {}
     const setOn = (id, val) => {
         const el = document.getElementById(id); if (!el) return;
-        if (val) { el.classList.add('on'); el.style.background='var(--c-accent)'; el.querySelector('.st-toggle-thumb').style.transform='translateX(20px)'; }
-        else     { el.classList.remove('on'); el.style.background=''; el.querySelector('.st-toggle-thumb').style.transform=''; }
+        if (val) { el.classList.add('on'); el.style.background = 'var(--c-accent)'; el.querySelector('.st-toggle-thumb').style.transform = 'translateX(18px)'; }
+        else      { el.classList.remove('on'); el.style.background = ''; el.querySelector('.st-toggle-thumb').style.transform = ''; }
     };
     setOn('st-redirect-new',     redirectSniperSettings.redirectNew);
     setOn('st-redirect-updated', redirectSniperSettings.redirectUpdated);
-    const iv = document.getElementById('st-redirect-interval');
-    if (iv) iv.value = redirectSniperSettings.intervalMs;
 }
 
-async function runRedirectSniperCheck() {
-    if (!redirectSniperActive) return;
-    try {
-        const r = await fetch(BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
-        if (!r.ok) return;
-        const j = await r.json();
-        const items = j.data || [];
-        let triggered = false;
-        for (const item of items) {
-            const id = String(item.id);
-            const curPrice   = item.lowestPrice ?? item.price ?? 0;
-            const curForSale = !!item.isForSale || item.lowestSellerData != null;
-            const prev = redirectSniperSeenIds[id];
+function redirectDispatchOne(signal) {
+    if (!redirectSniperActive || signal.aborted) return;
+    redirectInFlight++;
+    const t0 = performance.now();
+    GM_xmlhttpRequest({
+        method: 'GET',
+        url: BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(),
+        headers: { 'Accept': 'application/json' },
+        timeout: 8000,
+        onload: (r) => {
+            if (!redirectSniperActive || signal.aborted) { redirectInFlight--; return; }
+            redirectInFlight--;
+            apiScannerRecord('GET', '/apisite/catalog/v1/search/items', r.status, Math.round(performance.now() - t0));
 
-            if (!prev) {
-                // Brand new item
-                if (redirectSniperSettings.redirectNew && Object.keys(redirectSniperSeenIds).length > 0) {
-                    log('🔗 New item — redirecting: ' + (item.name || 'ID ' + id), 'success');
-                    fireUpdateNotification('🔗 New Item!', item.name || 'ID ' + id);
-                    window.open(BASE + '/catalog/' + id + '/', '_blank');
-                    triggered = true;
+            // Hash-diff — skip if identical to last response
+            const hash = fastHash(r.responseText);
+            if (hash === _redirectLastHash) return;
+            _redirectLastHash = hash;
+
+            let json; try { json = JSON.parse(r.responseText); } catch(_) { return; }
+            const items = json.data || [];
+
+            for (const item of items) {
+                const id       = String(item.id);
+                const curPrice   = item.lowestPrice ?? item.price ?? 0;
+                const curForSale = !!item.isForSale || item.lowestSellerData != null;
+                const prev       = redirectSniperSeenIds[id];
+
+                if (!prev) {
+                    if (redirectSniperSettings.redirectNew && Object.keys(redirectSniperSeenIds).length > 0) {
+                        log('🔗 New item — opening: ' + (item.name || 'ID ' + id), 'success');
+                        fireUpdateNotification('🔗 New Item!', item.name || 'ID ' + id);
+                        fireUpdateSound();
+                        window.open(BASE + '/catalog/' + id + '/', '_blank');
+                    }
+                    redirectSniperSeenIds[id] = { price: curPrice, forSale: curForSale };
+                    continue;
+                }
+
+                if (redirectSniperSettings.redirectUpdated) {
+                    const priceChanged = prev.price !== curPrice && curPrice > 0;
+                    const saleChanged  = !prev.forSale && curForSale;
+                    if (priceChanged || saleChanged) {
+                        const reason = saleChanged ? 'back on sale' : `R$${prev.price}→R$${curPrice}`;
+                        log(`🔗 Update — opening: ${item.name || 'ID ' + id} (${reason})`, 'success');
+                        fireUpdateNotification('🔗 Item Updated!', (item.name || 'ID ' + id) + ' — ' + reason);
+                        window.open(BASE + '/catalog/' + id + '/', '_blank');
+                    }
                 }
                 redirectSniperSeenIds[id] = { price: curPrice, forSale: curForSale };
-                continue;
             }
-
-            // Price / sale change
-            if (redirectSniperSettings.redirectUpdated && !triggered) {
-                const priceChanged = prev.price !== curPrice && curPrice > 0;
-                const saleChanged  = !prev.forSale && curForSale;
-                if (priceChanged || saleChanged) {
-                    const reason = saleChanged ? 'back on sale' : ('price: R$' + prev.price + '→R$' + curPrice);
-                    log('🔗 Update — redirecting: ' + (item.name || 'ID ' + id) + ' (' + reason + ')', 'success');
-                    fireUpdateNotification('🔗 Item Updated!', (item.name || 'ID ' + id) + ' — ' + reason);
-                    window.open(BASE + '/catalog/' + id + '/', '_blank');
-                    triggered = true;
-                }
-            }
-
-            redirectSniperSeenIds[id] = { price: curPrice, forSale: curForSale };
-        }
-    } catch(e) {
-        if (redirectSniperActive) log('Redirect sniper err: ' + e.message, 'err');
-    }
+        },
+        onerror:   () => { redirectInFlight--; },
+        ontimeout: () => { redirectInFlight--; },
+        onabort:   () => { redirectInFlight--; },
+    });
 }
 
 async function startRedirectSniper() {
     loadRedirectSniperSettings();
-    redirectSniperActive  = true;
-    redirectSniperSeenIds = {};
-    // Snapshot first
+    redirectSniperActive = true; redirectSniperSeenIds = {}; _redirectLastHash = '';
+
+    // Snapshot current catalog first
     try {
         const r = await fetch(BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(), { credentials: 'include', cache: 'no-store' });
         const j = await r.json();
         (j.data || []).forEach(item => {
-            redirectSniperSeenIds[String(item.id)] = {
-                price: item.lowestPrice ?? item.price ?? 0,
-                forSale: !!item.isForSale || item.lowestSellerData != null,
-            };
+            redirectSniperSeenIds[String(item.id)] = { price: item.lowestPrice ?? item.price ?? 0, forSale: !!item.isForSale || item.lowestSellerData != null };
         });
         log('🔗 Redirect Sniper armed — ' + Object.keys(redirectSniperSeenIds).length + ' items snapshotted', 'success');
     } catch(_) {}
+
     setRedirectSniperStatus(true);
     try { GM_setValue('redirectSniperActive', true); } catch(_) {}
-    // Tight loop — no artificial delay
-    (async () => {
-        while (redirectSniperActive) {
-            await runRedirectSniperCheck();
-            await new Promise(r => setTimeout(r, 0));
-        }
-    })();
+
+    // Same dispatch loop as auto-buy — GM_xmlhttpRequest powered, full concurrency
+    redirectAbort = new AbortController();
+    const signal  = redirectAbort.signal;
+    redirectInFlight = 0;
+
+    redirectDispatch = setInterval(() => {
+        if (!redirectSniperActive) { clearInterval(redirectDispatch); return; }
+        // 4 parallel workers — more than enough for fast redirect detection
+        while (redirectInFlight < 4 && redirectSniperActive) redirectDispatchOne(signal);
+    }, DISPATCH_MS);
 }
 
 function stopRedirectSniper() {
     redirectSniperActive = false;
-    if (redirectSniperTimer) { clearInterval(redirectSniperTimer); redirectSniperTimer = null; }
+    if (redirectAbort)    { redirectAbort.abort(); redirectAbort = null; }
+    if (redirectDispatch) { clearInterval(redirectDispatch); redirectDispatch = null; }
     redirectSniperSeenIds = {};
     setRedirectSniperStatus(false);
     log('🔗 Redirect Sniper stopped', 'warn');
     try { GM_setValue('redirectSniperActive', false); } catch(_) {}
 }
-
-function toggleRedirectSniper() {
-    redirectSniperActive ? stopRedirectSniper() : startRedirectSniper();
-}
-
+function toggleRedirectSniper() { redirectSniperActive ? stopRedirectSniper() : startRedirectSniper(); }
 function setRedirectSniperStatus(active) {
     const btn = document.getElementById('st-redirect-sniper-btn'); if (!btn) return;
     btn.textContent = active ? '⏹ Stop Redirect Sniper' : '🔗 Start Redirect Sniper';
     btn.style.background = active ? 'linear-gradient(135deg,#059669,#047857)' : '';
-    const dot = document.getElementById('st-redirect-dot');
-    if (dot) dot.className = 'st-dot ' + (active ? 'st-dot-active' : 'st-dot-idle');
-    const txt = document.getElementById('st-redirect-txt');
-    if (txt) txt.textContent = active ? 'Watching — will open item page on match…' : 'Idle — opens item page when something new appears';
+    const dot = document.getElementById('st-redirect-dot'); if (dot) dot.className = 'st-dot ' + (active ? 'st-dot-active' : 'st-dot-idle');
+    const txt = document.getElementById('st-redirect-txt'); if (txt) txt.textContent = active ? 'Watching — opens item page on new/updated item…' : 'Idle';
 }
+
+// ─── Sniper Pill ──────────────────────────────────────────────────────────
+function showSniperPill() { const p = document.getElementById('st-sniper-pill'); if (p && !document.getElementById('st-overlay')?.classList.contains('open')) p.classList.add('visible'); }
+function hideSniperPill()  { document.getElementById('st-sniper-pill')?.classList.remove('visible'); }
+function updateSniperPill(checks, cps) { const c = document.getElementById('st-pill-checks'); if (c) c.textContent = checks > 0 ? ` · ${checks.toLocaleString()} checks  ${cps}/s` : ''; }
