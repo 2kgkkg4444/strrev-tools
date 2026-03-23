@@ -117,16 +117,13 @@ async function acctFetch(acctIdx, url, opts = {}) {
     const method = (opts.method || 'GET').toUpperCase();
     const needsCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
 
-    // Refresh CSRF if missing or older than CSRF_TTL_MS.
-    // Don't refresh on every call (doubles requests), but don't trust a cached
-    // token forever — the server returns HTTP 200 "Token Validation Failed"
-    // (not a 403) for stale tokens so the 403-retry below never fires for them.
+    // Always fetch a fresh CSRF token before every POST/PUT/PATCH/DELETE.
+    // The server returns HTTP 200 "Token Validation Failed" (not a 403) for
+    // stale tokens, so the 403-retry below never fires for them — fresh fetch
+    // on every mutating request is the only reliable fix.
     if (needsCsrf) {
-        const age = acct.csrfAt ? (Date.now() - acct.csrfAt) : Infinity;
-        if (!acct.csrf || age > CSRF_TTL_MS) {
-            const fresh = await fetchCsrfForCookie(acct.cookie);
-            if (fresh) { acct.csrf = fresh; acct.csrfAt = Date.now(); saveAccounts(); }
-        }
+        const fresh = await fetchCsrfForCookie(acct.cookie);
+        if (fresh) { acct.csrf = fresh; acct.csrfAt = Date.now(); saveAccounts(); }
     }
 
     const buildH = () => ({
