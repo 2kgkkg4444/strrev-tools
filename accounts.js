@@ -33,7 +33,7 @@ function startAutoAccept(i) {
     stopAutoAccept(i);
     accounts[i].autoAcceptTrades = true;
     saveAccounts();
-    pollAndAcceptTrades(i);
+    pollAndAcceptTrades(i); // immediate first check
     autoAcceptTimers[i] = setInterval(() => pollAndAcceptTrades(i), 15000);
     log('🤝 Auto-accept trades ON for ' + accounts[i].username, 'success');
 }
@@ -73,8 +73,6 @@ function tryAuthEndpoint(cookie, idx) {
     });
 }
 
-// Fetch a fresh CSRF token by probing the economy endpoint.
-// This is the same approach used when accounts are first added.
 function fetchCsrfForCookie(cookie) {
     return new Promise(resolve => {
         gmFetch(BASE + '/apisite/economy/v1/purchases/products/0', {
@@ -108,12 +106,9 @@ async function acctFetch(acctIdx, url, opts = {}) {
     const method = (opts.method||'GET').toUpperCase();
     const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
 
-    // Always fetch a fresh CSRF token for mutating requests.
-    // The server returns HTTP 200 "Token Validation Failed" (not 403) for stale
-    // tokens so the 403-retry below never fires — always refreshing is the fix.
-    if (needsCsrf) {
-        const fresh = await fetchCsrfForCookie(acct.cookie);
-        if (fresh) { acct.csrf = fresh; saveAccounts(); }
+    if (needsCsrf && !acct.csrf) {
+        acct.csrf = await fetchCsrfForCookie(acct.cookie);
+        saveAccounts();
     }
 
     const buildH = () => ({
@@ -170,18 +165,22 @@ function updateMiniAcct() {
 // ─── Account Preview Fetch ────────────────────────────────────────────────
 async function fetchAcctPreview(i) {
     const acct = accounts[i];
-    if (!acct) return {};
-    if (acct.sessionBacked || !acct.cookie) {
-        return { robux: null, tickets: null, avatar: null };
-    }
     const preview = {};
+
+    // ── Currency: response is { robux, tickets } ────────────────────────────
     const uid = acct.id;
     const currencyEndpoints = uid ? [
         '/apisite/economy/v1/users/' + uid + '/currency',
         '/api/economy/users/' + uid + '/currency',
         '/api/users/' + uid + '/currency',
         '/apisite/economy/v1/user/currency',
-    ] : ['/apisite/economy/v1/user/currency'];
+        '/api/currency',
+        '/api/user/currency',
+    ] : [
+        '/apisite/economy/v1/user/currency',
+        '/api/currency',
+        '/api/user/currency',
+    ];
     for (const ep of currencyEndpoints) {
         try {
             const r = await acctFetch(i, BASE + ep);
@@ -194,21 +193,35 @@ async function fetchAcctPreview(i) {
             }
         } catch(_) {}
     }
+
+    // ── Avatar ───────────────────────────────────────────────────────────────
     if (acct.id) {
         try {
             const tr = await acctFetch(i, BASE + '/apisite/thumbnails/v1/users/avatar-headshot?userIds=' + acct.id + '&size=150x150&format=Png&isCircular=false');
-            if (tr.ok) { const tj = await tr.json(); preview.avatar = tj.data?.[0]?.imageUrl || null; }
+            if (tr.ok) {
+                const tj = await tr.json();
+                preview.avatar = tj.data?.[0]?.imageUrl || null;
+            }
         } catch(_) {}
+        // ── Profile / join date ──────────────────────────────────────────────
         try {
             const ur = await acctFetch(i, BASE + '/apisite/users/v1/users/' + acct.id);
-            if (ur.ok) { const uj = await ur.json(); preview.displayName = uj.displayName || null; preview.created = uj.created || null; }
+            if (ur.ok) {
+                const uj = await ur.json();
+                preview.displayName = uj.displayName || null;
+                preview.created     = uj.created     || null;
+            }
         } catch(_) {}
+        // ── Membership — /apisite/premiumfeatures/v1/users/{id}/validate-membership
+        // Returns a number: 0=None, 1=BC, 2=TBC, 3=OBC
         try {
-            const mr = await acctFetch(i, BASE + '/apisite/premiumfeatures/v1/users/' + acct.id + '/validate-membership');
-            if (mr.ok) {
-                const tier = parseInt(await mr.text());
-                const tierMap = { 0:'None', 1:'BuildersClub', 2:'TurboBuildersClub', 3:'OutrageousBuildersClub' };
-                preview.membership = tierMap[tier] ?? null;
+            if (acct.id) {
+                const mr = await acctFetch(i, BASE + '/apisite/premiumfeatures/v1/users/' + acct.id + '/validate-membership');
+                if (mr.ok) {
+                    const tier = parseInt(await mr.text());
+                    const tierMap = { 0: 'None', 1: 'BuildersClub', 2: 'TurboBuildersClub', 3: 'OutrageousBuildersClub' };
+                    preview.membership = tierMap[tier] ?? null;
+                }
             }
         } catch(_) {}
     }
@@ -222,9 +235,11 @@ function renderAcctCard(a, i, preview, cardEl) {
     card.onmouseenter = () => card.style.borderColor = 'var(--c-border)';
     card.onmouseleave = () => card.style.borderColor = 'var(--c-border2)';
 
+    // Top row: avatar + name block + remove
     const top = document.createElement('div');
     top.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;';
 
+    // Avatar
     const avatarWrap = document.createElement('div');
     avatarWrap.style.cssText = 'width:48px;height:48px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--c-bg2);border:1px solid var(--c-border2);display:flex;align-items:center;justify-content:center;font-size:20px;';
     if (preview && preview.avatar) {
@@ -233,8 +248,11 @@ function renderAcctCard(a, i, preview, cardEl) {
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
         img.onerror = () => { avatarWrap.innerHTML = '👤'; };
         avatarWrap.appendChild(img);
-    } else { avatarWrap.textContent = '👤'; }
+    } else {
+        avatarWrap.textContent = '👤';
+    }
 
+    // Name + id + csrf badge
     const nameBlock = document.createElement('div');
     nameBlock.style.cssText = 'flex:1;min-width:0;';
     const nameRow = document.createElement('div');
@@ -273,9 +291,11 @@ function renderAcctCard(a, i, preview, cardEl) {
     }
     nameBlock.append(nameRow, subRow);
 
+    // Buttons row
     const btnWrap = document.createElement('div');
     btnWrap.style.cssText = 'display:flex;gap:6px;flex-shrink:0;align-items:center;';
 
+    // Auto-accept toggle
     const aaOn = !!a.autoAcceptTrades;
     const aaWrap = document.createElement('div');
     aaWrap.title = 'Auto-accept incoming trades';
@@ -330,8 +350,10 @@ function renderAcctCard(a, i, preview, cardEl) {
     btnWrap.append(aaWrap, refreshBtn, rm);
     top.append(avatarWrap, nameBlock, btnWrap);
 
+    // Stats row: robux, tix
     const stats = document.createElement('div');
     stats.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+
     const mkStat = (label, value, color, icon) => {
         const s = document.createElement('div');
         s.style.cssText = 'background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:9px;padding:10px 12px;';
@@ -344,13 +366,16 @@ function renderAcctCard(a, i, preview, cardEl) {
         s.append(lbl, val);
         return s;
     };
+
     const loading = '…';
-    const robuxVal = (preview && preview.robux   != null) ? preview.robux.toLocaleString()  : loading;
-    const tixVal   = (preview && preview.tickets != null) ? preview.tickets.toLocaleString() : loading;
+    const robuxVal  = (preview && preview.robux   != null) ? preview.robux.toLocaleString()   : loading;
+    const tixVal    = (preview && preview.tickets  != null) ? preview.tickets.toLocaleString()  : loading;
+
     stats.append(
-        mkStat('Robux',   robuxVal, '#f97316', 'R$'),
-        mkStat('Tickets', tixVal,   '#eab308', 'T$'),
+        mkStat('Robux',   robuxVal,  '#f97316', 'R$'),
+        mkStat('Tickets', tixVal,    '#eab308',  'T$'),
     );
+
     card.append(top, stats);
     return card;
 }
@@ -364,65 +389,31 @@ function rebuildSettingsAcctList() {
         el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--c-text4);font-size:11px;font-style:italic;">No accounts saved yet</div>';
         return;
     }
-    if (_acctAutoRefreshTimer) { clearInterval(_acctAutoRefreshTimer); _acctAutoRefreshTimer = null; }
     accounts.forEach((a, i) => {
         const card = renderAcctCard(a, i, null);
         el.appendChild(card);
-        setTimeout(() => {
-            fetchAcctPreview(i).then(preview => {
-                const existing = el.querySelector('[data-acct-idx="' + i + '"]');
-                if (existing) { const newCard = renderAcctCard(accounts[i], i, preview); existing.replaceWith(newCard); }
-            });
-        }, i * 300);
+        fetchAcctPreview(i).then(preview => {
+            const newCard = renderAcctCard(accounts[i], i, preview);
+            card.replaceWith(newCard);
+        });
     });
+
+    // Auto-refresh previews every 30s
+    if (_acctAutoRefreshTimer) clearInterval(_acctAutoRefreshTimer);
     const doRefresh = () => {
         const listEl = document.getElementById('st-settings-acct-list');
-        if (!listEl) { clearInterval(_acctAutoRefreshTimer); _acctAutoRefreshTimer = null; return; }
+        if (!listEl) { clearInterval(_acctAutoRefreshTimer); return; }
         accounts.forEach((a, i) => {
-            setTimeout(() => {
-                fetchAcctPreview(i).then(preview => {
-                    const card = listEl.querySelector('[data-acct-idx="' + i + '"]');
-                    if (card) { const newCard = renderAcctCard(accounts[i], i, preview); card.replaceWith(newCard); }
-                });
-            }, i * 300);
+            fetchAcctPreview(i).then(preview => {
+                const card = listEl.querySelector('[data-acct-idx="' + i + '"]');
+                if (card) {
+                    const newCard = renderAcctCard(accounts[i], i, preview);
+                    card.replaceWith(newCard);
+                }
+            });
         });
     };
-    _acctAutoRefreshTimer = setInterval(doRefresh, 60000);
-}
-
-// ─── Refresh All CSRF Tokens ──────────────────────────────────────────────
-async function refreshAllTokens() {
-    const btn      = document.getElementById('st-refresh-tokens-btn');
-    const icon     = document.getElementById('st-refresh-tokens-icon');
-    const statusEl = document.getElementById('st-refresh-tokens-status');
-    if (!accounts.length) {
-        if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-warn)'; statusEl.textContent='No accounts saved.'; }
-        return;
-    }
-    if (btn) btn.disabled = true;
-    if (icon) icon.innerHTML = '<span class="st-spin" style="display:inline-block;">&#8635;</span>';
-    if (statusEl) { statusEl.style.display='block'; statusEl.style.color='var(--c-text3)'; statusEl.textContent='Refreshing tokens for ' + accounts.length + ' account(s)...'; }
-    let ok = 0, failed = 0;
-    for (let i = 0; i < accounts.length; i++) {
-        const acct = accounts[i];
-        if (!acct.cookie) { failed++; continue; }
-        if (statusEl) statusEl.textContent = 'Refreshing ' + (i+1) + '/' + accounts.length + ' — ' + (acct.username || 'Account '+i) + '...';
-        try {
-            const fresh = await fetchCsrfForCookie(acct.cookie);
-            if (fresh) { acct.csrf = fresh; ok++; log('Token refreshed: ' + (acct.username||'Account '+i), 'success'); }
-            else        { failed++; log('Token refresh failed: ' + (acct.username||'Account '+i), 'err'); }
-        } catch(e) { failed++; log('Token refresh error (' + (acct.username||'Account '+i) + '): ' + e.message, 'err'); }
-    }
-    saveAccounts();
-    if (icon) icon.textContent = 'OK';
-    if (btn) btn.disabled = false;
-    const allOk = failed === 0;
-    if (statusEl) {
-        statusEl.style.color = allOk ? 'var(--c-success)' : failed === accounts.length ? 'var(--c-err)' : 'var(--c-warn)';
-        statusEl.textContent = ok + ' token(s) refreshed' + (failed > 0 ? ' / ' + failed + ' failed' : '');
-        setTimeout(() => { if (statusEl) statusEl.style.display='none'; }, 4000);
-    }
-    log('Token refresh complete — ' + ok + ' ok, ' + failed + ' failed', allOk ? 'success' : 'warn');
+    _acctAutoRefreshTimer = setInterval(doRefresh, 30000);
 }
 
 async function addAccountFlow() {
