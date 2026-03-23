@@ -22,22 +22,34 @@ async function fetchDailyStatus(acctIdx) {
     }
 }
 
-// ─── Fetch CSRF token valid for /api/ endpoints (not /apisite/) ─────────────
-// The two backends use separate token namespaces. We probe /api/daily-case/open
-// itself with an empty token so the server hands back the correct /api/ token.
-function fetchDailyCsrfForCookie(cookie) {
+// ─── GET the daily status page for an account, return all cookies set ────────
+// The /api/ backend uses double-submit cookie CSRF: it sets an anti-forgery
+// cookie on GET requests and validates header == cookie value on POSTs.
+// Saved accounts never hit a GET, so they never get that cookie — which is
+// why every POST returns "Token Validation Failed" despite having a valid
+// .ROBLOSECURITY cookie. We fix this by GETting the status endpoint first.
+function fetchDailySessionCookies(cookie) {
     return new Promise(resolve => {
         GM_xmlhttpRequest({
-            method:    'POST',
-            url:       DAILY_OPEN_URL,
-            headers:   { 'Cookie': '.ROBLOSECURITY=' + cookie, 'Content-Type': 'application/json', 'x-csrf-token': '' },
-            data:      '{}',
+            method:    'GET',
+            url:       DAILY_STATUS_URL + '?_=' + Date.now(),
+            headers:   { 'Cookie': '.ROBLOSECURITY=' + cookie, 'Accept': 'application/json' },
             anonymous: true,
             onload:  r => {
-                const t = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
-                resolve(t || '');
+                // Collect every cookie the server sets; also grab any CSRF token
+                const setCookieHeaders = r.responseHeaders?.match(/set-cookie:\s*([^
+]+)/gi) || [];
+                const extraCookies = setCookieHeaders
+                    .map(h => h.replace(/^set-cookie:\s*/i, '').split(';')[0].trim())
+                    .filter(Boolean);
+                const csrfFromHeader = r.responseHeaders?.match(/x-csrf-token:\s*([^
+]+)/i)?.[1]?.trim() || '';
+                // Also try to find XSRF-TOKEN / RequestVerificationToken in the set-cookie values
+                const xsrfCookie = extraCookies.find(c => /xsrf|csrf|antiforgery|requestverification/i.test(c));
+                const xsrfValue  = xsrfCookie ? xsrfCookie.split('=').slice(1).join('=') : '';
+                resolve({ extraCookies, csrfFromHeader, xsrfValue });
             },
-            onerror: () => resolve(''),
+            onerror: () => resolve({ extraCookies: [], csrfFromHeader: '', xsrfValue: '' }),
         });
     });
 }
@@ -51,20 +63,29 @@ async function claimDailyFrom(acctIdx) {
         if (acctIdx >= 0) {
             const acct = accounts[acctIdx];
 
-            // Probe the /api/ endpoint itself to get a token valid for this namespace.
-            // fetchCsrfForCookie hits /apisite/ which is a different backend — its
-            // tokens are rejected here with "Token Validation Failed" (HTTP 200).
-            const dailyCsrf = await fetchDailyCsrfForCookie(acct.cookie);
+            // Step 1: GET the status endpoint — this lets the server establish a
+            // session for this cookie and set any anti-forgery / XSRF cookies.
+            const { extraCookies, csrfFromHeader, xsrfValue } = await fetchDailySessionCookies(acct.cookie);
 
-            const doAcctReq = (csrf) => new Promise(resolve => {
+            // Step 2: Build the full Cookie header (.ROBLOSECURITY + any extras)
+            const allCookies = ['.ROBLOSECURITY=' + acct.cookie, ...extraCookies].join('; ');
+
+            // Step 3: Use the CSRF token — prefer whatever came from the GET response
+            // header, fall back to the xsrf cookie value, then the cached acct token
+            const csrfToUse = csrfFromHeader || xsrfValue || acct.csrf || '';
+
+            const doAcctReq = (csrf, cookies) => new Promise(resolve => {
                 GM_xmlhttpRequest({
                     method:    'POST',
                     url:       DAILY_OPEN_URL,
                     headers:   {
-                        'Cookie':       '.ROBLOSECURITY=' + acct.cookie,
-                        'Content-Type': 'application/json',
-                        'x-csrf-token': csrf || '',
-                        'Accept':       'application/json',
+                        'Cookie':              cookies,
+                        'Content-Type':        'application/json',
+                        'x-csrf-token':        csrf,
+                        'X-Requested-With':    'XMLHttpRequest',
+                        'Accept':              'application/json',
+                        'Origin':              BASE,
+                        'Referer':             BASE + '/',
                     },
                     data:      '{}',
                     anonymous: true,
@@ -73,23 +94,25 @@ async function claimDailyFrom(acctIdx) {
                 });
             });
 
-            let raw = await doAcctReq(dailyCsrf);
+            let raw = await doAcctReq(csrfToUse, allCookies);
 
-            // If the server rejects at the transport level, pull the fresh token
-            // from the response header and retry once
+            // Handle transport-level 403 — pull fresh token from response header
             if (raw.status === 403) {
-                const nc = raw.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
-                raw = await doAcctReq(nc || dailyCsrf);
+                const nc = raw.responseHeaders?.match(/x-csrf-token:\s*([^
+]+)/i)?.[1]?.trim();
+                if (nc) raw = await doAcctReq(nc, allCookies);
             }
 
             res = normResp(raw);
             try { d = await res.json(); } catch(_) {}
 
-            // Body-level failure — re-probe for a fresh token and retry once more
+            // Body-level token failure — retry after a fresh GET to reset cookies/token
             const bodyMsg = (d.message || d.errorMessage || '').toLowerCase();
             if (bodyMsg.includes('token')) {
-                const retrycsrf = await fetchDailyCsrfForCookie(acct.cookie);
-                raw = await doAcctReq(retrycsrf);
+                const retry = await fetchDailySessionCookies(acct.cookie);
+                const retryCookies = ['.ROBLOSECURITY=' + acct.cookie, ...retry.extraCookies].join('; ');
+                const retryCsrf   = retry.csrfFromHeader || retry.xsrfValue || acct.csrf || '';
+                raw = await doAcctReq(retryCsrf, retryCookies);
                 res = normResp(raw);
                 d = {};
                 try { d = await res.json(); } catch(_) {}
