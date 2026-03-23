@@ -22,32 +22,51 @@ async function fetchDailyStatus(acctIdx) {
     }
 }
 
-// ─── GET the daily status page for an account, return all cookies set ────────
-// The /api/ backend uses double-submit cookie CSRF: it sets an anti-forgery
-// cookie on GET requests and validates header == cookie value on POSTs.
-// Saved accounts never hit a GET, so they never get that cookie — which is
-// why every POST returns "Token Validation Failed" despite having a valid
-// .ROBLOSECURITY cookie. We fix this by GETting the status endpoint first.
-function fetchDailySessionCookies(cookie) {
+// ─── Fetch rbxcsrf4 cookie + extract CSRF value for /api/ endpoints ─────────
+// The /api/ backend uses a double-submit cookie called rbxcsrf4. It's a JWT
+// whose payload contains {"csrf":"<token>","createdAt":"..."}. The server sets
+// this cookie in response to any authenticated GET, and validates that the
+// x-csrf-token header equals the csrf field inside that JWT.
+// fetchCsrfForCookie (which probes /apisite/) doesn't work here — different
+// backend, different cookie, different token.
+function fetchDailyCsrf(cookie) {
     return new Promise(resolve => {
         GM_xmlhttpRequest({
             method:    'GET',
             url:       DAILY_STATUS_URL + '?_=' + Date.now(),
             headers:   { 'Cookie': '.ROBLOSECURITY=' + cookie, 'Accept': 'application/json' },
             anonymous: true,
-            onload:  r => {
-                // Collect every cookie the server sets; also grab any CSRF token
-                const setCookieHeaders = r.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [];
-                const extraCookies = setCookieHeaders
+            onload: r => {
+                // Collect all Set-Cookie headers
+                const setCookieLines = r.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [];
+                const allCookies = setCookieLines
                     .map(h => h.replace(/^set-cookie:\s*/i, '').split(';')[0].trim())
                     .filter(Boolean);
-                const csrfFromHeader = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
-                // Also try to find XSRF-TOKEN / RequestVerificationToken in the set-cookie values
-                const xsrfCookie = extraCookies.find(c => /xsrf|csrf|antiforgery|requestverification/i.test(c));
-                const xsrfValue  = xsrfCookie ? xsrfCookie.split('=').slice(1).join('=') : '';
-                resolve({ extraCookies, csrfFromHeader, xsrfValue });
+
+                // Find the rbxcsrf4 cookie
+                const rbxcsrf4 = allCookies.find(c => c.startsWith('rbxcsrf4='));
+                if (!rbxcsrf4) {
+                    resolve({ cookieStr: '.ROBLOSECURITY=' + cookie, csrfToken: '' });
+                    return;
+                }
+
+                // Extract the JWT payload (middle part between the two dots)
+                const jwt = rbxcsrf4.split('=').slice(1).join('=');
+                const parts = jwt.split('.');
+                let csrfToken = '';
+                if (parts.length >= 2) {
+                    try {
+                        // base64url decode the payload
+                        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+                        csrfToken = payload.csrf || '';
+                    } catch(_) {}
+                }
+
+                // Build full cookie string: .ROBLOSECURITY + rbxcsrf4 + any others
+                const cookieStr = ['.ROBLOSECURITY=' + cookie, ...allCookies].join('; ');
+                resolve({ cookieStr, csrfToken });
             },
-            onerror: () => resolve({ extraCookies: [], csrfFromHeader: '', xsrfValue: '' }),
+            onerror: () => resolve({ cookieStr: '.ROBLOSECURITY=' + cookie, csrfToken: '' }),
         });
     });
 }
@@ -61,29 +80,24 @@ async function claimDailyFrom(acctIdx) {
         if (acctIdx >= 0) {
             const acct = accounts[acctIdx];
 
-            // Step 1: GET the status endpoint — this lets the server establish a
-            // session for this cookie and set any anti-forgery / XSRF cookies.
-            const { extraCookies, csrfFromHeader, xsrfValue } = await fetchDailySessionCookies(acct.cookie);
+            // Step 1: GET status to receive rbxcsrf4 cookie + extract CSRF token
+            const { cookieStr, csrfToken } = await fetchDailyCsrf(acct.cookie);
 
-            // Step 2: Build the full Cookie header (.ROBLOSECURITY + any extras)
-            const allCookies = ['.ROBLOSECURITY=' + acct.cookie, ...extraCookies].join('; ');
+            if (!csrfToken) {
+                log('~ No CSRF token for ' + label + ' — cookie may be invalid', 'warn');
+            }
 
-            // Step 3: Use the CSRF token — prefer whatever came from the GET response
-            // header, fall back to the xsrf cookie value, then the cached acct token
-            const csrfToUse = csrfFromHeader || xsrfValue || acct.csrf || '';
-
-            const doAcctReq = (csrf, cookies) => new Promise(resolve => {
+            const doPost = (cookies, csrf) => new Promise(resolve => {
                 GM_xmlhttpRequest({
                     method:    'POST',
                     url:       DAILY_OPEN_URL,
                     headers:   {
-                        'Cookie':              cookies,
-                        'Content-Type':        'application/json',
-                        'x-csrf-token':        csrf,
-                        'X-Requested-With':    'XMLHttpRequest',
-                        'Accept':              'application/json',
-                        'Origin':              BASE,
-                        'Referer':             BASE + '/',
+                        'Cookie':        cookies,
+                        'Content-Type':  'application/json',
+                        'x-csrf-token':  csrf,
+                        'Accept':        'application/json',
+                        'Origin':        BASE,
+                        'Referer':       BASE + '/daily-case',
                     },
                     data:      '{}',
                     anonymous: true,
@@ -92,30 +106,21 @@ async function claimDailyFrom(acctIdx) {
                 });
             });
 
-            let raw = await doAcctReq(csrfToUse, allCookies);
+            let raw = await doPost(cookieStr, csrfToken);
 
-            // Handle transport-level 403 — pull fresh token from response header
-            if (raw.status === 403) {
-                const nc = raw.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
-                if (nc) raw = await doAcctReq(nc, allCookies);
+            // Body-level token failure — re-fetch and retry once
+            let dTmp = {};
+            try { dTmp = JSON.parse(raw.responseText); } catch(_) {}
+            const bodyMsg = (dTmp.message || dTmp.errorMessage || '').toLowerCase();
+            if (bodyMsg.includes('token')) {
+                const retry = await fetchDailyCsrf(acct.cookie);
+                raw = await doPost(retry.cookieStr, retry.csrfToken);
             }
 
             res = normResp(raw);
             try { d = await res.json(); } catch(_) {}
-
-            // Body-level token failure — retry after a fresh GET to reset cookies/token
-            const bodyMsg = (d.message || d.errorMessage || '').toLowerCase();
-            if (bodyMsg.includes('token')) {
-                const retry = await fetchDailySessionCookies(acct.cookie);
-                const retryCookies = ['.ROBLOSECURITY=' + acct.cookie, ...retry.extraCookies].join('; ');
-                const retryCsrf   = retry.csrfFromHeader || retry.xsrfValue || acct.csrf || '';
-                raw = await doAcctReq(retryCsrf, retryCookies);
-                res = normResp(raw);
-                d = {};
-                try { d = await res.json(); } catch(_) {}
-            }
         } else {
-            // Session — always fetch a fresh CSRF right before posting
+            // Session — browser already has rbxcsrf4 cookie, just need fresh CSRF
             await fetchSessionCsrf();
             const doSessReq = (csrf) => sessFetch(DAILY_OPEN_URL, {
                 method: 'POST', credentials: 'include',
@@ -124,7 +129,7 @@ async function claimDailyFrom(acctIdx) {
             });
             res = await doSessReq(sessionCsrf);
             if (res.status === 403) {
-                const refreshed = res.headers?.get?.('x-csrf-token') || res.headers?.get?.('X-CSRF-Token');
+                const refreshed = res.headers?.get?.('x-csrf-token');
                 if (refreshed) sessionCsrf = refreshed;
                 else await fetchSessionCsrf();
                 res = await doSessReq(sessionCsrf);
