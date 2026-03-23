@@ -74,15 +74,36 @@ function tryAuthEndpoint(cookie, idx) {
 }
 
 function fetchCsrfForCookie(cookie) {
+    // Two-step: GET first to receive rbxcsrf4 via Set-Cookie, then POST to probe
+    // for CSRF. The server only returns the token when rbxcsrf4 is present.
+    // anonymous:true on both calls so we never mix saved-account cookies with
+    // the browser session (which would log the current user out).
     return new Promise(resolve => {
-        gmFetch(BASE + '/apisite/economy/v1/purchases/products/0', {
-            method: 'POST',
-            headers: { 'Cookie': '.ROBLOSECURITY='+cookie, 'Content-Type':'application/json', 'x-csrf-token':'' },
-            body: '{}',
-        }).then(r => {
-            const t = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
-            resolve(t || '');
-        }).catch(() => resolve(''));
+        GM_xmlhttpRequest({
+            method:    'GET',
+            url:       BASE + '/apisite/users/v1/users/authenticated',
+            headers:   { 'Cookie': '.ROBLOSECURITY=' + cookie, 'Accept': 'application/json' },
+            anonymous: true,
+            onload: r1 => {
+                const setCookies = (r1.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [])
+                    .map(h => h.replace(/^set-cookie:\s*/i, '').split(';')[0].trim())
+                    .filter(Boolean);
+                const fullCookie = ['.ROBLOSECURITY=' + cookie, ...setCookies].join('; ');
+                GM_xmlhttpRequest({
+                    method:    'POST',
+                    url:       BASE + '/apisite/economy/v1/purchases/products/0',
+                    headers:   { 'Cookie': fullCookie, 'Content-Type': 'application/json', 'x-csrf-token': '' },
+                    data:      '{}',
+                    anonymous: true,
+                    onload: r2 => {
+                        const t = r2.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
+                        resolve(t);
+                    },
+                    onerror: () => resolve(''),
+                });
+            },
+            onerror: () => resolve(''),
+        });
     });
 }
 
