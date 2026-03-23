@@ -73,27 +73,73 @@ function tryAuthEndpoint(cookie, idx) {
     });
 }
 
-// CSRF token TTL — refresh if older than 5 minutes
-const CSRF_TTL_MS = 5 * 60 * 1000;
+// Per-account session cache: stores rbxcsrf4 cookie + extracted CSRF value
+// The server requires rbxcsrf4 alongside .ROBLOSECURITY for all endpoints.
+// Session mode works because the browser already has rbxcsrf4 from page loads.
+// Saved accounts must GET an authenticated endpoint first to receive rbxcsrf4
+// via Set-Cookie, then include it in all subsequent requests.
+const _sessionCache = {}; // acctIdx -> { fullCookie, csrfToken, at }
+const SESSION_TTL   = 4 * 60 * 1000; // 4 minutes
 
-// Fetch a fresh CSRF token for a saved-cookie account.
-// POSTs to the economy probe endpoint with an empty token — the server returns
-// the correct token in the x-csrf-token response header regardless of status.
-// This is the same approach used when accounts are first added, and it works.
-function fetchCsrfForCookie(cookie) {
+function fetchAccountSession(acctIdx) {
+    const acct  = accounts[acctIdx];
+    const cache = _sessionCache[acctIdx];
+    if (cache && (Date.now() - cache.at) < SESSION_TTL) return Promise.resolve(cache);
+
     return new Promise(resolve => {
         GM_xmlhttpRequest({
-            method:    'POST',
-            url:       BASE + '/apisite/economy/v1/purchases/products/0',
-            headers:   { 'Cookie': '.ROBLOSECURITY=' + cookie, 'Content-Type': 'application/json', 'x-csrf-token': '' },
-            data:      '{}',
+            method:    'GET',
+            url:       BASE + '/apisite/users/v1/users/authenticated?_=' + Date.now(),
+            headers:   { 'Cookie': '.ROBLOSECURITY=' + acct.cookie, 'Accept': 'application/json' },
             anonymous: true,
-            onload:  r => {
-                const t = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
-                resolve(t);
+            onload: r => {
+                // Collect every Set-Cookie the server returns
+                const setCookieLines = r.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [];
+                const extraCookies   = setCookieLines
+                    .map(h => h.replace(/^set-cookie:\s*/i, '').split(';')[0].trim())
+                    .filter(Boolean);
+
+                // Decode rbxcsrf4 JWT to extract the csrf field
+                const rbxEntry = extraCookies.find(c => c.startsWith('rbxcsrf4='));
+                let csrfToken = '';
+                if (rbxEntry) {
+                    try {
+                        const jwt     = rbxEntry.slice('rbxcsrf4='.length);
+                        const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+                        csrfToken = payload.csrf || '';
+                    } catch(_) {}
+                }
+                // Fallback: x-csrf-token response header
+                if (!csrfToken) {
+                    csrfToken = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
+                }
+
+                const fullCookie = ['.ROBLOSECURITY=' + acct.cookie, ...extraCookies].join('; ');
+                const sess = { fullCookie, csrfToken, at: Date.now() };
+                _sessionCache[acctIdx] = sess;
+                resolve(sess);
             },
-            onerror: () => resolve(''),
+            onerror: () => {
+                // Fallback to bare cookie — will likely fail but at least won't throw
+                const sess = { fullCookie: '.ROBLOSECURITY=' + acct.cookie, csrfToken: acct.csrf || '', at: Date.now() };
+                _sessionCache[acctIdx] = sess;
+                resolve(sess);
+            },
         });
+    });
+}
+
+// Keep fetchCsrfForCookie for addAccountFlow + refreshAllTokens button
+function fetchCsrfForCookie(cookie) {
+    return new Promise(resolve => {
+        gmFetch(BASE + '/apisite/economy/v1/purchases/products/0', {
+            method: 'POST',
+            headers: { 'Cookie': '.ROBLOSECURITY='+cookie, 'Content-Type':'application/json', 'x-csrf-token':'' },
+            body: '{}',
+        }).then(r => {
+            const t = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
+            resolve(t || '');
+        }).catch(() => resolve(''));
     });
 }
 
@@ -101,52 +147,64 @@ async function acctFetch(acctIdx, url, opts = {}) {
     const acct = accounts[acctIdx];
     if (!acct) throw new Error('No account at index ' + acctIdx);
 
-    // Session-backed account (no raw cookie) — use browser session
+    // Session-backed account (no raw cookie) — use browser session directly
     if (acct.sessionBacked || !acct.cookie) {
         const method = (opts.method || 'GET').toUpperCase();
-        const needsCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+        const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
         if (needsCsrf) { await fetchSessionCsrf(); acct.csrf = sessionCsrf; saveAccounts(); }
         const headers = {
             'Accept': 'application/json',
-            ...(needsCsrf ? { 'x-csrf-token': acct.csrf || sessionCsrf || '', 'Content-Type': 'application/json' } : {}),
-            ...(opts.headers || {}),
+            ...(needsCsrf ? { 'x-csrf-token': acct.csrf||sessionCsrf||'', 'Content-Type':'application/json' } : {}),
+            ...(opts.headers||{}),
         };
-        return fetch(url, { credentials: 'include', ...opts, headers });
+        return fetch(url, { credentials:'include', ...opts, headers });
     }
 
-    const method = (opts.method || 'GET').toUpperCase();
-    const needsCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+    const method    = (opts.method || 'GET').toUpperCase();
+    const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
 
-    // Always fetch a fresh CSRF token before every POST/PUT/PATCH/DELETE.
-    // The server returns HTTP 200 "Token Validation Failed" (not a 403) for
-    // stale tokens, so the 403-retry below never fires for them — fresh fetch
-    // on every mutating request is the only reliable fix.
-    if (needsCsrf) {
-        const fresh = await fetchCsrfForCookie(acct.cookie);
-        if (fresh) { acct.csrf = fresh; acct.csrfAt = Date.now(); saveAccounts(); }
-    }
+    // Establish a proper session for this account — GET an authenticated endpoint
+    // so the server sends rbxcsrf4 via Set-Cookie. We include that cookie in all
+    // requests so the server treats this the same as a real browser session.
+    let sess = await fetchAccountSession(acctIdx);
 
-    const buildH = () => ({
-        'Cookie': '.ROBLOSECURITY=' + acct.cookie,
+    const buildH = (s) => ({
+        'Cookie': s.fullCookie,
         'Accept': 'application/json',
-        ...(needsCsrf ? { 'x-csrf-token': acct.csrf || '', 'Content-Type': 'application/json' } : {}),
-        ...(opts.headers || {}),
+        ...(needsCsrf ? { 'x-csrf-token': s.csrfToken, 'Content-Type':'application/json' } : {}),
+        ...(opts.headers||{}),
     });
 
-    let r = await gmFetch(url, { ...opts, headers: buildH() });
+    let r = await gmFetch(url, { ...opts, headers: buildH(sess) });
 
-    // Handle genuine 403 — pull fresh token from response header and retry
+    // 403 = token rejected at transport level — invalidate cache and retry once
     if (r.status === 403 && needsCsrf) {
-        const nc = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
-        if (nc) {
-            acct.csrf = nc; acct.csrfAt = Date.now(); saveAccounts();
-            r = await gmFetch(url, { ...opts, headers: buildH() });
-        } else {
-            const fresh = await fetchCsrfForCookie(acct.cookie);
-            if (fresh) { acct.csrf = fresh; acct.csrfAt = Date.now(); saveAccounts(); }
-            r = await gmFetch(url, { ...opts, headers: buildH() });
-        }
+        delete _sessionCache[acctIdx];
+        sess = await fetchAccountSession(acctIdx);
+        r    = await gmFetch(url, { ...opts, headers: buildH(sess) });
     }
+
+    // Update cache with any new rbxcsrf4 the server issued in this response
+    const newSetCookies = r.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [];
+    const newRbx = newSetCookies
+        .map(h => h.replace(/^set-cookie:\s*/i,'').split(';')[0].trim())
+        .find(c => c.startsWith('rbxcsrf4='));
+    if (newRbx) {
+        try {
+            const jwt     = newRbx.slice('rbxcsrf4='.length);
+            const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+            const csrf    = payload.csrf || '';
+            if (csrf && _sessionCache[acctIdx]) {
+                const existing = _sessionCache[acctIdx].fullCookie.replace(/rbxcsrf4=[^;]+;?\s*/g,'').trim();
+                _sessionCache[acctIdx] = {
+                    fullCookie: existing + '; ' + newRbx,
+                    csrfToken:  csrf,
+                    at:         Date.now(),
+                };
+            }
+        } catch(_) {}
+    }
+
     return normResp(r);
 }
 
