@@ -1470,7 +1470,13 @@ function buildUI() {
                                     <button id="st-add-btn" class="st-btn-primary" style="width:100%;padding:13px;">🔍 Fetch Username & Save</button>
                                     <div id="st-add-status" style="margin-top:10px;font-size:11px;min-height:16px;text-align:center;color:var(--c-text2);"></div>
                                 </div>
-                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">Saved Accounts</div>
+                                <div style="display:flex;align-items:center;justify-content:space-between;">
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);">Saved Accounts</div>
+                                    <button id="st-refresh-tokens-btn" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:9px;color:var(--c-text2);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.background='var(--c-bg3)';this.style.color='var(--c-text0)';this.style.borderColor='var(--c-accent)'" onmouseleave="this.style.background='var(--c-bg2)';this.style.color='var(--c-text2)';this.style.borderColor='var(--c-border)'">
+                                        <span id="st-refresh-tokens-icon" style="font-size:13px;">🔑</span> Refresh All Tokens
+                                    </button>
+                                </div>
+                                <div id="st-refresh-tokens-status" style="display:none;padding:9px 13px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);"></div>
                                 <div id="st-settings-acct-list" style="overflow-y:auto;padding-right:4px;"></div>
                             </div>
 
@@ -1788,6 +1794,7 @@ function buildUI() {
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-obc-btn').addEventListener('click', upgradeToOBC);
     document.getElementById('st-add-btn').addEventListener('click', addAccountFlow);
+    document.getElementById('st-refresh-tokens-btn').addEventListener('click', refreshAllTokens);
     wireSniperSettings();
 }
 
