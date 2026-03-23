@@ -3,27 +3,25 @@
 
 async function lookupFriendTarget(input) {
     input = input.trim();
-    const idx = selectedAcctIdx >= 0 ? selectedAcctIdx : (accounts.length > 0 ? 0 : -1);
     const safeJ = async (r) => { try { const t = await r.text(); return JSON.parse(t); } catch(_) { return {}; } };
-    let r;
+    // Always use session for lookups — these are read-only public endpoints and
+    // don't need a saved account cookie. Using saved accounts caused failures
+    // whenever the account's CSRF token was stale.
     if (/^\d+$/.test(input)) {
-        r = idx >= 0
-            ? await acctFetch(idx, BASE+'/apisite/users/v1/users/'+input)
-            : await sessFetch(BASE+'/apisite/users/v1/users/'+input);
-        if (!r.ok) throw new Error('User ID '+input+' not found');
-        const j = await safeJ(r); return { id: String(j.id), name: j.name||j.displayName||'User '+input };
+        const r = await sessFetch(BASE + '/apisite/users/v1/users/' + input);
+        if (!r.ok) throw new Error('User ID ' + input + ' not found');
+        const j = await safeJ(r);
+        return { id: String(j.id), name: j.name || j.displayName || 'User ' + input };
     }
-    const body = JSON.stringify({ usernames:[input], excludeBannedUsers:false });
-    if (idx < 0) await fetchSessionCsrf();
-    r = idx >= 0
-        ? await acctFetch(idx, BASE+'/apisite/users/v1/usernames/users', { method:'POST', body })
-        : await sessFetch(BASE+'/apisite/users/v1/usernames/users', {
-              method:'POST',
-              headers:{'Content-Type':'application/json','x-csrf-token':sessionCsrf},
-              body,
-          });
+    await fetchSessionCsrf();
+    const r = await sessFetch(BASE + '/apisite/users/v1/usernames/users', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': sessionCsrf },
+        body:    JSON.stringify({ usernames: [input], excludeBannedUsers: false }),
+    });
     const j = await safeJ(r);
-    const u = j.data?.[0]; if (!u) throw new Error('Username "'+input+'" not found');
+    const u = j.data?.[0];
+    if (!u) throw new Error('Username "' + input + '" not found');
     return { id: String(u.id), name: u.name };
 }
 
