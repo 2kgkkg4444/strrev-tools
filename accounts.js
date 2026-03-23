@@ -73,16 +73,53 @@ function tryAuthEndpoint(cookie, idx) {
     });
 }
 
+// ─── CSRF TTL — how long to trust a cached CSRF token (ms) ──────────────────
+const CSRF_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Two-step CSRF fetch for saved-cookie accounts:
+//
+// Problem: the simple "POST with empty x-csrf-token → server returns token in
+// 403 header" pattern only works when the server also receives valid SESSION
+// cookies alongside .ROBLOSECURITY. Browser sessions always have those session
+// cookies (set during page loads); saved accounts don't. Without them the
+// server never echoes the CSRF token back, so fetchCsrfForCookie always
+// returned '' — meaning saved accounts always had a stale/empty CSRF token
+// and every POST silently failed with "Token Validation Failed".
+//
+// Fix: first GET an authenticated endpoint to let the server establish a
+// session and emit Set-Cookie headers, then include those cookies in the CSRF
+// probe POST. Now the server has everything it needs to return a real token.
 function fetchCsrfForCookie(cookie) {
     return new Promise(resolve => {
-        gmFetch(BASE + '/apisite/economy/v1/purchases/products/0', {
-            method: 'POST',
-            headers: { 'Cookie': '.ROBLOSECURITY='+cookie, 'Content-Type':'application/json', 'x-csrf-token':'' },
-            body: '{}',
-        }).then(r => {
-            const t = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
-            resolve(t || '');
-        }).catch(() => resolve(''));
+        // Step 1 — GET to establish session and collect any Set-Cookie headers
+        GM_xmlhttpRequest({
+            method:    'GET',
+            url:       BASE + '/apisite/users/v1/users/authenticated',
+            headers:   { 'Cookie': '.ROBLOSECURITY=' + cookie, 'Accept': 'application/json' },
+            anonymous: true,
+            onload: r1 => {
+                // Harvest all cookies the server wants to set
+                const setCookies = (r1.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [])
+                    .map(h => h.replace(/^set-cookie:\s*/i, '').split(';')[0].trim())
+                    .filter(Boolean);
+                const fullCookie = ['.ROBLOSECURITY=' + cookie, ...setCookies].join('; ');
+
+                // Step 2 — Probe for CSRF with the full cookie jar
+                GM_xmlhttpRequest({
+                    method:    'POST',
+                    url:       BASE + '/apisite/economy/v1/purchases/products/0',
+                    headers:   { 'Cookie': fullCookie, 'Content-Type': 'application/json', 'x-csrf-token': '' },
+                    data:      '{}',
+                    anonymous: true,
+                    onload: r2 => {
+                        const t = r2.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
+                        resolve(t);
+                    },
+                    onerror: () => resolve(''),
+                });
+            },
+            onerror: () => resolve(''),
+        });
     });
 }
 
@@ -106,14 +143,16 @@ async function acctFetch(acctIdx, url, opts = {}) {
     const method = (opts.method||'GET').toUpperCase();
     const needsCsrf = ['POST','PUT','PATCH','DELETE'].includes(method);
 
-    // Always refresh CSRF before every POST-like request.
-    // The old code only fetched when !acct.csrf — but once a token is stored
-    // (even if weeks old) it was never refreshed. The server returns HTTP 200
-    // with an error body (not 403) for stale tokens, so the 403-retry below
-    // never fired, causing every saved-account POST to silently fail.
+    // Refresh CSRF when: no token cached, or token is older than CSRF_TTL_MS.
+    // We don't refresh on every single request (that would double the load),
+    // but we also don't wait for a 403 (this server returns 200 + error body
+    // for bad tokens, so the 403-retry below would never fire).
     if (needsCsrf) {
-        const fresh = await fetchCsrfForCookie(acct.cookie);
-        if (fresh) { acct.csrf = fresh; saveAccounts(); }
+        const stale = !acct.csrf || !acct.csrfAt || (Date.now() - acct.csrfAt) > CSRF_TTL_MS;
+        if (stale) {
+            const fresh = await fetchCsrfForCookie(acct.cookie);
+            if (fresh) { acct.csrf = fresh; acct.csrfAt = Date.now(); saveAccounts(); }
+        }
     }
 
     const buildH = () => ({
@@ -125,10 +164,18 @@ async function acctFetch(acctIdx, url, opts = {}) {
 
     let r = await gmFetch(url, { ...opts, headers: buildH() });
 
-    // Still handle genuine 403s — pull token from response header and retry
+    // Handle genuine 403 — pull token from response header and retry once
     if (r.status === 403 && needsCsrf) {
         const nc = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
-        if (nc) { acct.csrf = nc; saveAccounts(); r = await gmFetch(url, { ...opts, headers: buildH() }); }
+        if (nc) {
+            acct.csrf = nc; acct.csrfAt = Date.now(); saveAccounts();
+            r = await gmFetch(url, { ...opts, headers: buildH() });
+        } else {
+            // No token in 403 header — do a full refresh and retry
+            const fresh = await fetchCsrfForCookie(acct.cookie);
+            if (fresh) { acct.csrf = fresh; acct.csrfAt = Date.now(); saveAccounts(); }
+            r = await gmFetch(url, { ...opts, headers: buildH() });
+        }
     }
     return normResp(r);
 }
