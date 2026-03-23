@@ -37,13 +37,11 @@ function fetchDailySessionCookies(cookie) {
             anonymous: true,
             onload:  r => {
                 // Collect every cookie the server sets; also grab any CSRF token
-                const setCookieHeaders = r.responseHeaders?.match(/set-cookie:\s*([^
-]+)/gi) || [];
+                const setCookieHeaders = r.responseHeaders?.match(/set-cookie:[^\r\n]+/gi) || [];
                 const extraCookies = setCookieHeaders
                     .map(h => h.replace(/^set-cookie:\s*/i, '').split(';')[0].trim())
                     .filter(Boolean);
-                const csrfFromHeader = r.responseHeaders?.match(/x-csrf-token:\s*([^
-]+)/i)?.[1]?.trim() || '';
+                const csrfFromHeader = r.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
                 // Also try to find XSRF-TOKEN / RequestVerificationToken in the set-cookie values
                 const xsrfCookie = extraCookies.find(c => /xsrf|csrf|antiforgery|requestverification/i.test(c));
                 const xsrfValue  = xsrfCookie ? xsrfCookie.split('=').slice(1).join('=') : '';
@@ -98,8 +96,7 @@ async function claimDailyFrom(acctIdx) {
 
             // Handle transport-level 403 — pull fresh token from response header
             if (raw.status === 403) {
-                const nc = raw.responseHeaders?.match(/x-csrf-token:\s*([^
-]+)/i)?.[1]?.trim();
+                const nc = raw.responseHeaders?.match(/x-csrf-token:\s*([^\r\n]+)/i)?.[1]?.trim();
                 if (nc) raw = await doAcctReq(nc, allCookies);
             }
 
