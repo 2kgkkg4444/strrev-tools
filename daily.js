@@ -291,3 +291,111 @@ async function upgradeToOBC() {
         if (btn) { btn.innerHTML = '👑 Set Membership'; btn.disabled = false; }
     }
 }
+// ─── Batch API Request ────────────────────────────────────────────────────
+async function batchApiRequestFrom(acctIdx, url, method, body) {
+    const label = acctIdx === -1 ? 'Session' : (accounts[acctIdx]?.username || 'Account');
+    try {
+        let res;
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body && method !== 'GET') opts.body = body;
+
+        if (acctIdx >= 0) {
+            res = await acctFetch(acctIdx, url, opts);
+        } else {
+            const csrf = (method !== 'GET') ? await refreshSessionCsrf() : null;
+            res = await sessFetch(url, {
+                ...opts,
+                credentials: 'include',
+                headers: { ...opts.headers, ...(csrf ? { 'x-csrf-token': csrf } : {}) },
+            });
+        }
+
+        let text = '';
+        try { text = await res.text(); } catch(_) {}
+        let preview = text.slice(0, 120);
+        try { const j = JSON.parse(text); preview = JSON.stringify(j).slice(0, 120); } catch(_) {}
+
+        if (res.ok) {
+            log(`✓ Batch request OK (${label}) — ${preview}`, 'success');
+            return { ok: true, label, preview };
+        }
+        log(`✗ Batch request failed (${label}) HTTP ${res.status} — ${preview}`, 'err');
+        return { ok: false, label, msg: `HTTP ${res.status} — ${preview}` };
+    } catch(e) {
+        log(`✗ Batch request error (${label}): ${e.message}`, 'err');
+        return { ok: false, label, msg: e.message };
+    }
+}
+
+function setBatchStatus(msg, color) {
+    const el = document.getElementById('st-batch-status'); if (!el) return;
+    el.style.display = msg ? 'block' : 'none';
+    el.style.color = color || 'var(--c-text2)';
+    el.style.borderColor = color ? color + '44' : 'var(--c-border2)';
+    el.style.background  = color ? color + '0d' : 'var(--c-bg0)';
+    el.textContent = msg;
+}
+
+function renderBatchResults(results) {
+    const el = document.getElementById('st-batch-results'); if (!el) return;
+    el.innerHTML = '';
+    results.forEach(r => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:8px;margin-bottom:4px;background:var(--c-bg2);border:1px solid var(--c-border2);';
+        row.innerHTML = `
+            <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;">
+                <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${r.ok ? 'var(--c-success)' : 'var(--c-err)'};"></div>
+                <span style="font-size:11px;font-weight:600;color:var(--c-text1);">${r.label}</span>
+            </div>
+            <span style="font-size:10px;font-family:'Fira Code',monospace;color:${r.ok ? 'var(--c-success)' : 'var(--c-err)'};word-break:break-all;text-align:right;flex:1;min-width:0;">${r.preview || r.msg || ''}</span>`;
+        el.appendChild(row);
+    });
+}
+
+async function runBatchApiRequest() {
+    const urlEl    = document.getElementById('st-batch-url');
+    const methodEl = document.getElementById('st-batch-method');
+    const bodyEl   = document.getElementById('st-batch-body');
+    const btn      = document.getElementById('st-batch-btn');
+    const url      = urlEl?.value?.trim();
+    const method   = methodEl?.value || 'GET';
+    const body     = bodyEl?.value?.trim() || null;
+
+    if (!url) { setBatchStatus('⚠ Enter a URL first', 'var(--c-warn)'); return; }
+
+    // Basic URL validation — must be on the same domain
+    let fullUrl = url;
+    if (!url.startsWith('http')) fullUrl = BASE + (url.startsWith('/') ? '' : '/') + url;
+    if (!fullUrl.includes('strrev.com')) { setBatchStatus('⚠ URL must be on strrev.com', 'var(--c-warn)'); return; }
+
+    if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Sending...'; btn.disabled = true; }
+    setBatchStatus('', '');
+    const resultsEl = document.getElementById('st-batch-results');
+    if (resultsEl) resultsEl.innerHTML = '';
+
+    const idxs = resolveAccountIndices();
+    if (!idxs.length) { setBatchStatus('✕ No accounts selected', 'var(--c-err)'); if (btn) { btn.innerHTML = '🚀 Send'; btn.disabled = false; } return; }
+
+    log(`Batch ${method} → ${fullUrl} (${idxs.length} account${idxs.length > 1 ? 's' : ''})`, 'info');
+    setBatchStatus(`Sending to ${idxs.length} account${idxs.length > 1 ? 's' : ''}…`, 'var(--c-warn)');
+
+    const results = await Promise.all(idxs.map(i => batchApiRequestFrom(i, fullUrl, method, body)));
+    renderBatchResults(results);
+
+    const ok = results.filter(r => r.ok).length, total = results.length;
+    const allBad = ok === 0;
+    setBatchStatus(
+        (allBad ? '✕ ' : '✓ ') + `${ok}/${total} succeeded`,
+        allBad ? 'var(--c-err)' : 'var(--c-success)'
+    );
+
+    if (btn) {
+        if (!allBad) {
+            btn.innerHTML = '✓ Done!';
+            btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+            setTimeout(() => { if (btn) { btn.innerHTML = '🚀 Send'; btn.style.background = ''; btn.disabled = false; } }, 2500);
+        } else {
+            btn.innerHTML = '🚀 Send'; btn.disabled = false;
+        }
+    }
+}
