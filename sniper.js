@@ -58,22 +58,35 @@ function itemPassesFilters(item) {
 
 // ─── Resolve full item details for buy ────────────────────────────────────
 async function resolveItemDetailsForBuy(rawItem) {
+    const body = JSON.stringify({ items: [{ itemType: 'Asset', id: rawItem.id }] });
+    const doFetch = (csrf) => fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) },
+        body,
+    });
     try {
-        const r = await fetch(BASE + '/apisite/catalog/v1/catalog/items/details', {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: [{ itemType: 'Asset', id: parseInt(rawItem.id) }] }),
-        });
+        // Always send with current CSRF; retry once if we get 403
+        let r = await doFetch(sessionCsrf || null);
+        if (r.status === 403) {
+            const t = r.headers.get('x-csrf-token') || await refreshSessionCsrf(true);
+            r = await doFetch(t);
+        }
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const j = await r.json(), d = j.data?.[0];
-        if (!d) throw new Error('No data');
+        if (!d) throw new Error('No data returned');
         return {
-            id: rawItem.id, assetId: String(d.id || rawItem.id), name: d.name || rawItem.name,
-            price: d.lowestPrice ?? d.price ?? rawItem.price ?? 0, currency: 1,
-            sellerId: d.lowestSellerData?.userId || d.creatorTargetId || d.sellerId || null,
+            id:          rawItem.id,
+            assetId:     String(d.id || rawItem.id),
+            name:        d.name || rawItem.name,
+            price:       d.lowestPrice ?? d.price ?? rawItem.price ?? 0,
+            currency:    rawItem.priceTickets ? 2 : 1,
+            sellerId:    d.lowestSellerData?.userId || d.creatorTargetId || d.sellerId || null,
             userAssetId: d.lowestSellerData?.userAssetId || null,
         };
-    } catch(e) { log('⚠ Item details failed: ' + e.message, 'warn'); return rawItem; }
+    } catch(e) {
+        log('⚠ Item details failed (' + e.message + ') — buying with snapshot data', 'warn');
+        return rawItem;
+    }
 }
 
 // ─── Notifications & Sound ────────────────────────────────────────────────
