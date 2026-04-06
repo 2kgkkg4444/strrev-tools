@@ -128,36 +128,52 @@ function fireUpdateSound() {
 // ─── Snipe Hit Handler ────────────────────────────────────────────────────
 async function onSniperHit(rawItem) {
     log('🎯 SNIPED: ' + (rawItem.name || 'ID ' + rawItem.id), 'success');
-    setSniperStatus('🎯 Sniped! Resolving & buying…', 'hot');
+    setSniperStatus('🎯 Sniped! Buying immediately…', 'hot');
     updateSniperBtn(false);
 
-    const item = await resolveItemDetailsForBuy(rawItem);
-    if (!item.sellerId) log('⚠ No sellerId for ' + item.name, 'warn');
-
-    log(`💰 Price: ${item.price === 0 ? 'FREE' : 'R$' + item.price} | Seller: ${item.sellerId || '?'}`, 'info');
-    setSniperStatus('🎯 Buying...', 'hot');
-
     fireSnipeSound();
-    fireSnipeNotification(item);
+    fireSnipeNotification(rawItem);
 
     const orig = document.title; let n = 0;
     const iv = setInterval(() => {
-        document.title = n++ % 2 === 0 ? '🚨 ' + item.name + ' SNIPED!' : orig;
+        document.title = n++ % 2 === 0 ? '🚨 ' + rawItem.name + ' SNIPED!' : orig;
         if (n >= 12) { clearInterval(iv); document.title = orig; }
     }, 380);
 
-    const idxs    = resolveAccountIndices();
-    let bought = false;
-    if (!idxs.length || idxs[0] === -1) {
-        bought = await buyForSession(item);
-    } else {
+    const idxs = resolveAccountIndices();
+    const doBuy = async (item) => {
+        if (!idxs.length || idxs[0] === -1) return buyForSession(item);
         const res = await Promise.all(idxs.map(i => buyForAcct(i, item)));
-        bought = res.some(Boolean);
+        return res.some(Boolean);
+    };
+
+    // Fire buy with snapshot data AND resolve full details simultaneously —
+    // eliminates the 100–300ms resolve round-trip from the critical path.
+    log(`💰 Buying immediately: ${rawItem.price === 0 ? 'FREE' : 'R$' + rawItem.price} | Seller: ${rawItem.sellerId || '?'}`, 'info');
+    const [snapBought, resolvedItem] = await Promise.all([
+        doBuy(rawItem),
+        resolveItemDetailsForBuy(rawItem),
+    ]);
+
+    let bought = snapBought;
+
+    // Retry with resolved data if snapshot buy failed. Critical for limiteds
+    // (snapshot lacks userAssetId) and for any price/seller mismatch.
+    if (!bought) {
+        const hasNewData = resolvedItem.userAssetId ||
+                           resolvedItem.sellerId !== rawItem.sellerId ||
+                           resolvedItem.price    !== rawItem.price;
+        if (hasNewData) {
+            log('🔁 Retrying with resolved data (userAssetId/sellerId/price)…', 'warn');
+            bought = await doBuy(resolvedItem);
+        }
     }
 
-    log(bought ? '✅ Buy successful: ' + item.name : '❌ Buy failed: ' + item.name, bought ? 'success' : 'err');
+    log(bought ? '✅ Buy successful: ' + (resolvedItem?.name || rawItem.name)
+               : '❌ Buy failed: '     + (resolvedItem?.name || rawItem.name),
+        bought ? 'success' : 'err');
     setSniperStatus(bought ? '✅ Bought! Rearming in 2s…' : '❌ Buy failed — rearming in 2s…', 'loading');
-    setTimeout(() => { if (!sniperActive) startSniper(); }, 2000);
+    setTimeout(() => { if (!sniperActive) { _sniperHitLock = false; startSniper(); } }, 2000);
 }
 
 // ─── CSRF Pre-warm ────────────────────────────────────────────────────────
@@ -174,26 +190,35 @@ async function prewarmBuyCache() {
 
 // ─── Auto-Buy Sniper Dispatch ─────────────────────────────────────────────
 // Uses GM_xmlhttpRequest to bypass 6-connections-per-domain browser limit
-let _lastRespHash = '';
 
-function dispatchOne(signal) {
+// Multiple feeds — round-robined across all workers for wider hit coverage
+const SNIPER_FEEDS = [
+    '/apisite/catalog/v1/search/items?limit=28&sortType=2',
+    '/apisite/catalog/v1/search/items?limit=28&sortType=2&category=Collectibles',
+];
+const _feedHashes    = {};   // per-feed last response hash
+let _sniperHitLock   = false; // prevents two racing workers double-buying
+let _csrfKeepAlive   = null;  // interval that proactively refreshes CSRF
+
+function dispatchOne(signal, feedUrl) {
     if (!sniperActive || signal.aborted) return;
     inFlight++;
     const t0 = performance.now();
     GM_xmlhttpRequest({
         method: 'GET',
-        url: BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now(),
+        url: BASE + feedUrl + '&_=' + Date.now(),
         headers: { 'Accept': 'application/json' },
         timeout: 8000,
         onload: async (r) => {
             if (!sniperActive || signal.aborted) { inFlight--; return; }
             recordRtt(performance.now() - t0);
             checkCount++; cpsCount++; inFlight--;
-            apiScannerRecord('GET', '/apisite/catalog/v1/search/items', r.status, Math.round(performance.now() - t0));
+            apiScannerRecord('GET', feedUrl, r.status, Math.round(performance.now() - t0));
 
+            // Per-feed hash — a change in one feed doesn't suppress detection in the other
             const hash = fastHash(r.responseText);
-            if (hash === _lastRespHash) return;
-            _lastRespHash = hash;
+            if (hash === _feedHashes[feedUrl]) return;
+            _feedHashes[feedUrl] = hash;
 
             let json; try { json = JSON.parse(r.responseText); } catch(_) { return; }
             const d = json.data; if (!d) return;
@@ -204,7 +229,9 @@ function dispatchOne(signal) {
                 if (sniperBlacklist[item.id]) continue;
                 if (!itemPassesFilters(item)) { sniperBlacklist[item.id] = true; continue; }
 
-                // HIT — immediately kill all workers
+                // HIT — lock immediately so no racing worker double-triggers
+                if (_sniperHitLock) return;
+                _sniperHitLock = true;
                 sniperActive = false; abortCtrl.abort();
                 clearInterval(dispatchTimer); clearInterval(cpsTimer);
                 dispatchTimer = cpsTimer = null;
@@ -228,37 +255,56 @@ function startDispatch() {
     if (typeof showSniperPill === 'function') showSniperPill();
     abortCtrl = new AbortController();
     const signal = abortCtrl.signal;
-    concurrency = MAX_INFLIGHT; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0; _lastRespHash = '';
+    concurrency = MAX_INFLIGHT; inFlight = 0; rttSamples = []; avgRtt = 0; cpsCount = 0;
+    // Reset per-feed hashes so first response from each feed is always processed
+    SNIPER_FEEDS.forEach(f => delete _feedHashes[f]);
 
+    // Round-robin workers across all feeds — doubles scanning surface area
+    let feedIdx = 0;
     dispatchTimer = setInterval(() => {
         if (!sniperActive) { clearInterval(dispatchTimer); return; }
-        while (inFlight < concurrency && sniperActive) dispatchOne(signal);
+        while (inFlight < concurrency && sniperActive) {
+            dispatchOne(signal, SNIPER_FEEDS[feedIdx % SNIPER_FEEDS.length]);
+            feedIdx++;
+        }
     }, DISPATCH_MS);
 
     cpsTimer = setInterval(() => { checksPerSec = cpsCount; cpsCount = 0; schedDomUpdate(); }, 1000);
+
+    // Keep CSRF token fresh — stale token at hit time costs a full retry round-trip
+    if (_csrfKeepAlive) clearInterval(_csrfKeepAlive);
+    _csrfKeepAlive = setInterval(() => { if (sniperActive) refreshSessionCsrf(true); }, 4 * 60 * 1000);
 }
 
 async function snapshotAllPages() {
-    const ids = {}; let maxId = 0, cursor = '', pages = 0;
-    const MAX_PAGES = 10;
-    setSniperStatus('Snapshotting ' + MAX_PAGES + ' pages…', 'loading');
-    do {
-        let url = BASE + '/apisite/catalog/v1/search/items?limit=28&sortType=2&_=' + Date.now();
-        if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
-        const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
-        if (!r.ok) break;
-        const j = await r.json();
-        (j.data || []).forEach(x => { ids[x.id] = true; if (x.id > maxId) maxId = x.id; });
-        cursor = j.nextPageCursor || '';
-        pages++;
-        setSniperStatus('Snapshotting page ' + pages + '/' + MAX_PAGES + '…', 'loading');
-    } while (cursor && pages < MAX_PAGES);
+    const ids = {}; let maxId = 0;
+    const PAGES_PER_FEED = Math.ceil(10 / SNIPER_FEEDS.length); // same total budget, split across feeds
+    setSniperStatus('Snapshotting ' + SNIPER_FEEDS.length + ' feeds…', 'loading');
+
+    // Snapshot all feeds simultaneously — faster startup than sequential
+    await Promise.all(SNIPER_FEEDS.map(async (feed) => {
+        let cursor = '', pages = 0;
+        do {
+            let url = BASE + feed + '&_=' + Date.now();
+            if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+            try {
+                const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
+                if (!r.ok) break;
+                const j = await r.json();
+                (j.data || []).forEach(x => { ids[x.id] = true; if (x.id > maxId) maxId = x.id; });
+                cursor = j.nextPageCursor || '';
+            } catch(_) { break; }
+            pages++;
+        } while (cursor && pages < PAGES_PER_FEED);
+    }));
+
     sniperMaxSeenId = maxId;
     return ids;
 }
 
 async function startSniper() {
     loadSniperSettings();
+    _sniperHitLock = false;
     const btn = document.getElementById('st-sniper-btn');
     if (btn) { btn.innerHTML = '<span class="st-spin">↻</span> Snapshotting…'; btn.disabled = true; }
     setSniperStatus('Fetching catalog snapshot…', 'loading');
@@ -268,9 +314,9 @@ async function startSniper() {
         sniperActive = true; checkCount = 0;
         GM_setValue('sniperActive', true);
         GM_setValue('sniperBlacklist', JSON.stringify(sniperBlacklist));
-        log('Sniper armed — ' + Object.keys(sniperBlacklist).length + ' items, maxID: ' + sniperMaxSeenId, 'success');
+        log('Sniper armed — ' + Object.keys(sniperBlacklist).length + ' items across ' + SNIPER_FEEDS.length + ' feeds, maxID: ' + sniperMaxSeenId, 'success');
         updateSniperBtn(true);
-        setSniperStatus('Sniping for new items…', 'active');
+        setSniperStatus('Sniping across ' + SNIPER_FEEDS.length + ' feeds…', 'active');
         if (btn) btn.disabled = false;
         if (typeof showSniperPill === 'function') showSniperPill();
         startDispatch();
@@ -283,10 +329,11 @@ async function startSniper() {
 }
 
 function stopSniper() {
-    sniperActive = false;
+    sniperActive = false; _sniperHitLock = false;
     if (abortCtrl)    { abortCtrl.abort(); abortCtrl = null; }
     if (dispatchTimer){ clearInterval(dispatchTimer); dispatchTimer = null; }
     if (cpsTimer)     { clearInterval(cpsTimer);      cpsTimer      = null; }
+    if (_csrfKeepAlive){ clearInterval(_csrfKeepAlive); _csrfKeepAlive = null; }
     inFlight = 0; checksPerSec = 0; avgRtt = 0; rttSamples = [];
     GM_setValue('sniperActive', false);
     updateSniperBtn(false);
