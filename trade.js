@@ -98,8 +98,10 @@ function updateTradeSummary() {
     const myC = document.getElementById('st-my-count'); if (myC) myC.textContent = mc;
     const thC = document.getElementById('st-th-count'); if (thC) thC.textContent = tc;
     const sum = document.getElementById('st-trade-summary'); if (sum) sum.style.display = (mc || tc) ? 'block' : 'none';
+    const myRobux    = parseInt(document.getElementById('st-trade-my-robux')?.value)    || 0;
+    const theirRobux = parseInt(document.getElementById('st-trade-their-robux')?.value) || 0;
     const btn = document.getElementById('st-send-btn');
-    if (btn) { const ok = !!tradeTargetId && (mc || tc); btn.disabled = !ok; btn.style.opacity = ok ? '1' : '0.4'; btn.style.pointerEvents = ok ? 'auto' : 'none'; }
+    if (btn) { const ok = !!tradeTargetId && (mc || tc || myRobux > 0 || theirRobux > 0); btn.disabled = !ok; btn.style.opacity = ok ? '1' : '0.4'; btn.style.pointerEvents = ok ? 'auto' : 'none'; }
 }
 
 // ─── Intersection inventory (All Accounts mode) ───────────────────────────
@@ -182,11 +184,11 @@ async function resolveAcctUserId(i) {
     } catch(_) { return null; }
 }
 
-async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUserAssetIds) {
+async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUserAssetIds, myRobux, theirRobux) {
     const label = acctIdx === -1 ? 'session' : accounts[acctIdx].username;
     const payload = JSON.stringify({ offers: [
-        { robux: null, userAssetIds: myUserAssetIds,    userId: acctUserId    },
-        { robux: null, userAssetIds: theirUserAssetIds, userId: tradeTargetId },
+        { robux: myRobux    || null, userAssetIds: myUserAssetIds,    userId: acctUserId    },
+        { robux: theirRobux || null, userAssetIds: theirUserAssetIds, userId: tradeTargetId },
     ]});
     try {
         let res;
@@ -206,6 +208,8 @@ async function sendTradeOfferFrom(acctIdx, acctUserId, myUserAssetIds, theirUser
 async function sendTradeOffer() {
     if (!tradeTargetId) return;
     const theirUserAssetIds = Array.from(theirSelected);
+    const myRobux    = Math.max(0, parseInt(document.getElementById('st-trade-my-robux')?.value)    || 0) || null;
+    const theirRobux = Math.max(0, parseInt(document.getElementById('st-trade-their-robux')?.value) || 0) || null;
     const count  = Math.max(1, Math.min(100, parseInt(document.getElementById('st-trade-count')?.value) || 1));
     const delay  = Math.max(0, parseInt(document.getElementById('st-trade-delay')?.value) || 0);
     const btn    = document.getElementById('st-send-btn');
@@ -231,7 +235,8 @@ async function sendTradeOffer() {
 
     const tasks = Array.from({ length: count }, (_, n) => validMeta[n % validMeta.length]);
     const total = tasks.length;
-    log('Sending ' + total + ' trade(s) to ' + tradeTargetName + (delay > 0 ? ' (delay: ' + delay + 'ms)' : '') + '…', 'info');
+    const robuxDesc = [myRobux ? `+R$${myRobux} yours` : '', theirRobux ? `+R$${theirRobux} theirs` : ''].filter(Boolean).join(', ');
+    log('Sending ' + total + ' trade(s) to ' + tradeTargetName + (robuxDesc ? ' [' + robuxDesc + ']' : '') + (delay > 0 ? ' (delay: ' + delay + 'ms)' : '') + '…', 'info');
     setTradeStatus('Sending 0/' + total + '…', '#eab308');
 
     let sent = 0, failed = 0, taskIdx = 0;
@@ -239,7 +244,7 @@ async function sendTradeOffer() {
         while (taskIdx < tasks.length) {
             const task = tasks[taskIdx++];
             if (taskIdx > 1 && delay > 0) await sleep(delay);
-            const ok = await sendTradeOfferFrom(task.idx, task.acctId, task.myUAIds, theirUserAssetIds);
+            const ok = await sendTradeOfferFrom(task.idx, task.acctId, task.myUAIds, theirUserAssetIds, myRobux, theirRobux);
             if (ok) sent++; else failed++;
             setTradeStatus('Sending ' + (sent + failed) + '/' + total + ' — ' + sent + ' sent, ' + failed + ' failed…', '#eab308');
         }
