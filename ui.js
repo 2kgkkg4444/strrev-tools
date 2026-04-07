@@ -537,37 +537,6 @@ function buildUI() {
                             <button id="st-obc-btn" class="st-btn-primary" style="width:100%;padding:11px;font-size:12px;">👑 Set Membership</button>
                             <div id="st-obc-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
                         </div>
-                        <div style="background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:13px;padding:20px;">
-                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-text4);margin-bottom:4px;">🚀 Batch API Request</div>
-                            <div style="font-size:10px;color:var(--c-text3);margin-bottom:12px;line-height:1.6;">Fire any strrev.com API endpoint across all selected accounts at once.</div>
-                            <div style="margin-bottom:8px;">
-                                <div style="font-size:11px;color:var(--c-text3);margin-bottom:5px;">URL <span style="color:var(--c-text4);">(full or path-relative)</span></div>
-                                <input id="st-batch-url" class="st-input" type="text" placeholder="e.g. /api/easter-eggs/update?count=55" style="font-family:'Fira Code',monospace;font-size:11px;">
-                            </div>
-                            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                <div style="flex:1;">
-                                    <div style="font-size:11px;color:var(--c-text3);margin-bottom:5px;">Method</div>
-                                    <select id="st-batch-method" style="width:100%;padding:9px 10px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:9px;color:var(--c-text1);font-size:12px;outline:none;cursor:pointer;">
-                                        <option value="GET">GET</option>
-                                        <option value="POST" selected>POST</option>
-                                        <option value="PUT">PUT</option>
-                                        <option value="PATCH">PATCH</option>
-                                        <option value="DELETE">DELETE</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div style="margin-bottom:10px;">
-                                <div style="font-size:11px;color:var(--c-text3);margin-bottom:5px;">Body JSON <span style="color:var(--c-text4);">(optional, for POST/PUT/PATCH)</span></div>
-                                <textarea id="st-batch-body" class="st-input" rows="2" placeholder='e.g. {"count":55}' style="resize:vertical;min-height:50px;font-family:&quot;Fira Code&quot;,monospace;font-size:11px;"></textarea>
-                            </div>
-                            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;" id="st-batch-presets">
-                                <button class="st-btn-secondary" style="font-size:10px;padding:5px 10px;" onclick="document.getElementById('st-batch-url').value='/api/easter-eggs/update?count=55';document.getElementById('st-batch-method').value='POST';document.getElementById('st-batch-body').value='';">🥚 Easter Eggs ×55</button>
-                                <button class="st-btn-secondary" style="font-size:10px;padding:5px 10px;" onclick="document.getElementById('st-batch-url').value='/api/daily-case/open';document.getElementById('st-batch-method').value='POST';document.getElementById('st-batch-body').value='{}';">🎁 Daily Case</button>
-                            </div>
-                            <button id="st-batch-btn" class="st-btn-primary" style="width:100%;padding:11px;font-size:12px;">🚀 Send to All Accounts</button>
-                            <div id="st-batch-status" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;border:1px solid var(--c-border2);background:var(--c-bg0);font-size:11px;color:var(--c-text2);word-break:break-word;"></div>
-                            <div id="st-batch-results" style="margin-top:8px;"></div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -610,6 +579,16 @@ function buildUI() {
                                 <div><div style="font-size:10px;color:var(--c-text4);font-weight:700;text-transform:uppercase;letter-spacing:0.9px;margin-bottom:6px;display:flex;align-items:center;gap:6px;"><div style="width:6px;height:6px;border-radius:50%;background:#3b82f6;"></div>Their Offer</div><div id="st-th-inv" class="st-inv-box"><div style="padding:12px;text-align:center;color:var(--c-text4);font-size:11px;">Load a user first</div></div></div>
                             </div>
                             <div id="st-trade-summary" style="display:none;padding:11px 16px;background:var(--c-bg0);border:1px solid var(--c-border2);border-radius:10px;margin-bottom:12px;text-align:center;font-size:12px;"><span style="color:var(--c-accent);font-weight:700;">You offer: <span id="st-my-count">0</span></span><span style="color:var(--c-text3);margin:0 14px;">↔</span><span style="color:#3b82f6;font-weight:700;">Request: <span id="st-th-count">0</span></span></div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                                <div style="background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:9px;padding:10px 12px;">
+                                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.9px;color:var(--c-accent);margin-bottom:6px;">R$ You Add</div>
+                                    <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:700;color:var(--c-accent);font-family:'Fira Code',monospace;">R$</span><input id="st-trade-my-robux" type="number" min="0" value="0" style="flex:1;padding:7px 10px;background:var(--c-bg0);border:1px solid var(--c-border);border-radius:7px;color:var(--c-accent);font-size:13px;font-weight:700;font-family:'Fira Code',monospace;outline:none;text-align:right;" oninput="this.value=Math.max(0,parseInt(this.value)||0)"></div>
+                                </div>
+                                <div style="background:var(--c-bg2);border:1px solid var(--c-border2);border-radius:9px;padding:10px 12px;">
+                                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.9px;color:#3b82f6;margin-bottom:6px;">R$ You Request</div>
+                                    <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:700;color:#3b82f6;font-family:'Fira Code',monospace;">R$</span><input id="st-trade-their-robux" type="number" min="0" value="0" style="flex:1;padding:7px 10px;background:var(--c-bg0);border:1px solid var(--c-border);border-radius:7px;color:#3b82f6;font-size:13px;font-weight:700;font-family:'Fira Code',monospace;outline:none;text-align:right;" oninput="this.value=Math.max(0,parseInt(this.value)||0)"></div>
+                                </div>
+                            </div>
                             <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="font-size:11px;color:var(--c-text3);">Send × times:</div><input id="st-trade-count" type="number" min="1" max="100" value="1" style="width:64px;padding:8px 10px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:8px;color:var(--c-accent);font-size:13px;font-weight:700;font-family:'Fira Code',monospace;outline:none;text-align:center;"><div style="font-size:11px;color:var(--c-text3);">Delay (ms):</div><input id="st-trade-delay" type="number" min="0" max="5000" value="300" style="width:72px;padding:8px 10px;background:var(--c-bg2);border:1px solid var(--c-border);border-radius:8px;color:var(--c-text1);font-size:12px;font-family:'Fira Code',monospace;outline:none;text-align:center;"></div>
                             <button id="st-send-btn" disabled class="st-btn-primary" style="width:100%;padding:13px;opacity:0.4;pointer-events:none;">🔄 Send Trade Offer</button>
                         </div>
@@ -720,6 +699,8 @@ function buildUI() {
     document.getElementById('st-load-btn').addEventListener('click', loadTradeTarget);
     document.getElementById('st-trade-input').addEventListener('keydown', e => { if(e.key==='Enter') loadTradeTarget(); });
     document.getElementById('st-send-btn').addEventListener('click', sendTradeOffer);
+    document.getElementById('st-trade-my-robux')?.addEventListener('input', updateTradeSummary);
+    document.getElementById('st-trade-their-robux')?.addEventListener('input', updateTradeSummary);
 
     // People
     document.getElementById('st-lookup-btn').addEventListener('click', lookupUserProfile);
@@ -736,8 +717,6 @@ function buildUI() {
     document.getElementById('st-promo-btn').addEventListener('click', redeemPromoCode);
     document.getElementById('st-promo-input').addEventListener('keydown', e => { if(e.key==='Enter') redeemPromoCode(); });
     document.getElementById('st-obc-btn').addEventListener('click', upgradeToOBC);
-    document.getElementById('st-batch-btn').addEventListener('click', runBatchApiRequest);
-    document.getElementById('st-batch-url').addEventListener('keydown', e => { if (e.key === 'Enter') runBatchApiRequest(); });
 
     // API Scanner
     wireScannerUI();
